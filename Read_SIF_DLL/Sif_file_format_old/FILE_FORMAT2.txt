@@ -1,0 +1,528 @@
+Andor SIF File Format						Version 1.4
+								Last Modified 06/10/04
+
+
+
+   Andor SIF files contain the data obtained from the Andor range of detectors. The data can 
+be a simple 2D spectrum, a series of such spectra or a series of multi-track images. The Andor 
+file format is based on C++ streams and hence may be difficult to read in using other languages. 
+The purpose of this document is to allow the user to read in an SIF file using a language other than 
+C++(e.g. C). In this way the user can strip away all the header information and use the raw image 
+data for further manipulation, for example to create a different file format. 
+   The SIF file may contain 5 sets of data which may be related to SIGNAL, REFERENCE, 
+BACKGROUND, LIVE and SOURCE. Any of these data sets may or may not be present. If a data 
+set is present then the variable ‘set_present’ will store the value ‘1’, if it is not then the variable will 
+store the value ‘0’. Each data set if present, contains a header and a data area. A data set can 
+contain information from either a single spectrum (image) or a kinetic series of spectra (images). 
+All of the data from the series is contained from within the single data area. The header contains the 
+number of samples (Image.no_images) in the series.  Each of these images may be made up of 
+many sub_images. The format for each sub_image is stored in the file.
+   The header is made up of multiple structures each of which has its own version stamp. The 
+version numbers should be checked against those version numbers listed in the algorithm section of 
+this document to confirm that the file being read is the current version. Images with different 
+version numbers will have different file structures.
+   Users who wish to develop their own code, may do so by using the algorithm set out in the 
+following pages. Start by using the Main algorithm. This Main algorithm calls 3 sub-algorithms, 
+called TInstaImage, TCalibImage and TImage. The TInstaImage sub-algorithm calls 3 further sub-
+algorithms TUserText, TShutter and TShamrockSave. TImage calls TSubImage. All of these sub-algorithms are 
+listed in the following pages. There are also structure definitions in the following pages which have 
+a one-to-one correspondence with the sub-algorithms. When stepping through the structure, one 
+byte should be read at a time until the specified terminator is reached. This approach  is 
+recommended, rather than trying to jump to a certain offset within the file as this will not be the 
+same from one file to the next.
+   The alternative to developing code for reading the SIF file is to use the C program supplied called 
+‘AndorSIF.exe’. The source files (AndorSIF.c and AndorSIF.h)  may also be modified to suit the users 
+requirements.  This program is a 32bit program which was developed under Windows NT. It will 
+work under both Windows 95 and Windows NT. It was developed as a C only program, however, it 
+may work as a C++ program with some modification. The base types for each variable are defined 
+in  the AndorSIF.h file and in the Data Structure at the end of this document.
+   In the SIF format numbers are in fact written out as text and not as their binary representation e.g. 
+consider a 16 bit integer written to the file.  This value cannot simply be read in by reading in the 
+next 2 bytes.  Instead it is necessary to continue reading in bytes until either a <Space> or a <NEW 
+LINE> character is encountered. The resultant test string is then converted to an integer.  A similar 
+method is used to read in floating point numbers. BYTE variables are different in that the actual 
+byte value is written out.  Hence to read the value back in, simply read in 1 byte (i.e. a character). 
+BYTE variables are clearly marked in the algorithm below. 
+
+NOTE: For the actual image data, read in 4 bytes at a time storing 
+each 4 bytes in a floating point buffer. The data can then be 
+manipulated from the floating  point buffer.
+
+
+
+
+   The following details describe  the syntax of some of the data types contained within the file 
+structure.
+
+
+<NEW LINE>      	ASCII character 10
+<Space> or <SP>        ASCII character 32
+<len BYTEs>     	Read in “len” BYTEs i.e. the  number of bytes.
+
+When encountering a sequence similar to the following one below
+						
+ len<NEW LINE>
+ <len BYTEs>head_model<NEW LINE>
+
+‘len’ refers to the number of bytes in the string which follows. First of all read in ‘len’  and  its 
+terminating character, then read in the next ‘len’(where len is an integer) bytes to form the string.
+
+
+
+
+NB: It is intended that this document will be expanded in the future to explain the meaning of the 
+variables of the data structure.
+
+
+
+
+Any queries regarding this software contact us by E-mail : info@andor-tech.com
+
+
+
+
+
+
+
+
+
+
+
+ The following section is the Main algorithm for reading in the file.
+
+BEGIN
+   ”text”<NEW LINE>        (must read “Oriel Instruments Multi-Channel File”)
+   version<SP>		 (must read 65538)
+   
+      Is_Present<NEW LINE> /* This variable is an integer */
+       IF Is_Present = 1 {	    /* SIGNAL */		
+         TInstaImage	
+         TCalibImage
+         TImage
+         }
+      Is_Present<NEW LINE> /* This variable is an integer */
+       IF Is_Present = 1 {          /* REFERENCE */
+         TInstaImage
+         TCalibImage
+         TImage
+         }
+      Is_Present<NEW LINE> /* This variable is an integer */
+       IF Is_Present = 1 {          /* BACKGROUND */
+         TInstaImage
+         TCalibImage
+         TImage
+         }
+      Is_Present<NEW LINE> /* This variable is an integer */
+       IF Is_Present = 1 {          /* LIVE */
+         TInstaImage
+         TCalibImage
+         TImage
+         }
+      Is_Present<NEW LINE> /* This variable is an integer */
+       IF Is_Present = 1 {          /* SOURCE */
+         TInstaImage
+         TCalibImage
+         TImage
+         }
+
+END
+
+End of  Main algorithm
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Algorithm for TInstaImage
+
+TInstaImage
+   version<SP>	(must read 65543)
+   type<SP>
+   active<SP>
+   structure_version<SP>
+   timedate<SP>
+   temperature<SP>
+   <BYTE>head<SP>
+   <BYTE>store_type<SP>
+   <BYTE>data_type<SP>
+   <BYTE>mode<SP>
+   <BYTE>trigger_source<SP>
+    trigger_level<SP>
+    exposure_time<SP>
+    delay<SP>
+    integration_cycle_time<SP>
+    no_integrations<SP>
+    <BYTE>sync
+    kinetic_cycle_time<SP>
+    pixel_readout_time<SP>
+    no_points<SP>
+   fast_track_height<SP>
+   gain<SP>
+   gate_delay<SP>
+   gate_width<SP>
+   gate_step<SP>
+   track_height<SP>
+   series_length<SP>
+   <BYTE>read_pattern<SP>
+   <BYTE>shutter_delay<SP>
+   st_centre_row<SP>
+   mt_offset<SP>
+   operation_mode<SP>
+   FlipX<SP>
+   FlipY<SP>
+   Clock<SP>
+   AClock<SP>
+   MCP<SP>
+   Prop<SP>
+   IOC<SP>
+   Freq<SP>
+   VertClockAmp<SP>
+   data_v_shift_speed<SP>
+   OutputAmp<SP>
+   PreAmpGain<SP>
+   Serial<SP>
+   NumPulses<SP>
+   mFrameTransferAcqMode<SP>
+   unstabilizedTemperature<SP>
+   mBaselineClamp<SP>
+   mPreScan<SP>
+   mEMRealGain<SP>
+   mBaselineOffset<SP>
+   mSWVersion<SP>
+   len<NEW LINE>
+  <len BYTEs>head_model<SP><NEW LINE><SP>
+  detector_format_x<SP>
+  detector_format_y<SP>
+  len<NEW LINE>  
+  <len BYTEs>filename<SP><NEW LINE>
+           TUserText
+           TShutter
+           TShamrockSave
+  end TInstaImage
+
+
+Algorithm for TUserText
+
+TUserText
+   version<SP>	(must read 65538)
+   len<NEW LINE>           (could be 0)
+   <len BYTE>text<NEW LINE>
+end TUserText
+
+
+
+
+
+Algorithm for TShutter
+
+TShutter
+   version<SP><SP>	(must read 65538)
+   type<SP>
+   mode<SP>
+   custom_bg_mode<SP>
+   custom_mode<SP>
+   closing_time<SP><SP>
+   opening_time<NEW LINE>
+end TShutter
+
+
+
+
+
+Algorithm for TShamrockSave
+
+TShamrockSave
+   version<SP>		(must read 65536)
+   isActive<SP>
+   waveDrivePresent<SP>
+   wavelength<SP>
+   gratingTurretPresent<SP>
+   grating<SP>
+   gratingLines<SP>
+   gratingBlaze< NEW LINE>
+   slitPresent<SP>
+   slitWidth<SP>
+   flipperMirrorPresent<SP>
+   flipperPort<SP>
+   filterPresent<SP>
+   filterIndex<SP>
+   len<SP>
+   filterLabel<SP>
+   accessoryAttached<SP>
+   port1State<SP>
+   port2State<SP>
+   port3State<SP>
+   inputPortState<SP>
+   outputSlitPresent<SP>
+   outputSlitWidth<SP><NEW LINE>
+end TShamrockSave
+
+
+
+
+
+Algorithm for TCalibImage
+
+TCalibImage
+     version<SP>	(must read 65539)
+     <BYTE>x_type<SP>
+     <BYTE>x_unit<SP>
+     <BYTE>y_type<SP>
+     <BYTE>y_unit<SP>
+     <BYTE>z_type<SP>
+     <BYTE>z_unit<NEW LINE>
+     x_cal[0]<SP>
+     x_cal[1]<SP>
+     x_cal[2]<SP>
+     x_cal[3]<NEW LINE>
+     y_cal[0]<SP>
+     y_cal[1]<SP>
+     y_cal[2]<SP>
+     y_cal[3]<NEW LINE>
+     z_cal[0]<SP>
+     z_cal[1]<SP>
+     z_cal[2]<SP>
+     z_cal[3]<NEW LINE>
+     rayleigh_wavelength<NEW LINE>
+     pixel_length<NEW LINE>
+     pixel_height<NEW LINE>
+     len<NEW LINE>
+     <len BYTEs>x_text
+     len<NEW LINE>
+     <len BYTEs>y_text
+     len<NEW LINE>
+     <len BYTEs>z_text
+end TCalibImage
+
+
+
+Algorithm for TImage
+
+TImage
+   version<SP>	(must read 65538)
+   image_format.left<SP>
+   image_format.top<SP>
+   image_format.right<SP>
+   image_format.bottom<SP>
+   no_images<SP>      /* This number refers to the number of kinetics in the series */
+   no_subimages<SP>
+   total_length<SP>
+   image_length<NEW LINE>
+   repeat following section no_subimages times
+        version<SP>		(must read 65538)
+        TSubImage
+        subimage_offset<NEW LINE>
+   end no_sub_images section
+   repeat following section no_images times
+        time_stamp<NEW LINE>
+   end no_images section
+   repeat following section total_length times
+        read (4*<BYTES>)              // This section is the data for the image 
+   end total_length section 
+end TImage
+
+
+
+
+
+
+Algorithm for TSubImage
+
+TSubImage
+   left<SP>
+   top<SP>
+   rigth<SP>
+   bottom<SP>
+  vertical_bin<SP>
+  horizontal_bin<SP>
+end TSubImage
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The following section is the Data Structure for a ‘C’ program which is contained in the 
+AndorSIF.h header file.
+
+
+typedef int BYTE;
+
+class TShutter
+{
+   char type;
+   char mode;
+   char custom_bg_mode;
+   char custom_mode;
+   float closing_time;
+   float opening_time;
+};
+
+struct TShamrockSave
+{
+  int IsActive;
+  int WavePresent;
+  float Wave;
+  int GratPresent;
+  int GratIndex;
+  float GratLines;
+  char GratBlaze[32];
+  int SlitPresent;
+  float SlitWidth;
+  int FlipperPresent;
+  int FlipperPort;
+  int FilterPresent;
+  int FilterIndex;
+  char FilterString[32];
+  int AccessoryPresent;
+  int Port1State;
+  int Port2State;
+  int Port3State;
+  int Port4State;
+  int OutputSlitPresent;
+  float OutputSlitWidth;
+};
+
+struct LONG_RECT
+{
+   int left;
+   int top;
+   int right;
+   int bottom;
+};
+
+struct TSubImage
+{
+   int left;
+   int top;
+   int right;
+   int bottom;
+   int vertical_bin;
+   int horizontal_bin;
+};
+
+class TUserText
+{
+   char* text_ptr;
+};
+
+struct TImage
+{
+   struct TSubImage *position;
+   struct LONG_RECT image_format;
+   int no_subimages;               // per image
+   int no_images;                     // each image format must be identical
+   unsigned long *subimage_offset;
+   unsigned long *time_stamps;
+   unsigned long image_length;
+   unsigned long total_length;
+   float huge *array;
+};
+
+
+
+
+
+
+
+
+
+struct TCalibImage
+{
+   BYTE x_type;
+   BYTE x_unit;
+   BYTE y_type;
+   BYTE y_unit;
+   BYTE z_type;
+   BYTE z_unit;
+   float x_cal[4];
+   float y_cal[4];
+   float z_cal[4];
+   char* x_text;
+   char* y_text;
+   char* z_text;
+   float rayleigh_wavelength;
+   float pixel_length;
+   float pixel_height;
+};
+
+struct TInstaImage
+{
+   BYTE head;                         // which head 1 2 etc
+   BYTE store_type;                // single background reference source etc
+   BYTE data_type;                 // X,XY,XYZ do not know if this should be here
+   BYTE mode;      	     //realtime singlescan etc
+   BYTE trigger_source;
+   BYTE sync;                         // Internal or external
+   BYTE read_pattern;            // LIS MT or RANDOM
+   BYTE shutter_delay;           // ON or OFF
+   unsigned int type;                // int long float
+   unsigned int active;             // does it contain valid data
+   unsigned int structure_version;
+   int no_integrations;
+   int no_points;                      // must be tied to image_format
+   int fast_track_height;
+   int gain;                               // should this be an index or actual gain
+   int track_height;	    // must be tied to TImage. Not valid in LIS or CI
+   int series_length;                 // must be tied to TImage class
+   int operation_mode;            // InstaSpec II,IV,V
+   int  mt_offset;
+   int st_centre_row;
+   char head_model[270];
+   int detector_format_x;
+   int detector_format_z;
+   time_t timedate;
+   char filename[270];	    // MAXPATH for 32 bit is 260
+   float temperature;
+   float unstabilizedTemperature;
+   float trigger_level;
+   float exposure_time;
+   float delay;
+   float integration_cycle_time;
+   float kinetic_cycle_time;
+   float gate_delay;
+   float gate_width;
+   float GateStep;
+   int FlipX, FlipY, Clock, AClock, Gain, MCP, Prop, IOC;
+   float Freq;
+   float pixel_readout_time;
+   int VertClockAmp;
+   float data_v_shift_speed;
+   int OutputAmp;
+   float PreAmpGain;
+   int Serial;   
+   int NumPulses;
+   int mFrameTransferAcqMode;
+   int mBaselineClamp;
+   int mPreScan;
+   int mEMRealGain;
+   int mBaselineOffset;
+   unsigned long mSWVersion;
+   struct TUserText user_text;
+   struct TShutter shutter;
+};

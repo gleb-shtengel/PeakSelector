@@ -1,0 +1,127 @@
+
+
+There are 3 special functions provided specifically for reading SIF files in Matlab.
+They can be used to retrieve the data and image properties from a SIF file.
+The functions are:-
+ 
+    'GetAndorSifSize'
+    'GetAndorSifData'
+    'GetAndorSifProperty'
+ 
+GetAndorSifSize
+---------------
+
+[ReturnCode, SeriesLength, ImageSize, TotalAcquisitionSize] = GetAndorSifSize('c:\andor\image.sif', 0)
+
+  ReturnCode = 0 if an error occurs
+  ReturnCode = 1 if the function
+
+  TotalAcquisitionSize = the total size of all the images,  i.e. SeriesLength * ImageSize 
+
+  Input parameter 1 = a string with the sif file name
+  Input parameter 2 = the data type you wish to access
+    0: signal
+    1: ref
+    2: background
+    3: source
+    4: live
+
+GetAndorSifData
+---------------
+
+// Declare your result array first
+ResultArray = zeros(1, TotalAcquisitionSize);
+
+[ReturnCode, ResultArray]=GetAndorSifData(TotalAcquisitionSize, 0, 'c:\andor\image.sif') 
+
+  ReturnCode = 0 if an error occurs
+  ReturnCode = 1 if the function
+
+  Input parameter 1 = the total size of all the images, i.e. TotalAcquisitionSize =  SeriesLength * ImageSize 
+  Input parameter 2 = the data type you wish to access
+    0: signal
+    1: ref
+    2: background
+    3: source
+    4: live
+  Input parameter 3 = a string with the sif file name
+
+
+GetAndorSifProperty
+-------------------
+
+[ReturnCode, HeadModel] = GetAndorSifProperty('c:\andor\image.sif', 'HeadModel', 0)
+[ReturnCode, ExposureTime] = GetAndorSifProperty('c:\andor\image.sif', 'ExposureTime', 0)
+
+  ReturnCode = 0 if an error occurs
+  ReturnCode = 1 if the function
+
+  Input parameter 1 = a string with the sif file name
+  Input parameter 2 = the property to be retrieved
+  Input parameter 3 = the data type you wish to access
+    0: signal
+    1: ref
+    2: background
+    3: source
+    4: live
+
+The full list of properties which can be retrieved are:-
+
+AClock
+Active
+BaselineClamp
+BaselineOffset
+CentreRow
+Clock
+DataType
+Delay
+DetectorFormatX
+DetectorFormatZ
+EMRealGain
+ExposureTime
+FileName
+FlipX
+FlipY
+FormattedTime
+FrameTransferAcquisitionMode
+Frequency
+Gain
+Head
+HeadModel
+IntegrationCycleTime
+IOC
+KineticCycleTime
+MCP
+Mode
+ModeFullName
+NumberImages
+NumberIntegrations
+NumberPulses
+Operation
+OutputAmplifier
+PixelReadOutTime
+PreAmplifierGain
+PreScan
+ReadPattern
+ReadPatternFullName
+RowOffset
+Serial
+ShutterDelay
+SIDisplacement
+SINumberSubFrames
+StoreType
+SWVersion
+SWVersionEx
+Temperature
+Time
+TrackHeight
+TriggerLevel
+TriggerSource
+TriggerSourceFullName
+Type
+UnstabalizedTemperature
+Version
+VerticalClockAmp
+VerticalShiftSpeed
+
+

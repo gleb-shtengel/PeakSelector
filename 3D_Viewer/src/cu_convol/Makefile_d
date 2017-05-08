@@ -1,0 +1,15 @@
+# Define where things are:
+CUDA_INSTALL_PATH=/usr/local/cuda
+IDLDIR=/usr/local/itt/idl64
+CUDA_SDK=/usr/local/NVIDIA_CUDA_SDK
+INCL=-I $(CUDA_INSTALL_PATH)/include -I $(CUDA_SDK)/common/inc
+IDLINC=-I $(IDLDIR)/external/include
+LIBS=-L $(CUDA_INSTALL_PATH)/lib
+OPTS=--machine 64 --use_fast_math -O3 -Xptxas -v -arch sm_13
+
+dlm : cu_convol_d.c convol_d.cu
+	nvcc $(INCL) $(OPTS) -c -shared -Xcompiler "-fPIC" convol_d.cu
+	$(CC) -Wall $(INCL) $(IDLINC) $(LIBS) -shared -fPIC -O3 -o cu_convol_d.so cu_convol_d.c convol_d.o -lcudart -pthread
+	grep -e '^//dlm:' $< | cut -c 8- > cu_convol_d.dlm
+	rm convol_d.o convol_d.linkinfo
+

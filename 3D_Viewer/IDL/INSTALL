@@ -1,0 +1,27 @@
+=================================
+INSTALL for gpulib IDL package
+=================================
+
+This file describes how to install the gpulib IDL package.  
+Here is a short summary:
+
+1. Install CUDA
+2. Install gpulib
+3. point your IDL_DLM_PATH to the location of the gpulib.dlm file.
+4. point your IDL_PATH to the location of gpuinit.pro
+
+If you just want to use gpulib in the IDL emulation mode, you only need
+to do step 4.
+
+Building of gpulib
+
+Linux: 
+./configure ; make 
+
+Windows:
+build_win
+
+
+
+
+
