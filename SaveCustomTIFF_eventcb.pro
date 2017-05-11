@@ -22,9 +22,17 @@ Event1={ WIDGET, ID:TopID, TOP:TopID, HANDLER:TopID }
 
 Cust_TIFF_window=!D.window
 
-X_ind = min(where(RowNames eq 'X Position'))							; CGroupParametersGP[2,*] - Peak X  Position
-Y_ind = min(where(RowNames eq 'Y Position'))							; CGroupParametersGP[3,*] - Peak Y  Position
-Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
+
+Z_UnwZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+Z_UnwZ_swaped=Widget_Info(Z_UnwZ_swap_menue_ID,/button_set)
+
+X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
+Z_ind = min(where(RowNames eq 'Z Position'))                            ; CGroupParametersGP[34,*] - Peak Z Position
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))                    ; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
 
 Cust_TIFF_3D = 0
 Cust_TIFF_volume_image = 0
@@ -56,8 +64,13 @@ Wid_WID_DRAW_Custom_TIFF_IS = Widget_Info(wWidget, find_by_uname='WID_DRAW_Custo
 widget_control,Wid_WID_DRAW_Custom_TIFF_IS, DRAW_XSIZE =Cust_TIFF_Pix_X,DRAW_YSIZE=Cust_TIFF_Pix_Y
 
 WID_IMAGE_Zcoord_Parameters_ID = Widget_Info(wWidget, find_by_uname='WID_IMAGE_Zcoord_Parameters')
-Cust_TIFF_Z_start=ParamLimits[Z_ind,0]
-Cust_TIFF_Z_stop=ParamLimits[Z_ind,1]
+if Z_UnwZ_swaped then begin
+	Cust_TIFF_Z_start=ParamLimits[UnwZ_ind,0]
+	Cust_TIFF_Z_stop=ParamLimits[UnwZ_ind,1]
+endif else begin
+	Cust_TIFF_Z_start=ParamLimits[Z_ind,0]
+	Cust_TIFF_Z_stop=ParamLimits[Z_ind,1]
+endelse
 Zstep=cust_nm_per_pix/Cust_TIFF_Z_multiplier
 params=[Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Zstep, Cust_TIFF_Z_multiplier]
 widget_control,WID_IMAGE_Zcoord_Parameters_ID,set_value=transpose(params), use_table_select=[0,0,0,3]
@@ -724,10 +737,14 @@ XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
 testXZ=Widget_Info(XZ_swap_menue_ID,/button_set)
 YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
 testYZ=Widget_Info(YZ_swap_menue_ID,/button_set)
+Z_UnwZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+Z_UnwZ_swaped=Widget_Info(Z_UnwZ_swap_menue_ID,/button_set)
 
 print, 'FilterItem=',FilterItem,(FilterItem ? '     (Groups)' : '     (Peaks)')
 X_ind = FilterItem ? GrX_ind : X_ind
 Y_ind = FilterItem ? GrY_ind : Y_ind
+Z_ind = Z_UnwZ_swaped ? UnwZ_ind : Z_ind
+GrZ_ind = Z_UnwZ_swaped ? UnwGrZ_ind : GrZ_ind
 Z_ind = FilterItem ? GrZ_ind : Z_ind
 xs_ind = FilterItem ? GrSigX_ind : SigX_ind
 ys_ind = FilterItem ? GrSigY_ind : SigY_ind

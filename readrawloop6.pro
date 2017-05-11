@@ -243,11 +243,8 @@ clipsz=size(clip)
 Nx=clipsz[1]
 Ny=clipsz[2]
 criteriaclip=(clip-0.9*smooth(totdat,3))>0.5
-;dk=5	&	dl=2
 dk=2*d+1	&	dl=d
 xyvals=findgen(dk)-dl
-;Gauss_sigma=1.3
-;Gauss_sigma=float(d)/4
 gcx=exp(-(xyvals^2)/Gauss_sigma^2/2.)
 gausscenter=gcx#gcx
 gausscenter=gausscenter-mean(gausscenter)
@@ -582,7 +579,7 @@ if (DisplayType eq 0) then begin
 	xyouts,0.05,0.02,trash,/normal		;0.85,0.92
 endif
 for frameindx=0,Nframes-1 do begin
-	if (DisplayType eq -1) and (0 eq (frameindx mod 50)) then print,'Frameindex=',frameindx
+	if (DisplayType eq -1) and (0 eq (frameindx mod 10)) then print,'Frameindex=',frameindx
 	if Nframes gt 1 then clip=reform(data[*,*,frameindx]) else clip=data
 	if (DisplayType ge 1) and ((frameindx mod 200) eq 0) then DisplaySet=2 else DisplaySet=DisplayType
 
@@ -1195,7 +1192,9 @@ end
 ;
 Pro ReadRawLoop_Bridge_Top			;Master program to read data and loop through processing for cluster
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-restore,'temp/temp.sav'
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
+
+restore,'temp'+sep+'temp.sav'
 print,'Starting IDL bridge worker routines'
 ;Starting IDL bridge workers
 obridge=obj_new("IDL_IDLBridge", output='')
@@ -1237,14 +1236,15 @@ SHMUnmap, shmName
 
 thefile_no_exten=pth+filen
 for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
-	framefirst=	thisfitcond.Frm0 + (nlps)*increment						;first frame in batch
+    framefirst=	thisfitcond.Frm0 + (nlps)*increment						;first frame in batch
 	framelast=((thisfitcond.Frm0 + (nlps+1)*increment-1)<thisfitcond.Nframesmax) < thisfitcond.FrmN
-	test1=file_info(pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks')
+	loc_file = pth+sep+'temp'+sep+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+	test1=file_info(loc_file)
 	if ~test1.exists then begin
 		print,'File does not exist: ',test1
 		stop
 	endif
-	restore,filename=pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+	restore, filename = loc_file
 	if (size(Apeakparams))[2] ne 0 then begin
 		if (size(Apeakparams_tot))[2] eq 0 then begin
 			Apeakparams_tot=Apeakparams
@@ -1258,14 +1258,14 @@ for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers
 			image_tot=image_tot/tot_fr*(tot_fr-Nframes)+image/tot_fr*Nframes
 		endelse
 	endif
-	file_delete,pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+	file_delete, loc_file
 	obj_destroy, obridge[nlps]
 endfor
-Apeakparams=Apeakparams_tot
-totdat=totdat_tot
-image=image_tot
-saved_pks_filename=pth+filen+'_'+strtrim(thisfitcond.Frm0,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
-save,Apeakparams,image,xsz,ysz,totdat,thefile_no_exten, filename=saved_pks_filename
+Apeakparams = Apeakparams_tot
+totdat = totdat_tot
+image = image_tot
+saved_pks_filename = pth+filen+'_'+strtrim(thisfitcond.Frm0,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+save, Apeakparams,image,xsz,ysz,totdat,thefile_no_exten, filename = saved_pks_filename
 print,'Wrote file '+saved_pks_filename
 return
 end
@@ -1273,15 +1273,8 @@ end
 ;------------------------------------------------------------------------------------
 ;
 Pro	ReadRawLoop_Bridge_Worker,nlps,data_dir,OS_handle_val1						;spawn mulitple copies of this programs for cluster
-
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 cd,data_dir
-;CATCH, Error_status
-;IF Error_status NE 0 THEN BEGIN
-;    rep='RdRwLp_Brdg_Wrkr Err_ind:'+string(Error_status)
-;	if strlen(rep) ge max_len then rep=strmid(rep,0,max_len) else rep=(rep+string(bytarr(max_len-strlen(rep))+32B))
-;	Reports[rep_i:(rep_i+strlen(rep)-1)]=byte(rep)
-;	CATCH, /CANCEL
-;ENDIF
 
 CATCH, Error_status
 IF Error_status NE 0 THEN BEGIN
@@ -1293,7 +1286,7 @@ IF Error_status NE 0 THEN BEGIN
 	CATCH, /CANCEL
 	return
 ENDIF
-restore,'temp/temp.sav'
+restore,'temp'+sep+'temp.sav'
 
 ;debug_fname='temp/debug'+strtrim(nlps,2)+'.txt'
 ;close,(nlps+3)
@@ -1333,8 +1326,9 @@ loc=fltarr(xsz*mg,ysz*mg)
 filter=((Apeakparams.fitok eq 1) or (Apeakparams.fitok eq 2))
 loc[[mg*Apeakparams.peakx],[mg*Apeakparams.peaky]]=255*filter
 image=float(loc)
-save,Apeakparams,image,xsz,ysz,totdat,filename=pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks',thefile_no_exten
-rep='Wrote file '+pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+loc_file = pth+sep+'temp'+sep+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+save,Apeakparams,image,xsz,ysz,totdat,thefile_no_exten, filename=loc_file
+rep='Wrote file '+loc_file
 if strlen(rep) ge max_len then rep=strmid(rep,0,max_len) else rep=(rep+string(bytarr(max_len-strlen(rep))+32B))
 Reports[rep_i:(rep_i+strlen(rep)-1)]=byte(rep)
 return

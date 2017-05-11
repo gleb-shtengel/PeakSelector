@@ -2347,7 +2347,7 @@ common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, s
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
+common AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common Offset, PkWidth_offset
 common Zdisplay, Z_scale_multiplier, vbar_top
@@ -2355,6 +2355,8 @@ common SaveASCII, SaveASCII_Filename, SaveASCII_Filter, SaveASCII_units, SaveASC
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -3077,7 +3079,7 @@ if xory or zhist then begin
 	yfwhm_multilable = dblarr(lbl_cnt,2)
 endif
 
-DoLogX = (hist_log_x eq 1) and (min(ParamLimits[event.y,0]) gt 0) and ~xory and ~zhist
+DoLogX = (hist_log_x eq 1) and (min(ParamLimits[event.y,0]) gt 0) and ~xory and ~zhist and (ParamLimits[event.y,1] gt ParamLimits[event.y,0])
 
 for lbl_i=lbl_min,lbl_max do begin
 	lbl_i0=lbl_i-lbl_min
@@ -4403,6 +4405,7 @@ function build_fimage, CGroupParams, filter, ParamLimits, render_ind, render_par
 	Nph_ind = render_ind[5]
 	GrNph_ind = render_ind[6]
 	Frame_Number_ind = render_ind[7]
+	Label_ind = render_ind[8]
 
 	FilterItem = render_params[0]
 	FunctionItem = render_params[1]
@@ -4663,7 +4666,7 @@ if rend_z_color then begin
 	testYZ=Widget_Info(YZ_swap_menue_ID,/button_set)
 endif
 
-render_ind = [X_ind, Y_ind, Z_ind, Xs_ind, Ys_ind, Nph_ind, GrNph_ind, Frame_Number_ind]
+render_ind = [X_ind, Y_ind, Z_ind, Xs_ind, Ys_ind, Nph_ind, GrNph_ind, Frame_Number_ind, Label_ind]
 render_params = [FilterItem, FunctionItem, AccumItem, rend_z_color, lbl_mx, testXZ, testYZ]
 render_win = [cur_win, dxmn, dymn, dxmx, dymx, hue_scale, wxsz, wysz, vbar_top]
 
@@ -5471,7 +5474,7 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
-
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 ;WID_BASE_0_PeakSelector resizing to fit computer screen
 disp_xy=GET_SCREEN_SIZE()
@@ -5520,7 +5523,7 @@ common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, Trans
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 
@@ -5545,7 +5548,7 @@ nd_water=1.33
 nd_oil=1.515
 wfilename=''
 wind_range=220.0
-nmperframe = 50.0			; nm per frame. calibration using piezo parameters
+nmperframe = 25.0			; nm per frame. calibration using piezo parameters
 z_unwrap_coeff = [0.0,0.0,0.0]
 ellipticity_slopes = [0.0,0.0,0.0,0.0]
 AnchorFile=''
@@ -5685,7 +5688,7 @@ common SaveASCII, SaveASCII_Filename, SaveASCII_Filter, SaveASCII_units, SaveASC
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 ini_file_info=FILE_INFO(ini_file)
@@ -6067,6 +6070,27 @@ while (~ EOF(1)) and (strmid(line_i,0,7) ne 'RowLbls') do begin
 			endwhile
 			iPALM_MacroParameters_R  = [iPALM_MacroParameters_R , fix(STRMID(var_val_str2,0,second_br))]
 		endif
+
+		if var_name eq 'Astig_MacroParameters ' then begin
+			first_br=STRPOS(var_value_str,'[')
+			var_val_str1=STRMID(var_value_str,(first_br+1))
+			second_br=STRPOS(var_val_str1,']')
+			var_val_str2=STRMID(var_val_str1,0,second_br)
+			comma_pos=STRPOS(var_val_str2,',')
+			cc=0
+			while comma_pos gt 0 do begin
+				if cc eq 0 then iPALM_MacroParameters_R =fix(STRMID(var_val_str2,0,second_br)) else ImportASCII_ParamList = [ImportASCII_ParamList, fix(STRMID(var_val_str2,0,second_br))]
+				var_val_str2=STRMID(var_val_str2,(comma_pos+1))
+				comma_pos=STRPOS(var_val_str2,',')
+				cc++
+			endwhile
+			iPALM_MacroParameters_R  = [iPALM_MacroParameters_R , fix(STRMID(var_val_str2,0,second_br))]
+		endif
+
+
+
+
+
 	endelse
 	i++
 endwhile

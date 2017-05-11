@@ -1,14 +1,3 @@
-; - Replaced ReadTillNewSpaceSpace() with ReadTillNewSpace() in the version read of TinstaImage
-; - Replaced franes_in_chunk with frames_in_chunk in TImage
-; - Added number_of_chunks = number_of_chunks < TImageParams.no_images	to make sure that the number of chunks does not
-; exceed the number of images
-; - replaced i with number_of_chunks in two places in remainder reading inside TImage
-; -  modified the TImage procedure so that the remainder frames are always read but only returned as ThisData if requested.
-; initially they were not read if the remainedr was not requested, which caused errors reading the rest of the data
-; - replaced "data" with "thisdata" in the initial line thisdata=reform(data,xpix,ypix,frames_in_chunk)inside TImage
-; - added creation and saving the data into .dat file and .txt file
-
-
 ;
 ; -------------------------------------
 ;

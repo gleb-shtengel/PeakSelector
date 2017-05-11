@@ -10,7 +10,7 @@ pro Initialize_Transform_Extract_ReExtract_Filter_GetZ_iPALM, wWidget
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 nlbls=3
 RawFilenames = strarr(nlbls)
@@ -64,7 +64,7 @@ end
 pro OnPickCam1TxtFile, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 filter_to_read = !VERSION.OS_family eq 'unix' ? ['*.txt'] : ['*.txt']
@@ -106,7 +106,7 @@ end
 pro OnPickCam2TxtFile, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 filter_to_read = !VERSION.OS_family eq 'unix' ? ['*.txt'] : ['*.txt']
@@ -147,7 +147,7 @@ end
 pro OnPickCam3TxtFile, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 filter_to_read = !VERSION.OS_family eq 'unix' ? ['*.txt'] : ['*.txt']
@@ -282,7 +282,7 @@ end
 ;
 pro Fill_Parameters_iPALM_Macro, Event
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 TABLE_InfoFile_iPALM_macro_ID = Widget_Info(Event.top, find_by_uname='WID_TABLE_InfoFile_iPALM_macro')
 values=[thisfitcond.zerodark,  thisfitcond.xsz,  thisfitcond.ysz,  thisfitcond.Nframesmax,$
@@ -310,9 +310,8 @@ end
 ;
 pro Set_SigmaFitSym_iPALM, Event
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
-	WidDListSigmaSym = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_SetSigmaFitSym_iPALM')
-	SigmaSym=widget_info(WidDListSigmaSym,/DropList_Select)		;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
+	SigmaSym=widget_info(event.id,/DropList_Select)		;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
 	thisfitcond.SigmaSym = SigmaSym
 	iPALM_MacroParameters = thisfitcond.SigmaSym ?	iPALM_MacroParameters_XY	:	iPALM_MacroParameters_R
 	;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
@@ -324,8 +323,7 @@ end
 ;
 pro Set_TransformEngine_iPALM, Event
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-	WidDListDispLevel = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_TransformEngine_iPALM')
-	TransformEngine = widget_info(WidDListDispLevel,/DropList_Select)
+	TransformEngine = widget_info(event.id,/DropList_Select)
 	print,'Set TransformEngine to ',TransformEngine
 end
 ;
@@ -339,7 +337,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common transformfilenames, lab_filenames, sum_filename
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -724,7 +722,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common transformfilenames, lab_filenames, sum_filename
-common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names

@@ -160,7 +160,7 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro OnSaveEllipticityCal, Event
+pro OnSaveEllipticityCal_Astig, Event
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 BKGRND= 'Black'
@@ -239,6 +239,10 @@ for jp=0,(ip_cnt-1) do begin
 
 	subsetindex=where(filter eq 1,cnt)
 	print,jp,cnt
+	if cnt lt 1 then begin
+		z=dialog_message('Z- GuideStar subset has '+string(cnt)+' points')
+		return      ; if data not loaded return
+	endif
 	print, 'Z- GuideStar subset has ',cnt,' points'
 	if cnt gt 0 then begin
 		;NFrames=long64(max(CGroupParams[Frame_Number,*]))
@@ -443,13 +447,13 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro OnButtonClose, Event
+pro OnButtonClose_Astig, Event
 widget_control,event.top,/destroy
 end
 ;
 ;-----------------------------------------------------------------
 ;
-pro OnPickCalFile, Event
+pro OnPickCalFile_Astig, Event
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 wfilename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav'],title='Select *WND.sav file to open')
@@ -470,7 +474,7 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro OnPickGuideStarAncFile, Event
+pro OnPickGuideStarAncFile_Astig, Event
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, names, modalList
@@ -493,7 +497,7 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro WriteGudeStarRadius, Event
+pro WriteGudeStarRadius_Astig, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, names, modalList
@@ -507,3 +511,5 @@ if BASE_GuideStar_num ge 0 then begin
 endif
 GS_radius = float(GS_radius_txt[0])
 end
+;-----------------------------------------------------------------
+;

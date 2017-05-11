@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	02/28/2017 08:46.15
+; Generated on:	05/11/2017 15:08.08
 VERSION 1
 END
 
@@ -31,12 +31,12 @@ BEGIN
   WID_BUTTON_Close PUSHBUTTON 416 420 145 45
   VALUE "Close"
   ALIGNCENTER
-  ONACTIVATE "OnButtonClose"
+  ONACTIVATE "OnButtonClose_Astig"
   END
   WID_BUTTON_PickCalFile PUSHBUTTON 427 0 150 32
   VALUE "Pick CAL (WND) File"
   ALIGNCENTER
-  ONACTIVATE "OnPickCalFile"
+  ONACTIVATE "OnPickCalFile_Astig"
   END
   WID_TEXT_WindFilename_Astig TEXT 6 4 380 49
   EDITABLE
@@ -85,7 +85,7 @@ BEGIN
   WID_BUTTON_Save_EllipticityAndWind PUSHBUTTON 260 130 180 35
   VALUE "Save Ellipticity Calibration"
   ALIGNCENTER
-  ONACTIVATE "OnSaveEllipticityCal"
+  ONACTIVATE "OnSaveEllipticityCal_Astig"
   END
   WID_TEXT_GuideStarAncFilename_Astig TEXT 15 224 344 49
   EDITABLE
@@ -96,7 +96,7 @@ BEGIN
   WID_BUTTON_PickAncFile PUSHBUTTON 380 250 150 32
   VALUE "Pick ANC File"
   ALIGNCENTER
-  ONACTIVATE "OnPickGuideStarAncFile"
+  ONACTIVATE "OnPickGuideStarAncFile_Astig"
   END
   WID_BASE_WriteEllipticityGuideStar_1 BASE 379 284 0 0
   COLUMNS = 1
@@ -111,7 +111,7 @@ BEGIN
   WID_BUTTON_Write_GuideStarRadius PUSHBUTTON 19 278 250 30
   VALUE "Set Guidestar Area Radius (pix)"
   ALIGNCENTER
-  ONACTIVATE "WriteGudeStarRadius"
+  ONACTIVATE "WriteGudeStarRadius_Astig"
   END
   WID_TEXT_GuideStar_Radius_Astig TEXT 272 278 70 30
   EDITABLE

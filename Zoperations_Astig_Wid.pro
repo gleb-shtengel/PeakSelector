@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	02/28/2017 08:46.20
+; Generated on:	05/11/2017 15:08.13
 ; 
 pro WID_BASE_Z_operations_Astig_event, Event
 
@@ -27,11 +27,11 @@ pro WID_BASE_Z_operations_Astig_event, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Close'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
-        OnButtonClose, Event
+        OnButtonClose_Astig, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_PickCalFile'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
-        OnPickCalFile, Event
+        OnPickCalFile_Astig, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Write_Guide_Star_Astig'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -51,15 +51,15 @@ pro WID_BASE_Z_operations_Astig_event, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Save_EllipticityAndWind'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
-        OnSaveEllipticityCal, Event
+        OnSaveEllipticityCal_Astig, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_PickAncFile'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
-        OnPickGuideStarAncFile, Event
+        OnPickGuideStarAncFile_Astig, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Write_GuideStarRadius'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
-        WriteGudeStarRadius, Event
+        WriteGudeStarRadius_Astig, Event
     end
     else:
   endcase
