@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	05/08/2017 14:38.06
+; Generated on:	05/11/2017 16:38.35
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -508,6 +508,10 @@ pro WID_BASE_0_PeakSelector_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Allow_Bridge'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Set_Allow_Bridge, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Tie_RGB'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Set_Tie_RGB, Event
     end
     else:
   endcase
@@ -1271,6 +1275,15 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_BUTTON_Allow_Bridge = Widget_Button(WID_BASE_Redraw_2,  $
       UNAME='WID_BUTTON_Allow_Bridge' ,/ALIGN_LEFT ,VALUE='Allow'+ $
       ' Bridge')
+
+  
+  WID_BASE_Tie_RGB = Widget_Base(WID_BASE_0_PeakSelector,  $
+      UNAME='WID_BASE_Tie_RGB' ,XOFFSET=415 ,YOFFSET=1005  $
+      ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+
+  
+  WID_BUTTON_Tie_RGB = Widget_Button(WID_BASE_Tie_RGB,  $
+      UNAME='WID_BUTTON_Tie_RGB' ,/ALIGN_LEFT ,VALUE='Tie RGB')
 
   Widget_Control, /REALIZE, WID_BASE_0_PeakSelector
 

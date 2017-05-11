@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	10/02/2012 08:09.09
+; Generated on:	05/11/2017 16:55.48
 ; 
 pro WID_BASE_SaveCustomTIFF_event, Event
 
@@ -109,6 +109,10 @@ pro WID_BASE_SaveCustomTIFF_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Draw_DIC_only_cust_TIFF, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Tie_RGB_CustTIFF'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Set_Tie_RGB_CustTIFF, Event
+    end
     else:
   endcase
 
@@ -202,13 +206,13 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_Save_cust_TIFF_0 =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Save_cust_TIFF_0' ,XOFFSET=130 ,YOFFSET=265  $
+      UNAME='WID_BUTTON_Save_cust_TIFF_0' ,XOFFSET=51 ,YOFFSET=267  $
       ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Save TIFF')
 
   
   WID_BUTTON_ScaleBar_cust_TIFF =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_ScaleBar_cust_TIFF' ,XOFFSET=222 ,YOFFSET=219  $
+      UNAME='WID_BUTTON_ScaleBar_cust_TIFF' ,XOFFSET=222 ,YOFFSET=251  $
       ,SCR_XSIZE=130 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Add Scale'+ $
       ' Bar1')
 
@@ -283,6 +287,17 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       UNAME='WID_BUTTON_Render_cust_DIC' ,XOFFSET=20 ,YOFFSET=225  $
       ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Render Only'+ $
       ' DIC/EM')
+
+  
+  WID_BASE_Tie_RGB_CustTIFF = Widget_Base(WID_BASE_SaveCustomTIFF,  $
+      UNAME='WID_BASE_Tie_RGB_CustTIFF' ,XOFFSET=236 ,YOFFSET=211  $
+      ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+
+  
+  WID_BUTTON_Tie_RGB_CustTIFF =  $
+      Widget_Button(WID_BASE_Tie_RGB_CustTIFF,  $
+      UNAME='WID_BUTTON_Tie_RGB_CustTIFF' ,/ALIGN_LEFT ,VALUE='Tie'+ $
+      ' RGB')
 
   Widget_Control, /REALIZE, WID_BASE_SaveCustomTIFF
 

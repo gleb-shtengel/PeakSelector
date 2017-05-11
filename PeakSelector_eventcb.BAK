@@ -4198,7 +4198,10 @@ if n_elements(CGroupParams) le 1 then begin
 endif
 WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
-labelContrast[0,selectedlabel]=Event.value
+WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
+Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
+if Tie_RGB then labelContrast[0,*]=Event.value else labelContrast[0,selectedlabel]
+;labelContrast[0,selectedlabel]=Event.value
 AdjustContrastnDisplay,Event
 end
 ;
@@ -4213,7 +4216,10 @@ if n_elements(CGroupParams) le 1 then begin
 endif
 WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
-labelContrast[1,selectedlabel]=Event.value
+WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
+Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
+if Tie_RGB then labelContrast[1,*]=Event.value else labelContrast[1,selectedlabel]
+;labelContrast[1,*]=Event.value
 AdjustContrastnDisplay, Event
 end
 ;
@@ -4228,8 +4234,17 @@ if n_elements(CGroupParams) le 1 then begin
 endif
 WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
-labelContrast[2,selectedlabel]=Event.value
+WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
+Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
+if Tie_RGB then labelContrast[1,*]=Event.value else labelContrast[1,selectedlabel]
+;labelContrast[2,selectedlabel]=Event.value
 AdjustContrastnDisplay, Event
+end
+;
+;-----------------------------------------------------------------
+;
+pro Set_Tie_RGB, Event
+	; right now - do nothing.
 end
 ;
 ;-----------------------------------------------------------------
@@ -5548,7 +5563,7 @@ nd_water=1.33
 nd_oil=1.515
 wfilename=''
 wind_range=220.0
-nmperframe = 20.0			; nm per frame. calibration using piezo parameters
+nmperframe = 25.0			; nm per frame. calibration using piezo parameters
 z_unwrap_coeff = [0.0,0.0,0.0]
 ellipticity_slopes = [0.0,0.0,0.0,0.0]
 AnchorFile=''

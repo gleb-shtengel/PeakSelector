@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	05/08/2017 14:38.01
+; Generated on:	05/11/2017 16:39.08
 VERSION 1
 END
 
@@ -819,6 +819,17 @@ BEGIN
     VALUE "Allow Bridge"
     ALIGNLEFT
     ONACTIVATE "Set_Allow_Bridge"
+    END
+  END
+  WID_BASE_Tie_RGB BASE 415 1005 0 0
+  COLUMNS = 1
+  NONEXCLUSIVE
+  CAPTION "IDL"
+  BEGIN
+    WID_BUTTON_Tie_RGB PUSHBUTTON -1 -1 0 0
+    VALUE "Tie RGB"
+    ALIGNLEFT
+    ONACTIVATE "Set_Tie_RGB"
     END
   END
 END

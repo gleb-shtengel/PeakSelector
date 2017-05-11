@@ -197,7 +197,14 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 WidDL_Label_cust_TIFF_ID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label_cust_TIFF')
 selectedlabel = widget_info(WidDL_Label_cust_TIFF_ID,/DropList_Select)
-labelContrast[0,selectedlabel]=Event.value
+
+;WID_BUTTON_Tie_RGB_ID = Widget_Info(TopID, find_by_uname='WID_BUTTON_Tie_RGB')
+;Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
+WID_BUTTON_Tie_RGB_CustTIFF_ID = Widget_Info(Event.top, find_by_uname='WID_BUTTON_Tie_RGB_CustTIFF')
+Tie_RGB_CustTIFF = Widget_Info(WID_BUTTON_Tie_RGB_CustTIFF_ID, /BUTTON_SET)
+if Tie_RGB_CustTIFF then labelContrast[0,*]=Event.value else labelContrast[0,selectedlabel]=Event.value
+;labelContrast[0,selectedlabel]=Event.value
+
 wset,Cust_TIFF_window
 widget_control, /HOURGLASS	;  Show the hourglass
 if Cust_TIFF_3D eq 0 then begin	; 2D image, perfrom standard AdjustContrastnDisplay and adjust main Peakselector window slider
@@ -224,7 +231,10 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 WidDL_Label_cust_TIFF_ID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label_cust_TIFF')
 selectedlabel = widget_info(WidDL_Label_cust_TIFF_ID,/DropList_Select)
-labelContrast[1,selectedlabel]=Event.value
+WID_BUTTON_Tie_RGB_CustTIFF_ID = Widget_Info(Event.top, find_by_uname='WID_BUTTON_Tie_RGB_CustTIFF')
+Tie_RGB_CustTIFF = Widget_Info(WID_BUTTON_Tie_RGB_CustTIFF_ID, /BUTTON_SET)
+if Tie_RGB_CustTIFF then labelContrast[1,*]=Event.value else labelContrast[1,selectedlabel]=Event.value
+;labelContrast[1,selectedlabel]=Event.value
 wset,Cust_TIFF_window
 widget_control, /HOURGLASS	;  Show the hourglass
 if Cust_TIFF_3D eq 0 then begin	; 2D image, perfrom standard AdjustContrastnDisplay and adjust main Peakselector window slider
@@ -251,7 +261,10 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 WidDL_Label_cust_TIFF_ID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label_cust_TIFF')
 selectedlabel = widget_info(WidDL_Label_cust_TIFF_ID,/DropList_Select)
-labelContrast[2,selectedlabel]=Event.value
+WID_BUTTON_Tie_RGB_CustTIFF_ID = Widget_Info(Event.top, find_by_uname='WID_BUTTON_Tie_RGB_CustTIFF')
+Tie_RGB_CustTIFF = Widget_Info(WID_BUTTON_Tie_RGB_CustTIFF_ID, /BUTTON_SET)
+if Tie_RGB_CustTIFF then labelContrast[2,*]=Event.value else labelContrast[2,selectedlabel]=Event.value
+;labelContrast[2,selectedlabel]=Event.value
 wset,Cust_TIFF_window
 widget_control, /HOURGLASS	;  Show the hourglass
 if Cust_TIFF_3D eq 0 then begin	; 2D image, perfrom standard AdjustContrastnDisplay and adjust main Peakselector window slider
@@ -1270,4 +1283,28 @@ image=fimage				;tvrd(true=1)
 AdjustContrastnDisplay, Event
 
 wset,def_w
+end;-----------------------------------------------------------------
+; Activate Button Callback Procedure.
+; Argument:
+;   Event structure:
+;
+;   {WIDGET_BUTTON, ID:0L, TOP:0L, HANDLER:0L, SELECT:0}
+;
+;   ID is the widget ID of the component generating the event. TOP is
+;       the widget ID of the top level widget containing ID. HANDLER
+;       contains the widget ID of the widget associated with the
+;       handler routine.
+
+;   SELECT is set to 1 if the button was set, and 0 if released.
+;       Normal buttons do not generate events when released, so
+;       SELECT will always be 1. However, toggle buttons (created by
+;       parenting a button to an exclusive or non-exclusive base)
+;       return separate events for the set and release actions.
+
+;   Retrieve the IDs of other widgets in the widget hierarchy using
+;       id=widget_info(Event.top, FIND_BY_UNAME=name)
+
+;-----------------------------------------------------------------
+pro Set_Tie_RGB_CustTIFF, Event
+
 end

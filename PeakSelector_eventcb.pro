@@ -4198,7 +4198,10 @@ if n_elements(CGroupParams) le 1 then begin
 endif
 WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
-labelContrast[0,selectedlabel]=Event.value
+WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
+Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
+if Tie_RGB then labelContrast[0,*]=Event.value else labelContrast[0,selectedlabel]=Event.value
+;labelContrast[0,selectedlabel]=Event.value
 AdjustContrastnDisplay,Event
 end
 ;
@@ -4213,7 +4216,10 @@ if n_elements(CGroupParams) le 1 then begin
 endif
 WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
-labelContrast[1,selectedlabel]=Event.value
+WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
+Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
+if Tie_RGB then labelContrast[1,*]=Event.value else labelContrast[1,selectedlabel]=Event.value
+;labelContrast[1,*]=Event.value
 AdjustContrastnDisplay, Event
 end
 ;
@@ -4228,8 +4234,17 @@ if n_elements(CGroupParams) le 1 then begin
 endif
 WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
-labelContrast[2,selectedlabel]=Event.value
+WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
+Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
+if Tie_RGB then labelContrast[2,*]=Event.value else labelContrast[2,selectedlabel]=Event.value
+;labelContrast[2,selectedlabel]=Event.value
 AdjustContrastnDisplay, Event
+end
+;
+;-----------------------------------------------------------------
+;
+pro Set_Tie_RGB, Event
+	; right now - do nothing.
 end
 ;
 ;-----------------------------------------------------------------
