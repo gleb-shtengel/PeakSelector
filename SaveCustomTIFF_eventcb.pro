@@ -377,6 +377,26 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro Save_cust_TIFF_float, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+	filename = Dialog_Pickfile(/write,get_path=fpath)
+	if strlen(fpath) ne 0 then cd,fpath
+	if filename eq '' then return
+	if (size(image))[0] eq 2 then begin
+		filename=AddExtension(filename,'.tif')		; monochrome
+		write_tiff,filename,reverse(image,2),/float
+	endif else begin
+		filename_r=AddExtension(filename,'_r.tif')		; monochrome
+		write_tiff,filename_r,reverse(image[*,*,0],2),/float
+		filename_g=AddExtension(filename,'_g.tif')		; monochrome
+		write_tiff,filename_g,reverse(image[*,*,1],2),/float
+		filename_b=AddExtension(filename,'_b.tif')		; monochrome
+		write_tiff,filename_b,reverse(image[*,*,2],2),/float
+	endelse
+end
+;
+;-----------------------------------------------------------------
+;
 pro SaveImageTIFF_cust, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
@@ -645,7 +665,7 @@ end
 pro Generate_3D_Volume, wxsz, wysz, cust_nm_per_pixel, Zstart, Zstop, z_multiplier, subvol_nm, volume_image, WARN_on_NOGROUPS			;Render the display according to function filter & accum settings (maybe slow)
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 common Zdisplay, Z_scale_multiplier, vbar_top
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 COMMON managed,	ids, $		; IDs of widgets being managed
@@ -780,7 +800,7 @@ start=FLOAT(systime(2))
 if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge then begin
 ; ***** IDL Bridge Version ******************************
 		print,'Starting Bridge rendering, no intermediate display updates'
-		;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+		;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 		npk_sub = ceil(npk_tot/n_br_loops)
 		for i=0, n_br_loops-1 do begin
 			if i eq 0 then begin
@@ -981,43 +1001,53 @@ pro Save_Volume_TIFF_Monochrome, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
-vol_size=size(Cust_TIFF_volume_image)
-if vol_size[0] lt 3 then begin
-	z=dialog_message('No 3D Volume image present')
-	return      ; if data not loaded return
-endif
-filename = Dialog_Pickfile(/write,get_path=fpath)
-if strlen(fpath) ne 0 then cd,fpath
-if filename eq '' then return
-widget_control, /HOURGLASS	;  Show the hourglass
-filename=AddExtension(filename,'.tiff')
-g=reform(labelcontrast[1,1:3]/1000.0,3)
-Cust_TIFF_scl=255.0/Cust_TIFF_max^g
-inf_ind=where(Cust_TIFF_scl eq !VALUES.F_INFINITY,inf_cnt)
-if inf_cnt ge 1 then Cust_TIFF_scl[inf_ind]=0
-
-cust_size=size(Cust_TIFF_volume_image)
-if cust_size[0] eq 4 then Num_frames = cust_size[4] else Num_frames = cust_size[3]
-; cust_size[0] = 4 for multi-color image; cust_size[0] = 3  for single-color image
-
-;********* Status Bar Initialization  ******************
-oStatusBar = obj_new('PALM_StatusBar', COLOR=[0,0,255], TEXT_COLOR=[255,255,255], TITLE='Saving into a Multi-Frame TIFF file...', TOP_LEVEL_BASE=tlb)
-fraction_complete_last=0.0
-pr_bar_inc=0.01
-for slice_ID=0, Num_frames-1 do begin
-	print,'Slice_ID=',slice_ID
-	create_cust_slice, slice_ID, slice
-
-	if cust_size[0] eq 4 then Cust_TIFF_slice=reverse(transpose(slice,[2,0,1]),3) else Cust_TIFF_slice = reverse(slice,2)
-	if slice_ID eq 0 then WRITE_TIFF,filename,Cust_TIFF_slice, orientation=1 $
-		 else WRITE_TIFF,filename,Cust_TIFF_slice, orientation=1, /append
-	fraction_complete=float(slice_ID)/(Num_frames-1.0)
-	if	(fraction_complete-fraction_complete_last) gt pr_bar_inc then begin
-		fraction_complete_last=fraction_complete
-		oStatusBar -> UpdateStatus, fraction_complete
+	vol_size=size(Cust_TIFF_volume_image)
+	if vol_size[0] lt 3 then begin
+		z=dialog_message('No 3D Volume image present')
+		return      ; if data not loaded return
 	endif
-endfor
-obj_destroy, oStatusBar	;********* Status Bar Close ******************
+	if vol_size[0] eq 4 then Num_frames = vol_size[4] else Num_frames = vol_size[3]
+	; vol_size[0] = 4 for multi-color image; vol_size[0] = 3  for single-color image
+	filename = Dialog_Pickfile(/write,get_path=fpath)
+	filename=AddExtension(filename,'.tif')		; monochrome
+	filename_r=AddExtension(filename,'_r.tif')		; monochrome
+	filename_g=AddExtension(filename,'_g.tif')		; monochrome
+	filename_b=AddExtension(filename,'_b.tif')		; monochrome
+
+	if strlen(fpath) ne 0 then cd,fpath
+	if filename eq '' then return
+	widget_control, /HOURGLASS	;  Show the hourglass
+
+	;********* Status Bar Initialization  ******************
+	oStatusBar = obj_new('PALM_StatusBar', COLOR=[0,0,255], TEXT_COLOR=[255,255,255], TITLE='Saving into a Multi-Frame TIFF file...', TOP_LEVEL_BASE=tlb)
+	fraction_complete_last=0.0
+	pr_bar_inc=0.01
+	for slice_ID=0, Num_frames-1 do begin
+		print,'Slice_ID=',slice_ID
+		if vol_size[0] eq 3 then begin
+			slice = Cust_TIFF_volume_image[*,*,slice_ID]
+			if slice_ID eq 0 then write_tiff, filename, reverse(slice,2), /float, orientation=1 $
+				else write_tiff, filename, reverse(slice,2), /float, orientation=1, /append
+		endif else begin
+			slice = Cust_TIFF_volume_image[*,*,*,slice_ID]
+			if slice_ID eq 0 then begin
+				write_tiff, filename_r, reverse(slice[*,*,0],2), /float, orientation=1
+				write_tiff, filename_g, reverse(slice[*,*,1],2), /float, orientation=1
+				write_tiff, filename_b, reverse(slice[*,*,2],2), /float, orientation=1
+			endif else begin
+				write_tiff, filename_r, reverse(slice[*,*,0],2), /float, orientation=1, /append
+				write_tiff, filename_g, reverse(slice[*,*,1],2), /float, orientation=1, /append
+				write_tiff, filename_b, reverse(slice[*,*,2],2), /float, orientation=1, /append
+			endelse
+		endelse
+
+		fraction_complete=float(slice_ID)/(Num_frames-1.0)
+		if	(fraction_complete-fraction_complete_last) gt pr_bar_inc then begin
+			fraction_complete_last=fraction_complete
+			oStatusBar -> UpdateStatus, fraction_complete
+		endif
+	endfor
+	obj_destroy, oStatusBar	;********* Status Bar Close ******************
 
 end
 ;
@@ -1284,27 +1314,10 @@ AdjustContrastnDisplay, Event
 
 wset,def_w
 end;-----------------------------------------------------------------
-; Activate Button Callback Procedure.
-; Argument:
-;   Event structure:
-;
-;   {WIDGET_BUTTON, ID:0L, TOP:0L, HANDLER:0L, SELECT:0}
-;
-;   ID is the widget ID of the component generating the event. TOP is
-;       the widget ID of the top level widget containing ID. HANDLER
-;       contains the widget ID of the widget associated with the
-;       handler routine.
 
-;   SELECT is set to 1 if the button was set, and 0 if released.
-;       Normal buttons do not generate events when released, so
-;       SELECT will always be 1. However, toggle buttons (created by
-;       parenting a button to an exclusive or non-exclusive base)
-;       return separate events for the set and release actions.
-
-;   Retrieve the IDs of other widgets in the widget hierarchy using
-;       id=widget_info(Event.top, FIND_BY_UNAME=name)
 
 ;-----------------------------------------------------------------
 pro Set_Tie_RGB_CustTIFF, Event
 
 end
+;-----------------------------------------------------------------

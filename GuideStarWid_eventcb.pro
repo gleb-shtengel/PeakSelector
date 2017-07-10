@@ -37,7 +37,7 @@ pro OnWriteGuideStarXY, Event	;Drift corrects x and y pix to constant guide star
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
 X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
@@ -99,22 +99,36 @@ common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d,
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
-X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
-Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
-FrNum_ind = min(where(RowNames eq 'Frame Number'))                        ; CGroupParametersGP[9,*] - frame number
-
-WidDListDispFitMethodID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_XY_Fit_Method')
-FitMethod = widget_info(WidDListDispFitMethodID,/DropList_Select)
 if n_elements(CGroupParams) lt 1 then begin
 	z=dialog_message('Please load a data file')
 	return      ; if data not loaded return
 endif
 
+X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
+FrNum_ind = min(where(RowNames eq 'Frame Number'))                        ; CGroupParametersGP[9,*] - frame number
+Nph_ind = min(where(RowNames eq '6 N Photons'))                            ; CGroupParametersGP[6,*] - Number of Photons in the Peak
+
+!p.multi=[0,1,2,0,0]
+
+WidSldFitOrderID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_XY_Fit')
+widget_control,WidSldFitOrderID,get_value=fitorder
+
+WidSmWidthID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_XY_Sm_Width')
+widget_control,WidSmWidthID,get_value=SmWidth
+
+WidDListDispFitMethodID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_XY_Fit_Method')
+FitMethod = widget_info(WidDListDispFitMethodID,/DropList_Select)
+
+use_multiple_GS_XY_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY_DH')
+use_multiple_GS_XY_DH = widget_info(use_multiple_GS_XY_DH_id,/button_set)
+
 GS_anc_file_info=FILE_INFO(GS_anc_fname)
-use_multiple_GS = use_multiple_GS and GS_anc_file_info.exists
+; if using multiple Guide Stars - load their X-Y coordinates
+use_multiple_ANC = (use_multiple_GS or use_multiple_GS_XY_DH) and GS_anc_file_info.exists and (strlen(GS_anc_fname) gt 0)
 GSAnchorPnts=dblarr(2,AnchPnts_MaxNum)
 GSAnchorPnts_line=dblarr(6)
-if use_multiple_GS  then begin
+if use_multiple_ANC  then begin
 	close,5
 	openr,5,GS_anc_fname
 	ip=0
@@ -125,105 +139,181 @@ if use_multiple_GS  then begin
 	endwhile
 	close,5
 endif else begin
-	GSAnchorPnts[0,0]= ParamLimits[X_ind,2]
-	GSAnchorPnts[1,0]= ParamLimits[Y_ind,2]
+	GSAnchorPnts[0,0]= ParamLimits[2,2]
+	GSAnchorPnts[1,0]= ParamLimits[3,2]
 endelse
 
 indecis=where((GSAnchorPnts[0,*] gt 0.001),ip_cnt)
 ParamLimits0 = ParamLimits
 filter0=filter
-for jp=0,(ip_cnt-1) do begin
-	print,'fiducial #',jp
-	filter=filter0
-	if use_multiple_GS then begin
-		ParamLimits[X_ind,2] = GSAnchorPnts[0,jp]
-		ParamLimits[X_ind,0] = GSAnchorPnts[0,jp]-GS_radius
-		ParamLimits[X_ind,1] = GSAnchorPnts[0,jp]+GS_radius
-		ParamLimits[Y_ind,2] = GSAnchorPnts[1,jp]
-		ParamLimits[Y_ind,0] = GSAnchorPnts[1,jp]-GS_radius
-		ParamLimits[Y_ind,1] = GSAnchorPnts[1,jp]+GS_radius
-	endif
 
-	FilterIt
+NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[FrNum_ind,*])+1))	: long64(max(CGroupParams[FrNum_ind,*])+1)
+FR=findgen(NFrames)
 
-	subsetindex=where(filter eq 1,cnt)
-	;print, 'subset has ',cnt,' points'
-	if cnt gt 0 then begin
-		;NFrames=long64(max(CGroupParams[9,*]))
-		NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[FrNum_ind,*])+1))	: long64(max(CGroupParams[FrNum_ind,*])+1)
+; original procedure (treat each Guide Star separetly and then average)
+if (NOT use_multiple_GS_XY_DH) then begin
+	for jp=0,(ip_cnt-1) do begin
+		print,'fiducial #',jp
+		filter=filter0
+		if use_multiple_GS then begin
+			ParamLimits[X_ind,2] = GSAnchorPnts[0,jp]
+			ParamLimits[X_ind,0] = GSAnchorPnts[0,jp]-GS_radius
+			ParamLimits[X_ind,1] = GSAnchorPnts[0,jp]+GS_radius
+			ParamLimits[Y_ind,2] = GSAnchorPnts[1,jp]
+			ParamLimits[Y_ind,0] = GSAnchorPnts[1,jp]-GS_radius
+			ParamLimits[Y_ind,1] = GSAnchorPnts[1,jp]+GS_radius
+		endif
 
-		subset=CGroupParams[*,subsetindex]
-		FR=findgen(NFrames)
+		FilterIt
 
-		if FitMethod eq 0 then begin
-			WidSldFitOrderID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_XY_Fit')
-			widget_control,WidSldFitOrderID,get_value=fitorder
-			xcoef=poly_fit(subset[FrNum_ind,*],subset[X_ind,*],fitorder,YFIT=fit_to_x)
-			ycoef=poly_fit(subset[FrNum_ind,*],subset[Y_ind,*],fitorder,YFIT=fit_to_y)
-			;print,xcoef,'=xcoef		',ycoef,'=ycoef'
-			XFit=poly(FR,xcoef)
-			YFit=poly(FR,ycoef)
-		endif else begin
-			WidSmWidthID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_XY_Sm_Width')
-			widget_control,WidSmWidthID,get_value=SmWidth
-			indecis=uniq(subset[FrNum_ind,*])
-			n_ele=n_elements(indecis)
-			X1=subset[X_ind,indecis]
-			Xsmooth=smooth(subset[6,indecis]*subset[X_ind,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
-			Xfit=interpol(Xsmooth,subset[FrNum_ind,indecis],FR)
-			Y1=subset[Y_ind,indecis]
-			Ysmooth=smooth(subset[6,indecis]*subset[Y_ind,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
-			Yfit=interpol(Ysmooth,subset[FrNum_ind,indecis],FR)
-			frame_low = min(subset[FrNum_ind,indecis])
-			ind_low=where(FR[*] lt frame_low,c)
-			if c ge 1 then begin
-				Yfit[ind_low]=Yfit[frame_low]
-				Xfit[ind_low]=Xfit[frame_low]
-			endif
-			frame_high = max(subset[FrNum_ind,indecis])
-			ind_high=where(FR[*] gt frame_high,c)
-			if c ge 1 then begin
-				Xfit[ind_high]=Xfit[frame_high]
-				Yfit[ind_high]=Yfit[frame_high]
-			endif
-		endelse
-		xdrift=Xfit-Xfit[0]
-		ydrift=Yfit-Yfit[0]
-		xdrift_mult = (jp eq 0) ? transpose(xdrift) : [xdrift_mult,transpose(xdrift)]
-		ydrift_mult = (jp eq 0) ? transpose(ydrift) : [ydrift_mult,transpose(ydrift)]
+		subsetindex=where(filter eq 1,cnt)
+		;print, 'subset has ',cnt,' points'
 
-		!p.multi=[0,1,2,0,0]
-		if jp eq 0 then begin
-			!P.NOERASE=0
-			xrange=Paramlimits[FrNum_ind,0:1]
-			yrange_top=(Paramlimits[X_ind,0:1]-XFit[0])
-			yrange_bot=(Paramlimits[Y_ind,0:1]-YFit[0])
-			plot,FR,(XFit-XFit[0]),xtitle='frame',ytitle='xdrift(pixels)',xrange=xrange,xstyle=1,yrange=yrange_top,ystyle=1
-			oplot,subset[FrNum_ind,*],(subset[X_ind,*]-XFit[0]),psym=3
-			if FitMethod eq 0 then for i =0,fitorder do xyouts,0.8,0.95-0.02*i,xcoef[i],/normal
-			plot,FR,(YFit-YFit[0]),xtitle='frame',ytitle='ydrift(pixels)',xrange=xrange,xstyle=1,yrange=yrange_bot,ystyle=1
-			oplot,subset[FrNum_ind,*],(subset[Y_ind,*]-YFit[0]),psym=3
-			if FitMethod eq 0 then for i =0,fitorder do xyouts,0.8,0.45-0.02*i,ycoef[i],/normal
-			!P.NOERASE=1
-		endif else begin
-			!p.multi=[0,1,2,0,0]
-			col=(250-jp*50)>50
-			plot,FR,(XFit-XFit[0]),xtitle='frame',ytitle='xdrift(pixels)',xrange=xrange,xstyle=1,yrange=yrange_top,ystyle=1
-			oplot,FR,(XFit-XFit[0]),col=col
-			oplot,subset[FrNum_ind,*],(subset[X_ind,*]-XFit[0]),psym=3,col=col
-			!p.multi=[1,1,2,0,0]
-			plot,FR,(YFit-YFit[0]),xtitle='frame',ytitle='ydrift(pixels)',xrange=xrange,xstyle=1,yrange=yrange_bot,ystyle=1
-			oplot,FR,(YFit-YFit[0]),col=col
-			oplot,subset[FrNum_ind,*],(subset[Y_ind,*]-YFit[0]),psym=3,col=col
-		endelse
-	endif
-endfor
+		if cnt gt 0 then begin
+			subset=CGroupParams[*,subsetindex]
+			if FitMethod eq 0 then begin
+				xcoef=poly_fit(subset[FrNum_ind,*],subset[X_ind,*],fitorder,YFIT=fit_to_x)
+				ycoef=poly_fit(subset[FrNum_ind,*],subset[Y_ind,*],fitorder,YFIT=fit_to_y)
+				;print,xcoef,'=xcoef		',ycoef,'=ycoef'
+				XFit=poly(FR,xcoef)
+				YFit=poly(FR,ycoef)
+			endif else begin
+				indecis=uniq(subset[FrNum_ind,*])
+				n_ele=n_elements(indecis)
+				X1=subset[X_ind,indecis]
+				Xsmooth=smooth(subset[6,indecis]*subset[X_ind,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
+				Xfit=interpol(Xsmooth,subset[FrNum_ind,indecis],FR)
+				Y1=subset[Y_ind,indecis]
+				Ysmooth=smooth(subset[6,indecis]*subset[Y_ind,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
+				Yfit=interpol(Ysmooth,subset[FrNum_ind,indecis],FR)
+				frame_low = min(subset[FrNum_ind,indecis])
+				ind_low=where(FR[*] lt frame_low,c)
+				if c ge 1 then begin
+					Yfit[ind_low]=Yfit[frame_low]
+					Xfit[ind_low]=Xfit[frame_low]
+				endif
+				frame_high = max(subset[FrNum_ind,indecis])
+				ind_high=where(FR[*] gt frame_high,c)
+				if c ge 1 then begin
+					Xfit[ind_high]=Xfit[frame_high]
+					Yfit[ind_high]=Yfit[frame_high]
+				endif
+			endelse
+			xdrift=Xfit-Xfit[0]
+			ydrift=Yfit-Yfit[0]
+			xdrift_mult = (jp eq 0) ? transpose(xdrift) : [xdrift_mult,transpose(xdrift)]
+			ydrift_mult = (jp eq 0) ? transpose(ydrift) : [ydrift_mult,transpose(ydrift)]
 
+			if jp eq 0 then begin
+				!P.NOERASE=0
+				xrange=Paramlimits[FrNum_ind,0:1]
+				yrange_top=(Paramlimits[X_ind,0:1]-XFit[0])
+				yrange_bot=(Paramlimits[Y_ind,0:1]-YFit[0])
+				plot,FR,(XFit-XFit[0]),xtitle='frame',ytitle='xdrift(pixels)',xrange=xrange,xstyle=1,yrange=yrange_top,ystyle=1
+				oplot,subset[FrNum_ind,*],(subset[X_ind,*]-XFit[0]),psym=3
+				if FitMethod eq 0 then for i =0,fitorder do xyouts,0.8,0.95-0.02*i,xcoef[i],/normal
+				plot,FR,(YFit-YFit[0]),xtitle='frame',ytitle='ydrift(pixels)',xrange=xrange,xstyle=1,yrange=yrange_bot,ystyle=1
+				oplot,subset[FrNum_ind,*],(subset[Y_ind,*]-YFit[0]),psym=3
+				if FitMethod eq 0 then for i =0,fitorder do xyouts,0.8,0.45-0.02*i,ycoef[i],/normal
+				!P.NOERASE=1
+			endif else begin
+				!p.multi=[0,1,2,0,0]
+				col=(250-jp*50)>50
+				plot,FR,(XFit-XFit[0]),xtitle='frame',ytitle='xdrift(pixels)',xrange=xrange,xstyle=1,yrange=yrange_top,ystyle=1
+				oplot,FR,(XFit-XFit[0]),col=col
+				oplot,subset[FrNum_ind,*],(subset[X_ind,*]-XFit[0]),psym=3,col=col
+				!p.multi=[1,1,2,0,0]
+				plot,FR,(YFit-YFit[0]),xtitle='frame',ytitle='ydrift(pixels)',xrange=xrange,xstyle=1,yrange=yrange_bot,ystyle=1
+				oplot,FR,(YFit-YFit[0]),col=col
+				oplot,subset[FrNum_ind,*],(subset[Y_ind,*]-YFit[0]),psym=3,col=col
+			endelse
+		endif
+	endfor
+endif else begin
+; New procedure (DPH) - average first
+	superset_X = dblarr(ip_cnt, NFrames)
+	superset_Y = dblarr(ip_cnt, NFrames)
+	superset_Nph = superset_X
+	superset_FR = superset_X
+	dr_plotted=0
+
+	for jp=0,(ip_cnt-1) do begin
+		filter=filter0
+
+		ParamLimits[2,2] = GSAnchorPnts[0,jp]
+		ParamLimits[2,0] = GSAnchorPnts[0,jp]-GS_radius
+		ParamLimits[2,1] = GSAnchorPnts[0,jp]+GS_radius
+		ParamLimits[3,2] = GSAnchorPnts[1,jp]
+		ParamLimits[3,0] = GSAnchorPnts[1,jp]-GS_radius
+		ParamLimits[3,1] = GSAnchorPnts[1,jp]+GS_radius
+
+		FilterIt
+		subsetindex=where(filter eq 1,cnt)
+		print, jp,'  GuideStar subset has ',cnt,' points',  ',   X=',ParamLimits[2,2],', Y=',ParamLimits[3,2]
+		if cnt gt 0 then begin
+			subset = double(CGroupParams[*,subsetindex])
+			subset[X_ind,*] = subset[X_ind,*] - mean(subset[X_ind,*],/DOUBLE)
+			subset[Y_ind,*] = subset[Y_ind,*] - mean(subset[Y_ind,*],/DOUBLE)
+			; remove secondary peaks in frames
+			XY=subset[FrNum_ind,*]
+			ind = reverse(n_elements(XY)-uniq(reverse(XY))-1)
+			subset = temporary(subset[*,ind])
+			superset_X[jp,subset[FrNum_ind,*]] = subset[X_ind,*]
+			superset_Y[jp,subset[FrNum_ind,*]] = subset[Y_ind,*]
+			superset_Nph[jp,subset[FrNum_ind,*]] = subset[Nph_ind,*]
+			superset_FR[jp,*] = FR
+			if dr_plotted eq 0 then begin
+				dr_plotted=1
+				!P.NOERASE=0
+				yrng_X = [1.5*min(subset[X_ind,*])<0, 1.5*max(subset[X_ind,*])>0]
+				plot,subset[FrNum_ind,*],subset[X_ind,*],xtitle='Frame',ytitle='X-drift (pixels)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1, yrange=yrng_X,ystyle=1, psym=3
+				yrng_Y = [1.5*min(subset[Y_ind,*])<0, 1.5*max(subset[Y_ind,*])>0]
+				plot,subset[FrNum_ind,*],subset[Y_ind,*],xtitle='Frame',ytitle='Y-drift (pixels)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=yrng_Y,ystyle=1, psym=3
+				!P.NOERASE=1
+			endif else begin
+				col=(250-jp*25)>50
+				!p.multi=[0,1,2,0,0]
+				plot,subset[FrNum_ind,*],subset[X_ind,*],xtitle='Frame',ytitle='X-drift (pixels)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1, yrange=yrng_X,ystyle=1, psym=3
+				oplot,subset[FrNum_ind,*],subset[X_ind,*],col=col,psym=3
+				!p.multi=[1,1,2,0,0]
+				plot,subset[FrNum_ind,*],subset[Y_ind,*],xtitle='Frame',ytitle='Y-drift (pixels)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=yrng_Y,ystyle=1, psym=3
+				oplot,subset[FrNum_ind,*],subset[Y_ind,*],col=col,psym=3
+			endelse
+		endif
+	endfor
+
+
+print,'SmWidth=', SmWidth
+
+	if FitMethod eq 0 then begin
+		non_zero_ind=where(superset_Nph gt 0)
+		xcoef=poly_fit(superset_Fr[non_zero_ind], superset_X[non_zero_ind], fitorder, YFIT=fit_to_x)
+		XFit=poly(FR, xcoef)
+		ycoef=poly_fit(superset_Fr[non_zero_ind], superset_Y[non_zero_ind], fitorder, YFIT=fit_to_x)
+		YFit=poly(FR, ycoef)
+	endif else begin
+		Nph_arr = total(superset_Nph,1)
+		X_arr = total(superset_X*superset_Nph,1)
+		Y_arr = total(superset_Y*superset_Nph,1)
+		non_zero_ind=where(Nph_arr gt 0)
+		Xsmooth=smooth(X_arr[non_zero_ind]/Nph_arr[non_zero_ind],SmWidth,/EDGE_TRUNCATE)
+		Xfit=interpol(Xsmooth,FR[non_zero_ind],FR)
+		Ysmooth=smooth(Y_arr[non_zero_ind]/Nph_arr[non_zero_ind],SmWidth,/EDGE_TRUNCATE)
+		Yfit=interpol(Ysmooth,FR[non_zero_ind],FR)
+	endelse
+
+	!p.multi=[0,1,2,0,0]
+	plot,FR,XFit,xtitle='Frame',ytitle='X-drift (pixels)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1, yrange=yrng_X, ystyle=1, thick=2
+	xdrift=Xfit-Xfit[0]
+	!p.multi=[1,1,2,0,0]
+	plot,FR,YFit,xtitle='Frame',ytitle='Y-drift (pixels)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1, yrange=yrng_Y ,ystyle=1, thick=2
+	ydrift=Yfit-Yfit[0]
+endelse
 !p.multi=[0,0,0,0,0]
 !p.background=0
 !P.NOERASE=0
 
-if use_multiple_GS then begin
+if use_multiple_GS  and (NOT use_multiple_GS_XY_DH) then begin
 	xdrift=total(xdrift_mult,1)/ip_cnt
 	x_residual=dblarr(ip_cnt)
 	for i=0,(ip_cnt-1) do x_residual[i]=(max(xdrift_mult[i,*]-xdrift)-min(xdrift_mult[i,*]-xdrift))*nm_per_pixel

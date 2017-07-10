@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	05/11/2017 15:08.08
+; Generated on:	07/06/2017 13:40.12
 VERSION 1
 END
 
@@ -12,7 +12,7 @@ XPAD = 3
 YPAD = 3
 SPACE = 3
 BEGIN
-  WID_SLIDER_Z_phase_offset SLIDER 25 171 167 50
+  WID_SLIDER_Z_phase_offset_Astig SLIDER 25 171 167 50
   CAPTION "Z offset (nm)"
   VALUE = 0
   MINIMUM = -200
@@ -38,18 +38,18 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnPickCalFile_Astig"
   END
-  WID_TEXT_WindFilename_Astig TEXT 6 4 380 49
+  WID_TEXT_WindFilename_Astig TEXT 5 4 415 49
   EDITABLE
   WRAP
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_BUTTON_Write_Guide_Star_Astig PUSHBUTTON 408 360 130 30
+  WID_BUTTON_Write_Guide_Star_Astig PUSHBUTTON 408 375 130 30
   VALUE "Write Guide Star"
   ALIGNCENTER
   ONACTIVATE "OnWriteZDrift_Astig"
   END
-  WID_BUTTON_Test_Guide_Star_Astig PUSHBUTTON 408 320 130 30
+  WID_BUTTON_Test_Guide_Star_Astig PUSHBUTTON 408 335 130 30
   VALUE "Test Guide Star"
   ALIGNCENTER
   ONACTIVATE "OnTestZDrift_Astig"
@@ -77,28 +77,28 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnRemoveTilt_Astig"
   END
-  WID_BUTTON_Test_EllipticityOnly PUSHBUTTON 60 130 180 35
+  WID_BUTTON_Test_EllipticityOnly PUSHBUTTON 20 130 180 35
   VALUE "Test Ellipticity Calibration"
   ALIGNCENTER
   ONACTIVATE "ExtractEllipticityCalib_Astig"
   END
-  WID_BUTTON_Save_EllipticityAndWind PUSHBUTTON 260 130 180 35
+  WID_BUTTON_Save_EllipticityAndWind PUSHBUTTON 220 130 180 35
   VALUE "Save Ellipticity Calibration"
   ALIGNCENTER
   ONACTIVATE "OnSaveEllipticityCal_Astig"
   END
-  WID_TEXT_GuideStarAncFilename_Astig TEXT 15 224 344 49
+  WID_TEXT_GuideStarAncFilename_Astig TEXT 5 224 365 49
   EDITABLE
   WRAP
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_BUTTON_PickAncFile PUSHBUTTON 380 250 150 32
+  WID_BUTTON_PickAncFile PUSHBUTTON 380 225 125 30
   VALUE "Pick ANC File"
   ALIGNCENTER
   ONACTIVATE "OnPickGuideStarAncFile_Astig"
   END
-  WID_BASE_WriteEllipticityGuideStar_1 BASE 379 284 0 0
+  WID_BASE_WriteEllipticityGuideStar_1 BASE 380 260 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -135,5 +135,20 @@ BEGIN
   VALUE = 5
   MINIMUM = 1
   MAXIMUM = 10
+  END
+  WID_BUTTON_Convert_Fr_to_Z PUSHBUTTON 420 130 140 35
+  VALUE "Convert Fr -> Z"
+  ALIGNCENTER
+  ONACTIVATE "On_Convert_Frame_to_Z"
+  END
+  WID_BASE_WriteEllipticity_MS_GuideStar_DPH BASE 380 295 0 0
+  COLUMNS = 1
+  NONEXCLUSIVE
+  CAPTION "IDL"
+  BEGIN
+    WID_BUTTON_UseMultipleANCs_DH PUSHBUTTON -1 -1 0 0
+    VALUE "Use Multiple GuideStars (DH)"
+    ALIGNLEFT
+    END
   END
 END

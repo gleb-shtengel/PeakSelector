@@ -23,6 +23,7 @@ COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -86,19 +87,23 @@ if (n_fid_lbl ne 4) and (n_fid_lbl ne 6) then begin	; stop if the above is not t
 endif
 
 ;only one point just shift
-if  (fid0_cnt eq 1) and ((fid_tot_cnt eq 4) or (fid_tot_cnt eq 6)) then begin
+if  (fid0_cnt eq 1) or (Transf_Meth eq 3)  then begin
 print,'calculating single fiducial shift transformation'
-	CGroupParams[X_ind,indecis]=(CGroupParams[X_ind,indecis]-XDat0+XTarg0)>0;)<511
-	CGroupParams[Y_ind,indecis]=(CGroupParams[Y_ind,indecis]-YDat0+YTarg0)>0;)<511
-	CGroupParams[GrX_ind,indecis]=(CGroupParams[GrX_ind,indecis]-XDat0+XTarg0)>0;)<511
-	CGroupParams[GrY_ind,indecis]=(CGroupParams[GrY_ind,indecis]-YDat0+YTarg0)>0;)<511
+	dX = mean(Xi - Xo)
+	dY = mean(Yi - Yo)
+	CGroupParams[X_ind,indecis] = CGroupParams[X_ind,indecis] + dX
+	CGroupParams[Y_ind,indecis] = CGroupParams[Y_ind,indecis] + dY
+	CGroupParams[GrX_ind,indecis] = CGroupParams[GrX_ind,indecis] + dX
+	CGroupParams[GrY_ind,indecis] = CGroupParams[GrY_ind,indecis] + dY
 
-	FiducialCoeff[LabelToTransform-1].P=[[XDat0-XTarg0,0],[1,0]]
-	FiducialCoeff[LabelToTransform-1].Q=[[YDat0-YTarg0,1],[0,0]]
+	FiducialCoeff[LabelToTransform-1].P=[[-1*dX,0],[1,0]]
+	FiducialCoeff[LabelToTransform-1].Q=[[-1*dY,1],[0,0]]
 
 endif
+
+
 ;only two points (shift mag and tilt)
-if (fid0_cnt eq 2) and ((fid_tot_cnt eq 8) or (fid_tot_cnt eq 12)) then begin
+if (fid0_cnt eq 2) and (Transf_Meth ne 3) then begin
 print,'calculating 2-fiducial shift mag and tilt transformation'
 	D_DatFid=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)				;distance between dat fiducials
 	D_TargFid=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between target fiducials
@@ -127,8 +132,10 @@ print,'calculating 2-fiducial shift mag and tilt transformation'
 	FiducialCoeff[LabelToTransform-1].P=[[-AB[0],PQ[0,1]],[PQ[0,0],0]]
 	FiducialCoeff[LabelToTransform-1].Q=[[-AB[1],PQ[1,1]],[PQ[1,0],0]]
 endif
+
+
 ;only three points (shift to 0th fiducial use averaged mag and tilt)
-if (Transf_Meth eq 2) and (fid0_cnt eq 3) and ((fid_tot_cnt eq 12) or (fid_tot_cnt eq 18)) then begin
+if (fid0_cnt eq 3) and (Transf_Meth eq 2) then begin
 print,'calculating 3-fiducial (shift to 0th fiducial use averaged mag and tilt) transformation'
 	D_DatFid1=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)			;distance between first dat fiducial pair
 	D_TargFid1=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between first target fiducial pair
@@ -161,8 +168,10 @@ print,'calculating 3-fiducial (shift to 0th fiducial use averaged mag and tilt) 
 	FiducialCoeff[LabelToTransform-1].P=[[-AB[0],PQ[0,1]],[PQ[0,0],0]]
 	FiducialCoeff[LabelToTransform-1].Q=[[-AB[1],PQ[1,1]],[PQ[1,0],0]]
 endif
+
+
 ;only four points (shift mag and tilt,skew,diffxymag)
-if  (Transf_Meth eq 1) and (fid0_cnt ge 3) then begin
+if  (fid0_cnt ge 3) and (Transf_Meth eq 1) then begin
 	print,'calculating ',n_elements(Xo),'   polywarp transformation'
 	polywarp,Xi,Yi,Xo,Yo,PW_deg,Kx,Ky				;Xi=sum(kxij#Xo^jYo^i)   Yi=sum(kyij#Xo^jYo^i)
 	X=CGroupParams[X_ind,indecis]
@@ -197,9 +206,9 @@ if  (Transf_Meth eq 1) and (fid0_cnt ge 3) then begin
 	endif
 endif
 
-if  (Transf_Meth eq 0) and (fid0_cnt ge 3) then begin
-	; Perform linear regression for complex linear Fit:   Zi=M*Zo+N
 
+; Perform linear regression for complex linear Fit:   Zi=M*Zo+N
+if  (fid0_cnt ge 3) and (Transf_Meth eq 0) then begin
 	XYo=complex(Xo,Yo)
 	XYi=complex(Xi,Yi)
 	print,'calculating ',n_elements(Xo),'   fiducial linear regression transformation'
@@ -227,31 +236,41 @@ endif
 print,'P=',FiducialCoeff[LabelToTransform-1].P
 print,'Q=',FiducialCoeff[LabelToTransform-1].Q
 
+
+; if checked, and Z data exists do Z-alignement
 Align_Z_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z')
 Align_Z=widget_info(Align_Z_button_id,/button_set)
-
-if (total(DatZ) ne 0) and Align_Z then begin		; if checked, and Z data exists do Z-alignement
-
+if (total(DatZ) ne 0) and Align_Z then begin
 	Zo=DatZ[anc_ind]
 	Zi=TargZ[anc_ind]
-
 	dZi=Zi-Zo
-	A=[[total(Xi*Xi),total(Xi*Yi),total(Xi)],[total(Xi*Yi),total(Yi*Yi),total(Yi)],[total(Xi),total(Yi),n_elements(Xi)]]
-	B=[total(Xi*dZi),total(Yi*dZi),total(dZi)]
-	LUDC, A, INDEX
-	Plane_coeff = LUSOL(A, INDEX, B)
+	if (fid0_cnt ge 3) and (Transf_Meth ne 3) then begin
+		A=[[total(Xi*Xi),total(Xi*Yi),total(Xi)],[total(Xi*Yi),total(Yi*Yi),total(Yi)],[total(Xi),total(Yi),n_elements(Xi)]]
+		B=[total(Xi*dZi),total(Yi*dZi),total(dZi)]
+		LUDC, A, INDEX
+		Plane_coeff = LUSOL(A, INDEX, B)
 
-	WR=wind_range[LabelToTransform-1]
-	Zdelta = CGroupParams[X_ind,indecis]*Plane_coeff[0] + CGroupParams[3,indecis]*Plane_coeff[1] + Plane_coeff[2]
-	CGroupParams[Z_ind,indecis] = (CGroupParams[Z_ind,indecis] + Zdelta + 4.0 * WR) mod WR
-	if CGrpSize ge 43 then CGroupParams[UnwZ_ind,indecis] = CGroupParams[UnwZ_ind,indecis] + Zdelta
-	ZGrdelta = CGroupParams[GrX_ind,indecis]*Plane_coeff[0] + CGroupParams[GrY_ind,indecis]*Plane_coeff[1] + Plane_coeff[2]
-	CGroupParams[GrZ_ind,indecis] = (CGroupParams[GrZ_ind,indecis] + ZGrdelta + 4.0 * WR) mod WR
-	if CGrpSize ge 46 then CGroupParams[UnwGrZ_ind,indecis] = CGroupParams[UnwGrZ_ind,indecis] + ZGrdelta
-
+		Zdelta = CGroupParams[X_ind,indecis]*Plane_coeff[0] + CGroupParams[3,indecis]*Plane_coeff[1] + Plane_coeff[2]
+		ZGrdelta = CGroupParams[GrX_ind,indecis]*Plane_coeff[0] + CGroupParams[GrY_ind,indecis]*Plane_coeff[1] + Plane_coeff[2]
+	endif else begin
+		Zdelta = mean(dZi)
+		ZGrdelta = Zdelta
+	endelse
+	if (n_elements(wind_range) gt 0) and (UnwZ_ind ge 0) then begin
+		WR=wind_range[LabelToTransform-1]
+		CGroupParams[Z_ind,indecis] = (CGroupParams[Z_ind,indecis] + Zdelta + 4.0 * WR) mod WR
+		CGroupParams[UnwZ_ind,indecis] = CGroupParams[UnwZ_ind,indecis] + Zdelta
+		CGroupParams[GrZ_ind,indecis] = (CGroupParams[GrZ_ind,indecis] + ZGrdelta + 4.0 * WR) mod WR
+		CGroupParams[UnwGrZ_ind,indecis] = CGroupParams[UnwGrZ_ind,indecis] + ZGrdelta
+	endif else begin
+		CGroupParams[Z_ind,indecis] = CGroupParams[Z_ind,indecis] + Zdelta
+		CGroupParams[GrZ_ind,indecis] = CGroupParams[GrZ_ind,indecis] + ZGrdelta
+	endelse
 endif
 
-if LTT le 1 then begin				; reset the image size and transform TotalRaw in the case of a singe label
+
+; reset the image size and transform TotalRaw in the case of a singe label
+if LTT le 1 then begin
 	x0=xydsz[0] & y0=xydsz[1]
 	if  (Transf_Meth eq 1) and (fid0_cnt ge 3) then begin
 		X=[0,0,x0,x0]
@@ -303,18 +322,20 @@ if LTT le 1 then begin				; reset the image size and transform TotalRaw in the c
 	endelse
 
 	if Use_XYlimits then begin
-		ParamLimits[2,0] = XYlimits[0,0]
-		ParamLimits[2,1] = XYlimits[1,0]
-		ParamLimits[2,2] = (ParamLimits[2,0]+ParamLimits[2,1])/2.0
-		ParamLimits[2,3] = (ParamLimits[2,1]-ParamLimits[2,0])
-		ParamLimits[3,0] = XYlimits[0,1]
-		ParamLimits[3,1] = XYlimits[1,1]
-		ParamLimits[3,2] = (ParamLimits[3,0]+ParamLimits[3,1])/2.0
-		ParamLimits[3,4] = (ParamLimits[3,1]-ParamLimits[3,0])
-		ParamLimits[19,*] = ParamLimits[2,*]
-		ParamLimits[20,*] = ParamLimits[3,*]
+		ParamLimits[X_ind,0] = XYlimits[0,0]
+		ParamLimits[X_ind,1] = XYlimits[1,0]
+		ParamLimits[X_ind,2] = (ParamLimits[X_ind,0]+ParamLimits[X_ind,1])/2.0
+		ParamLimits[X_ind,3] = (ParamLimits[X_ind,1]-ParamLimits[X_ind,0])
+		ParamLimits[Y_ind,0] = XYlimits[0,1]
+		ParamLimits[Y_ind,1] = XYlimits[1,1]
+		ParamLimits[Y_ind,2] = (ParamLimits[Y_ind,0]+ParamLimits[Y_ind,1])/2.0
+		ParamLimits[Y_ind,4] = (ParamLimits[Y_ind,1]-ParamLimits[Y_ind,0])
+		ParamLimits[GrX_ind,*] = ParamLimits[X_ind,*]
+		ParamLimits[GrY_ind,*] = ParamLimits[Y_ind,*]
 	endif
 
+
+; if selected, adjust scales for Gaussian widths and localization sigmas
 	if Adj_Scl then begin
 		nm_per_pixel=nm_per_pixel*transf_scl
 		;scalable parameters
@@ -324,16 +345,41 @@ if LTT le 1 then begin				; reset the image size and transform TotalRaw in the c
 			CGroupParams[sc_ind[isc],*]=CGroupParams[sc_ind[isc],*]/transf_scl
 			ParamLimits[sc_ind[isc],*]=ParamLimits[sc_ind[isc],*]/transf_scl
 		endfor
-		ParamLimits[2,0:2] = [0,xsz,xsz/2.0]
-		ParamLimits[19,*] = ParamLimits[2,*]
-		ParamLimits[3,0:2] = [0,ysz,ysz/2.0]
-		ParamLimits[20,*] = ParamLimits[3,*]
+		ParamLimits[X_ind,0:2] = [0,xsz,xsz/2.0]
+		ParamLimits[GrX_ind,*] = ParamLimits[X_ind,*]
+		ParamLimits[Y_ind,0:2] = [0,ysz,ysz/2.0]
+		ParamLimits[GrY_ind,*] = ParamLimits[Y_ind,*]
 
 		wtable = Widget_Info(TopID, find_by_uname='WID_TABLE_0')
 		widget_control,wtable,set_value=transpose(ParamLimits[0:(CGrpSize-1),0:3]), use_table_select=[0,0,3,(CGrpSize-1)]
 		widget_control, wtable, /editable,/sensitive
 	endif
 
+endif
+
+
+; Reset bridge if bridge is loaded
+if bridge_exists then begin
+	print,'Reloading the Bridge Array'
+	CATCH, Error_status
+	CGroupParams_bridge = SHMVAR(shmName_data)
+	CGroupParams_bridge[X_ind,*] = CGroupParams[X_ind,*]
+	CGroupParams_bridge[GrX_ind,*] = CGroupParams[GrX_ind,*]
+	CGroupParams_bridge[Y_ind,*] = CGroupParams[Y_ind,*]
+	CGroupParams_bridge[GrY_ind,*] = CGroupParams[GrY_ind,*]
+	CGroupParams_bridge[Z_ind,*] = CGroupParams[Z_ind,*]
+	CGroupParams_bridge[GrZ_ind,*] = CGroupParams[GrZ_ind,*]
+	IF Error_status NE 0 THEN BEGIN
+		PRINT, 'Bridge Refresh Error: Drift Correction:',!ERROR_STATE.MSG
+		bridge_exists = 0
+		SHMUnmap, shmName_data
+		SHMUnmap, shmName_filter
+		for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
+		PRINT, 'Starting: Error:',!ERROR_STATE.MSG
+		CATCH,/CANCEL
+	ENDIF
+	CATCH,/CANCEL
+	print,'Finished Reloading the Bridge Array'
 endif
 
 return
@@ -544,7 +590,7 @@ endif else begin
 	if (size(indecis))[0] eq 0 then return
 	xposition=total(CGroupParams[X_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
 	yposition=total(CGroupParams[Y_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
-	zposition=(CGrpSize ge 33) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+	zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
 endelse
 AnchorInd=min(where(AnchorPnts[0,*] eq 0))
 if AnchorInd eq -1 then AnchorInd=99
@@ -556,7 +602,7 @@ if fdist gt 0.1 then begin
 	ZPnts[0,AnchorInd]=zposition
 	XY_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_XY_Table')
 	widget_control,XY_Anc_Table_ID,set_value=([xposition,yposition]), use_table_select=[0,AnchorInd,1,AnchorInd]
-	if CGrpSize ge 33 then begin
+	if Z_ind ge 0 then begin
 		Z_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_Z_Table')
 		widget_control,Z_Anc_Table_ID,set_value=([zposition]), use_table_select=[0,AnchorInd,0,AnchorInd]
 	endif
@@ -603,7 +649,7 @@ endif else begin
 	if (size(indecis))[0] eq 0 then return
 	xposition=total(CGroupParams[X_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
 	yposition=total(CGroupParams[Y_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
-	zposition=(CGrpSize ge 33) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+	zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
 endelse
 AnchorInd=min(where(AnchorPnts[2,*] eq 0))
 if AnchorInd eq -1 then AnchorInd=99
@@ -615,7 +661,7 @@ if fdist gt 0.1 then begin
 	ZPnts[1,AnchorInd]=zposition
 	XY_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_XY_Table')
 	widget_control,XY_Anc_Table_ID,set_value=([xposition,yposition]), use_table_select=[2,AnchorInd,3,AnchorInd]
-	if CGrpSize ge 33 then begin
+	if Z_ind ge 0 then begin
 		Z_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_Z_Table')
 		widget_control,Z_Anc_Table_ID,set_value=([zposition]), use_table_select=[1,AnchorInd,1,AnchorInd]
 	endif
@@ -662,7 +708,7 @@ endif else begin
 	if (size(indecis))[0] eq 0 then return
 	xposition=total(CGroupParams[X_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
 	yposition=total(CGroupParams[Y_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
-	zposition=(CGrpSize ge 33) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+	zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
 endelse
 AnchorInd=min(where(AnchorPnts[4,*] eq 0))
 if AnchorInd eq -1 then AnchorInd=99
@@ -674,7 +720,7 @@ if fdist gt 0.1 then begin
 	ZPnts[2,AnchorInd]=zposition
 	XY_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_XY_Table')
 	widget_control,XY_Anc_Table_ID,set_value=([xposition,yposition]), use_table_select=[4,AnchorInd,5,AnchorInd]
-	if CGrpSize ge 33 then begin
+	if Z_ind ge 0 then begin
 		Z_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_Z_Table')
 		widget_control,Z_Anc_Table_ID,set_value=([zposition]), use_table_select=[2,AnchorInd,2,AnchorInd]
 	endif
@@ -1157,7 +1203,7 @@ FilterItem = widget_info(FilterId,/DropList_Select)
 Xindex = FilterItem ? GrX_ind : X_ind
 Yindex = FilterItem ? GrY_ind : Y_ind
 XY_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_XY_Table')
-if CGrpSize ge 33 then begin
+if Z_ind ge 0 then begin
 	Zindex = FilterItem ? GrZ_ind : Z_ind
 	Z_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_Z_Table')
 endif
@@ -1178,8 +1224,8 @@ for i=0,(n_peaks-1) do begin
 			AnchorPnts[0,AnchorInd] = xposition
 			AnchorPnts[1,AnchorInd] = yposition
 			widget_control,XY_Anc_Table_ID,set_value=([xposition,yposition]), use_table_select=[0,AnchorInd,1,AnchorInd]
-			if CGrpSize ge 33 then begin
-				zposition =(CGrpSize ge 33) ? total(CGroupParams[Zindex,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+			if Z_ind ge 0 then begin
+				zposition =(Z_ind ge 0) ? total(CGroupParams[Zindex,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
 				ZPnts[0,AnchorInd]=zposition
 				widget_control,Z_Anc_Table_ID,set_value=([zposition]), use_table_select=[0,AnchorInd,0,AnchorInd]
 			endif
@@ -1232,7 +1278,7 @@ FilterItem = widget_info(FilterId,/DropList_Select)
 Xindex = FilterItem ? GrX_ind : X_ind
 Yindex = FilterItem ? GrY_ind : Y_ind
 XY_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_XY_Table')
-if CGrpSize ge 33 then begin
+if Z_ind ge 0 then begin
 	Zindex = FilterItem ? GrZ_ind : Z_ind
 	Z_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_Z_Table')
 endif
@@ -1252,8 +1298,8 @@ for lbl_index=2,l_max do begin
 			AnchorPnts[(lbl_index-1)*2,i] = xposition
 			AnchorPnts[((lbl_index-1)*2+1),i] = yposition
 			widget_control,XY_Anc_Table_ID,set_value=([xposition,yposition]), use_table_select=[(lbl_index-1)*2,i,((lbl_index-1)*2+1),i]
-			if CGrpSize ge 33 then begin
-				zposition =(CGrpSize ge 33) ? total(CGroupParams[Zindex,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+			if Z_ind ge 0 then begin
+				zposition =(Z_ind ge 0) ? total(CGroupParams[Zindex,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
 				ZPnts[(lbl_index-1),i]=zposition
 				widget_control,Z_Anc_Table_ID,set_value=([zposition]), use_table_select=[(lbl_index-1),i,(lbl_index-1),i]
 			endif
@@ -1408,7 +1454,7 @@ AnchorPnts_new[*,0:(matched_cnt-1)] = AnchorPnts[*,matched_indecis]
 AnchorPnts = AnchorPnts_new
 XY_Anc_Table_ID=widget_info(event.top,FIND_BY_UNAME='WID_Anchors_XY_Table')
 widget_control,XY_Anc_Table_ID,set_value=(AnchorPnts), use_table_select=[0,0,5,(AnchPnts_MaxNum-1)]
-if CGrpSize ge 33 then begin
+if Z_ind ge 0 then begin
 	ZPnts_new=dblarr(3,AnchPnts_MaxNum)
 	ZPnts_new[*,0:(matched_cnt-1)]=ZPnts[*,matched_indecis]
 	ZPnts=ZPnts_new

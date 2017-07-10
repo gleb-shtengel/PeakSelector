@@ -723,6 +723,7 @@ common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common transformfilenames, lab_filenames, sum_filename
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -943,6 +944,8 @@ for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers
 	if temp_file_info.exists then begin
 		CGroupParams=0
 		restore,filename=temp_idl_fnames[Nlps]
+		;print,'iPALM Macro Fast: delete',(nlps+1), '  file:',temp_idl_fnames[Nlps]
+		file_delete,temp_idl_fnames[Nlps],  /ALLOW_NONEXISTENT,/QUIET
 		n_ele_nlps = n_elements(CGroupParams)
 		if (n_ele eq 0) and (n_ele_nlps ge CGrpSize) then begin
 			n_ele = n_ele_nlps
@@ -957,9 +960,11 @@ for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers
 			endif
 			TotalRawData = TotalRawData/tot_fr*(tot_fr-Nframes) + totdat/tot_fr*Nframes
 		endelse
-		file_delete,temp_idl_fnames[Nlps],  /ALLOW_NONEXISTENT,/QUIET
 	endif
 endfor
+file_delete,'temp/temp.sav',  /ALLOW_NONEXISTENT,/QUIET
+file_delete,'temp',  /ALLOW_NONEXISTENT,/QUIET
+file_delete,'npks_det.sav',  /ALLOW_NONEXISTENT,/QUIET
 print,'Concatenation complete'
 ;help,CGroupParams_tot
 CGroupParams=transpose(CGroupParams_tot)
@@ -1000,7 +1005,7 @@ framefirst=long(ParamLimits[9,0])
 framelast=long(ParamLimits[9,1])
 nloops=long(ceil((framelast-framefirst+1.0)/increment))
 if TransformEngine eq 2 then begin
-	nloops=long(ceil((framelast-framefirst+1.0)/increment)) < 	!CPU.HW_NCPU
+	nloops=(long(ceil((framelast-framefirst+1.0)/increment)) < 	!CPU.HW_NCPU ) < n_br_max
 		; don't allow more bridge processes than there are CPU's
 	increment = long(ceil((framelast-framefirst+1.0)/nloops))
 	nloops = long(ceil((framelast-framefirst+1.0)/increment)) > 1L
@@ -1009,45 +1014,70 @@ endif
 
 GroupDisplay=0						; 0 for cluster, 1 for local
 if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR') else idl_pwd=pref_get('IDL_WDE_START_DIR')
-cd,current=curr_pwd
-FILE_MKDIR,curr_pwd+'/temp'
-
+td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
+temp_dir=curr_pwd + sep + td
+FILE_MKDIR,temp_dir
+interrupt_load = 0
 if TransformEngine eq 1 then begin
-		save, curr_pwd,idl_pwd, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius,maxgrsize,disp_increment,GroupDisplay,RowNames, filename='temp/temp.sav'		;save variables for cluster cpu access
-		spawn,'sh '+idl_pwd+'/group_initialize_jobs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd			;Spawn grouping workers in cluster
+		save, curr_pwd,idl_pwd, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
+		spawn,'sh '+idl_pwd+'/group_initialize_jobs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir			;Spawn grouping
 
 		oStatusBar = obj_new('PALM_StatusBar', $
         	COLOR=[0,0,255], $
         	TEXT_COLOR=[255,255,255], $
+        	CANCEL_BUTTON_PRESENT = 1, $
        	 	TITLE='Starting grouped data processing...', $
       		TOP_LEVEL_BASE=tlb)
 		fraction_complete_last=0.0D
 		pr_bar_inc=0.01D
-		for nlps=0L,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
+
+		nlps = 0L
+
+		while (nlps lt nloops) and (interrupt_load eq 0) do begin			;reassemble little pks files from all the workers into on big one
 			framestart=	framefirst + (nlps)*increment						;first frame in batch
 			framestop=(framefirst + (nlps+1L)*increment-1)<framelast
 			GoodPeaks=where((CGroupParams[FrNum_ind,*] ge framestart) and (CGroupParams[FrNum_ind,*] le framestop),OKpkcnt)
-			fname_nlps='temp/temp'+strtrim(Nlps,2)+'.sav'
-			CGroupParamsGP = CGroupParams[*,GoodPeaks]
+			GPmin = GoodPeaks[0]
+			GPmax = GoodPeaks[n_elements(GoodPeaks)-1]
+			fname_nlps=temp_dir+'/temp'+strtrim(Nlps,2)+'.sav'
+			;CGroupParamsGP = CGroupParams[*,GoodPeaks]	; slow (?)
+			CGroupParamsGP = CGroupParams[*,GPmin:GPmax]	; faster
 			save, curr_pwd,idl_pwd, CGroupParamsGP, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius,maxgrsize,disp_increment,GroupDisplay,RowNames, filename=fname_nlps		;save variables for cluster cpu access
-			wait,0.5
+			wait,0.1
 			fraction_complete=FLOAT(nlps)/FLOAT((nloops-1.0))
 			if	(fraction_complete-fraction_complete_last) gt pr_bar_inc then begin
 				fraction_complete_last=fraction_complete
 				oStatusBar -> UpdateStatus, fraction_complete
 			endif
-			spawn,'sh '+idl_pwd+'/group_start_single_job.sh '+strtrim(nlps,2)+' '+curr_pwd+' '+idl_pwd			;Spawn grouping workers in cluster
-		endfor
+			spawn,'sh '+idl_pwd+'/group_start_single_job.sh '+strtrim(nlps,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir			;Spawn grouping workers in cluster
+			nlps++
+			interrupt_load = oStatusBar -> CheckCancel()
+		endwhile
+
 		obj_destroy, oStatusBar
-		GroupPeaksCluster
+
+		if interrupt_load eq 1 then print,'Grouping aborted, cleaning up...'
+		if interrupt_load eq 0 then begin
+			GroupPeaksCluster_ReadBack, interrupt_load
+		endif
+		CATCH, Error_status
+		file_delete,td + sep + 'temp.sav'
+		file_delete,td
+		IF Error_status NE 0 THEN BEGIN
+		    PRINT, 'Error index: ', Error_status
+			PRINT, 'Error message: ', !ERROR_STATE.MSG
+			CATCH,/CANCEL
+		ENDIF
+		CATCH,/CANCEL
+		if interrupt_load eq 1 then print,'Finished cleaning up...'
 endif else begin
 	iPALM_data_cnt=n_elements(CGroupParams)
 	save, curr_pwd,idl_pwd, iPALM_data_cnt, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename='temp/temp.sav'		;save variables for cluster cpu access
 	GroupPeaks_Bridge,CGroupParams
+	file_delete,'temp/temp.sav', /ALLOW_NONEXISTENT, /QUIET
+	file_delete,'temp', /ALLOW_NONEXISTENT, /QUIET
 endelse
 
-file_delete,'temp/temp.sav', /ALLOW_NONEXISTENT, /QUIET
-file_delete,'temp', /ALLOW_NONEXISTENT, /QUIET
 cd,curr_pwd
 
 ReloadParamlists, Event1
@@ -1371,8 +1401,6 @@ print, 'Finished the data transformation, closed data files'
 	save,CGroupParams,xydsz,totdat,filename=temp_idl_fnames[Nlps]
 
 
-;**************------------------ end of fast-track ---------------------------------------------------------------------------------
-
 spawn,'sync'
 spawn,'sync'
 print,'Wrote file '+temp_idl_fnames[Nlps]
@@ -1388,6 +1416,8 @@ common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, Trans
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+
 	def_wind=!D.window
 	sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 	nlabels=n_elements(RawDataFiles)
@@ -1401,7 +1431,7 @@ common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d,
 	if thisfitcond.FrmN le 500 then increment=thisfitcond.FrmN-thisfitcond.Frm0+1
 
 	print,!CPU.HW_NCPU,'  CPU cores are present'
-	nloops = Fix((thisfitcond.FrmN-thisfitcond.Frm0+1)/increment) < !CPU.HW_NCPU			;nloops=Fix((framelast-framefirst)/increment)
+	nloops = (Fix((thisfitcond.FrmN-thisfitcond.Frm0+1)/increment) < !CPU.HW_NCPU) < n_br_max		;nloops=Fix((framelast-framefirst)/increment)
 	; don't allow more bridge processes than there are CPU's
 	increment = long(ceil((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/nloops))
 	nloops = fix(ceil((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/increment))
@@ -1748,12 +1778,15 @@ end
 pro OnExtractZCoord_Bridge		; IDL Bridge: Extracts Z-coordinates using the fit parameters from selected WND file.
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
-print,!CPU.HW_NCPU,'  CPU cores are present, will start as many bridge child processes'
+print,!CPU.HW_NCPU,'  CPU cores are present
+nloops	=	!CPU.HW_NCPU < n_br_max
+		; don't allow more bridge processes than there are CPU's
+print, 'will start', nloops,' bridge child processes'
 framefirst=long(ParamLimits[9,0])
 framelast=long(ParamLimits[9,1])
-nloops	=	!CPU.HW_NCPU
-		; don't allow more bridge processes than there are CPU's
+
 increment = long(ceil((framelast-framefirst+1.0)/nloops))
 nloops = long(ceil((framelast-framefirst+1.0)/increment)) > 1L
 print,' Will start '+strtrim(nloops,2)+' bridge child processes'

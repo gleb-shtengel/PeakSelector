@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	05/11/2017 16:39.08
+; Generated on:	07/06/2017 16:25.01
 VERSION 1
 END
 
@@ -442,6 +442,10 @@ BEGIN
       W_MENU_Save_Histograms_BMP PUSHBUTTON 0 0 0 0
       VALUE "Save Histograms as BMP"
       ONACTIVATE "OnSaveHistBMP"
+      END
+      W_MENU_Replace_TotalRaw_with_Rendered PUSHBUTTON 0 0 0 0
+      VALUE "Replace TotalRaw with Rendered Image"
+      ONACTIVATE "Replace_TotalRaw_with_Rendered"
       END
     END
   END

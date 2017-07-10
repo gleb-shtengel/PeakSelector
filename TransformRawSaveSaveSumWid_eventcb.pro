@@ -229,8 +229,8 @@ common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 		xyouts,0.1,0.5,prev_message,CHARSIZE=2.0,/NORMAL,col=0
 		TransformRaw_Save_SaveSum_Cluster
 		file_delete,'temp/temp.sav'
-		file_delete,'temp/npks_det.sav'
 		file_delete,'temp'
+		file_delete,'npks_det.sav'
 		cd,curr_pwd
 	endif else begin
 		TransformLocal=0

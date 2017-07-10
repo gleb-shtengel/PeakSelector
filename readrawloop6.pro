@@ -1084,22 +1084,24 @@ end
 ;
 Pro ReadRawLoopCluster			;Master program to read data and loop through processing for cluster
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-restore,'temp/temp.sav'
-print,'sh '+idl_pwd+'/runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd		;Spawn workers in cluster
-spawn,'sh '+idl_pwd+'/runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd		;Spawn workers in cluster
+restore,(temp_dir+'/temp.sav')
+print,'sh '+idl_pwd+'/runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
+spawn,'sh '+idl_pwd+'/runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
 thefile_no_exten=pth+filen
-restore,'temp/npks_det.sav'
+restore,(temp_dir+'/npks_det.sav')
+file_delete,(temp_dir+'/npks_det.sav')
 npktot = total(ulong(npks_det), /PRESERVE_TYPE)
 print,'Total Peaks Detected: ',npktot
-file_delete,'temp/npks_det.sav'
+
 xi = 0ul
 for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
 	framefirst=	thisfitcond.Frm0 + (nlps)*increment						;first frame in batch
 	framelast=((thisfitcond.Frm0 + (nlps+1)*increment-1)<thisfitcond.Nframesmax) < thisfitcond.FrmN
 	print,'PALM cluster processing: concatenating the segment',(nlps+1),'   of ',nloops
-	test1=file_info(pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks')
+	current_file = temp_dir+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+	test1=file_info(current_file)
 	if ~test1.exists then stop
-	restore,filename=pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+	restore, current_file
 	if (size(Apeakparams))[2] ne 0 then begin
 		if ((size(Apeakparams_tot))[2] eq 0) and (npks_det[nlps] gt 0) then begin
 			;Apeakparams_tot = Apeakparams
@@ -1126,7 +1128,7 @@ for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers
 			endif
 		endelse
 	endif
-	file_delete,pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+	file_delete, current_file
 endfor
 if n_elements(Apeakparams_tot) ge 1 then Apeakparams=Apeakparams_tot
 totdat=totdat_tot
@@ -1140,9 +1142,10 @@ end
 ;
 ;------------------------------------------------------------------------------------
 ;
-Pro	ReadRawWorker,nlps,data_dir						;spawn mulitple copies of this programs for cluster
+Pro	ReadRawWorker, nlps, data_dir, temp_dir					;spawn mulitple copies of this programs for cluster
 Nlps=ulong((COMMAND_LINE_ARGS())[0])
 data_dir=(COMMAND_LINE_ARGS())[1]
+temp_dir=(COMMAND_LINE_ARGS())[2]
 cd,data_dir
 CATCH, Error_status
 IF Error_status NE 0 THEN BEGIN
@@ -1150,7 +1153,7 @@ IF Error_status NE 0 THEN BEGIN
     PRINT, 'ReadRawWorker Error message: ', !ERROR_STATE.MSG
 	CATCH, /CANCEL
 ENDIF
-restore,'temp/temp.sav'
+restore,temp_dir + '/temp.sav'
 thefile_no_exten=pth+filen
 DisplayType=-1													;set to no displays
 xsz=thisfitcond.xsz												;number of x pixels
@@ -1181,10 +1184,11 @@ if n_elements(Apeakparams) gt 0 then begin
 	npks_det = total(ulong(filter),/PRESERVE_TYPE)
 endif else npks_det = 0uL
 image=float(loc)
-save,Apeakparams,image,xsz,ysz,totdat,filename=pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks',thefile_no_exten
+current_file = temp_dir + filen + '_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
+save, Apeakparams, image, xsz, ysz, totdat, filename=current_file
 spawn,'sync'
 spawn,'sync'
-print,'Wrote file '+pth+'/temp/'+filen+'_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks    Peaks Detected:'+strtrim(npks_det,2)
+print,'Wrote file ' + current_file + ',   Peaks Detected:'+strtrim(npks_det,2)
 return
 end
 ;
@@ -1348,7 +1352,7 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 			modalList	; list of active modal widgets
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 Event1={ WIDGET, ID:TopID, TOP:TopID, HANDLER:TopID }
-
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -1430,12 +1434,13 @@ if DisplayType eq 3 then begin 	;set to 3 (--> -1) - Cluster
 	DisplayType=-1			;turns of all displays during processing
 	;if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR') else idl_pwd=pref_get('IDL_WDE_START_DIR')
 	cd,current=curr_pwd
-	temp_dir=curr_pwd+'/temp'
+	td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
+	temp_dir=curr_pwd + sep + td
 	FILE_MKDIR,temp_dir
-	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, increment, nloops, filename='temp/temp.sav'		;save variables for cluster cpu access
+	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, increment, nloops, filename = td + sep + 'temp.sav'		;save variables for cluster cpu access
 	ReadRawLoopCluster
-	file_delete,'temp/temp.sav'
-	file_delete,'temp'
+	file_delete,td + sep + 'temp.sav'
+	file_delete,td
 	cd,curr_pwd
 	restore,saved_pks_filename
 endif else begin

@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	05/11/2017 16:55.43
+; Generated on:	07/10/2017 14:14.16
 VERSION 1
 END
 
@@ -12,7 +12,7 @@ XPAD = 3
 YPAD = 3
 SPACE = 3
 BEGIN
-  WID_BUTTON_Save_Separate_TIFFs PUSHBUTTON 51 790 280 30
+  WID_BUTTON_Save_Separate_TIFFs PUSHBUTTON 51 820 280 30
   VALUE "Save Volume as Separate TIFF files"
   ALIGNCENTER
   ONACTIVATE "Save_Volume_TIFF_separate_files"
@@ -23,7 +23,7 @@ BEGIN
   SCROLLWIDTH = 1024
   SCROLLHEIGHT = 1024
   END
-  WID_IMAGE_SCALING_Parameters TABLE 21 304 335 110
+  WID_IMAGE_SCALING_Parameters TABLE 21 340 335 110
   RESIZECOLUMNS
   N_ROWS = 3
   N_COLS = 1
@@ -90,7 +90,7 @@ BEGIN
   ITEM "DIC / EM"
   ONSELECT "OnLabelDropList_cust_TIFF"
   END
-  WID_BUTTON_Save_cust_TIFF_0 PUSHBUTTON 51 267 140 30
+  WID_BUTTON_Save_cust_TIFF_0 PUSHBUTTON 30 260 140 30
   VALUE "Save TIFF"
   ALIGNCENTER
   ONACTIVATE "Save_cust_TIFF"
@@ -100,23 +100,23 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnAddScaleBarButton_cust_TIFF"
   END
-  WID_BUTTON_Generate3D PUSHBUTTON 81 612 193 30
+  WID_BUTTON_Generate3D PUSHBUTTON 81 640 193 30
   VALUE "Generate 3D Volume"
   ALIGNCENTER
   ONACTIVATE "On_Generate3D"
   END
-  WID_SLIDER_Z_slice SLIDER 16 658 350 55
+  WID_SLIDER_Z_slice SLIDER 16 690 350 55
   CAPTION "Z slice #"
   VALUE = 50
   MAXIMUM = 100
   ONVALUECHANGED "Display_Zslice"
   END
-  WID_BUTTON_Save_Multiframe_TIFF PUSHBUTTON 51 742 280 30
+  WID_BUTTON_Save_Multiframe_TIFF PUSHBUTTON 51 770 280 30
   VALUE "Save Volume as Multi-frame TIFF file"
   ALIGNCENTER
   ONACTIVATE "Save_Volume_TIFF"
   END
-  WID_IMAGE_Zcoord_Parameters TABLE 21 424 335 125
+  WID_IMAGE_Zcoord_Parameters TABLE 21 460 335 125
   N_ROWS = 4
   N_COLS = 1
   NUMCOLLABELS = 1
@@ -129,7 +129,7 @@ BEGIN
   EDITABLE
   ONINSERTCHAR "DoInsert_Cust_TIFF_ZScale_Param"
   END
-  WID_TEXT_Zsubvolume TEXT 281 564 70 30
+  WID_TEXT_Zsubvolume TEXT 281 590 70 30
   NUMITEMS = 2
   ITEM "100.0"
   ITEM ""
@@ -141,21 +141,21 @@ BEGIN
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_LABEL_subvolume_txt LABEL 21 572 250 15
+  WID_LABEL_subvolume_txt LABEL 21 600 250 15
   VALUE "Gaussian Cloud Radius (subvolume) (nm)"
   ALIGNLEFT
   END
-  WID_BUTTON_Save_Separate_PNGs PUSHBUTTON 51 838 280 30
+  WID_BUTTON_Save_Separate_PNGs PUSHBUTTON 51 870 280 30
   VALUE "Save Volume as Separate PNG files"
   ALIGNCENTER
   ONACTIVATE "Save_Volume_PNG_separate_files"
   END
-  WID_BUTTON_Overlay_DIC_EM_cust_TIFF PUSHBUTTON 20 190 140 30
+  WID_BUTTON_Overlay_DIC_EM_cust_TIFF PUSHBUTTON 20 180 140 30
   VALUE "Overlay DIC/EM"
   ALIGNCENTER
   ONACTIVATE "Overlay_DIC_cust_TIFF"
   END
-  WID_BUTTON_Save_Multiframe_Monochrome_TIFF PUSHBUTTON 48 886 280 30
+  WID_BUTTON_Save_Multiframe_Monochrome_TIFF PUSHBUTTON 20 920 340 30
   VALUE "Save Volume as Monochrome Multi-frame TIFF stack"
   ALIGNCENTER
   ONACTIVATE "Save_Volume_TIFF_Monochrome"
@@ -165,7 +165,7 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnTotalRawDataButton_cust"
   END
-  WID_BUTTON_Render_cust_DIC PUSHBUTTON 20 225 140 30
+  WID_BUTTON_Render_cust_DIC PUSHBUTTON 20 220 140 30
   VALUE "Render Only DIC/EM"
   ALIGNCENTER
   ONACTIVATE "Draw_DIC_only_cust_TIFF"
@@ -180,5 +180,10 @@ BEGIN
     ALIGNLEFT
     ONACTIVATE "Set_Tie_RGB_CustTIFF"
     END
+  END
+  WID_BUTTON_Save_cust_TIFF_float PUSHBUTTON 30 300 140 30
+  VALUE "Save TIFF float"
+  ALIGNCENTER
+  ONACTIVATE "Save_cust_TIFF_float"
   END
 END

@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	04/15/2013 12:03.54
+; Generated on:	07/05/2017 12:46.40
 VERSION 1
 END
 
@@ -54,7 +54,7 @@ BEGIN
   VALUE "To add new fiducial point, first select the area of the interest on the image."
   ALIGNLEFT
   END
-  WID_BASE_0 BASE 130 130 0 0
+  WID_BASE_0 BASE 110 130 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -65,7 +65,7 @@ BEGIN
     ONACTIVATE "RGB_check_buttons"
     END
   END
-  WID_BASE_1 BASE 130 160 0 0
+  WID_BASE_1 BASE 110 160 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -76,7 +76,7 @@ BEGIN
     ONACTIVATE "RGB_check_buttons"
     END
   END
-  WID_BASE_2 BASE 240 160 0 0
+  WID_BASE_2 BASE 230 160 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -87,9 +87,10 @@ BEGIN
     ONACTIVATE "RGB_check_buttons"
     END
   END
-  WID_BASE_3 BASE 240 130 0 0
+  WID_BASE_3 BASE 225 130 0 0
   COLUMNS = 1
   NONEXCLUSIVE
+  XPAD = 5
   CAPTION "IDL"
   BEGIN
     WID_BUTTON_GTR PUSHBUTTON -1 -1 0 0
@@ -98,7 +99,7 @@ BEGIN
     ONACTIVATE "RGB_check_buttons"
     END
   END
-  WID_BASE_4 BASE 350 130 0 0
+  WID_BASE_4 BASE 352 130 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -109,7 +110,7 @@ BEGIN
     ONACTIVATE "RGB_check_buttons"
     END
   END
-  WID_BASE_5 BASE 350 160 0 0
+  WID_BASE_5 BASE 352 160 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -148,10 +149,11 @@ BEGIN
   ALIGNLEFT
   END
   WID_DROPLIST_TRANSFORM_METHOD DROPLIST 208 8 226 26
-  NUMITEMS = 3
+  NUMITEMS = 4
   ITEM "Linear Regression"
   ITEM "POLYWARP"
   ITEM "Pivot and Average (3 pts only)"
+  ITEM "Shift"
   ONSELECT "Set_Transf_Method"
   END
   WID_LABEL_2 LABEL 19 4 193 18
@@ -244,7 +246,7 @@ BEGIN
   EDITABLE
   ONINSERTCHAR "DoInsert_Autodetect_Param"
   END
-  WID_BUTTON_AutoDetect_0 PUSHBUTTON 800 75 200 30
+  WID_BUTTON_AutoDetect_0 PUSHBUTTON 810 75 200 30
   VALUE "Autodetect Matching Fiducials"
   ALIGNCENTER
   ONACTIVATE "OnButton_AutodetectMatchingFiducials"
@@ -292,12 +294,12 @@ BEGIN
   ITEM "Frame Peaks"
   ITEM "Grouped Peaks"
   END
-  WID_BUTTON_Remove_Unmatched PUSHBUTTON 800 110 200 30
+  WID_BUTTON_Remove_Unmatched PUSHBUTTON 810 110 200 30
   VALUE "Remove Unmatched Fiducials"
   ALIGNCENTER
   ONACTIVATE "OnButton_Remove_Unmatched"
   END
-  WID_Anchors_Transf_AverageErrors TABLE 764 305 296 55
+  WID_Anchors_Transf_AverageErrors TABLE 754 305 296 60
   N_ROWS = 1
   N_COLS = 3
   NUMCOLLABELS = 3
@@ -308,7 +310,7 @@ BEGIN
   ROWLABEL "Average"
   EDITABLE
   END
-  WID_Anchors_Transf_WorstErrors TABLE 764 245 296 55
+  WID_Anchors_Transf_WorstErrors TABLE 754 245 296 60
   N_ROWS = 1
   N_COLS = 3
   NUMCOLLABELS = 3
@@ -337,12 +339,12 @@ BEGIN
     ONACTIVATE "Set_AdjustScale"
     END
   END
-  WID_BUTTON_Remove_Bad_Fiducials PUSHBUTTON 800 153 180 30
+  WID_BUTTON_Remove_Bad_Fiducials PUSHBUTTON 800 150 180 30
   VALUE "Remove Bad Fiducials"
   ALIGNCENTER
   ONACTIVATE "OnButton_Remove_Bad_Fiducials"
   END
-  WID_TEXT_FidRemove_Thr TEXT 995 153 56 30
+  WID_TEXT_FidRemove_Thr TEXT 995 150 56 30
   NUMITEMS = 1
   ITEM "20"
   EDITABLE
@@ -356,7 +358,7 @@ BEGIN
   ITEM "Frame Peaks"
   ITEM "Window Cntr"
   END
-  WID_LABEL_andSAve_1 LABEL 795 190 260 15
+  WID_LABEL_andSAve_1 LABEL 790 185 260 15
   VALUE "Repeat Test+Remove till Worst is better then above"
   ALIGNLEFT
   END
@@ -381,7 +383,7 @@ BEGIN
     ONACTIVATE "Set_LimitXY"
     END
   END
-  WID_XYlimits_table TABLE 440 218 230 75
+  WID_XYlimits_table TABLE 440 218 230 80
   N_ROWS = 2
   N_COLS = 2
   NUMCOLLABELS = 2

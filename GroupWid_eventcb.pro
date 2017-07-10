@@ -23,7 +23,8 @@ pro OnGroupingInfoOK, Event		; Starts Grouping according to selected choices
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
 FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
 SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
@@ -77,9 +78,14 @@ case GroupEngine of
 		GroupDisplay = 0					; 0 for cluster, 1 for local
 		if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR')	else	idl_pwd=pref_get('IDL_WDE_START_DIR')
 		cd,current=curr_pwd
-		FILE_MKDIR,curr_pwd+'/temp'
-		save, curr_pwd,idl_pwd, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename='temp/temp.sav'		;save variables for cluster cpu access
-		spawn,'sh '+idl_pwd+'/group_initialize_jobs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd			;Spawn grouping workers in cluster
+
+		cd,current=curr_pwd
+		td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
+		temp_dir=curr_pwd + sep + td
+		FILE_MKDIR,temp_dir
+
+		save, curr_pwd,idl_pwd, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
+		spawn,'sh '+idl_pwd+'/group_initialize_jobs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir			;Spawn grouping workers in cluster
 
 		oStatusBar = obj_new('PALM_StatusBar', $
         	COLOR=[0,0,255], $
@@ -98,7 +104,7 @@ case GroupEngine of
 			GoodPeaks=where((CGroupParams[FrNum_ind,*] ge framestart) and (CGroupParams[FrNum_ind,*] le framestop),OKpkcnt)
 			GPmin = GoodPeaks[0]
 			GPmax = GoodPeaks[n_elements(GoodPeaks)-1]
-			fname_nlps='temp/temp'+strtrim(Nlps,2)+'.sav'
+			fname_nlps=temp_dir+'/temp'+strtrim(Nlps,2)+'.sav'
 			;CGroupParamsGP = CGroupParams[*,GoodPeaks]	; slow (?)
 			CGroupParamsGP = CGroupParams[*,GPmin:GPmax]	; faster
 			save, curr_pwd,idl_pwd, CGroupParamsGP, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius,maxgrsize,disp_increment,GroupDisplay,RowNames, filename=fname_nlps		;save variables for cluster cpu access
@@ -108,7 +114,7 @@ case GroupEngine of
 				fraction_complete_last=fraction_complete
 				oStatusBar -> UpdateStatus, fraction_complete
 			endif
-			spawn,'sh '+idl_pwd+'/group_start_single_job.sh '+strtrim(nlps,2)+' '+curr_pwd+' '+idl_pwd			;Spawn grouping workers in cluster
+			spawn,'sh '+idl_pwd+'/group_start_single_job.sh '+strtrim(nlps,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir			;Spawn grouping workers in cluster
 			nlps++
 			interrupt_load = oStatusBar -> CheckCancel()
 		endwhile
@@ -118,17 +124,18 @@ case GroupEngine of
 		if interrupt_load eq 1 then print,'Grouping aborted, cleaning up...'
 
 		if interrupt_load eq 0 then begin
-			GroupPeaksCluster, interrupt_load
+			GroupPeaksCluster_ReadBack, interrupt_load
 		endif
-
+		print,'removing temp directory'
 		CATCH, Error_status
-		file_delete,'temp', /RECURSIVE, /ALLOW_NONEXISTENT
-		file_delete,'temp_shells', /RECURSIVE, /ALLOW_NONEXISTENT
+		file_delete,td + sep + 'temp.sav'
+		file_delete,td
 		IF Error_status NE 0 THEN BEGIN
 		    PRINT, 'Error index: ', Error_status
 			PRINT, 'Error message: ', !ERROR_STATE.MSG
 			CATCH,/CANCEL
 		ENDIF
+		CATCH,/CANCEL
 		if interrupt_load eq 1 then print,'Finished cleaning up...'
 		cd,curr_pwd
 	end
@@ -179,26 +186,27 @@ if interrupt_load eq 0 then begin
 		SHMUnmap, shmName_data
 		IF Error_status1 NE 0 THEN BEGIN
 			PRINT, 'Grouping: Error while unmapping', shmName_data,':  ',!ERROR_STATE.MSG
-			CATCH,/CANCEL
 		ENDIF
+		CATCH,/CANCEL
 		CATCH, Error_status2
 		SHMUnmap, shmName_filter
 		IF Error_status2 NE 0 THEN BEGIN
 			PRINT, 'Grouping: Error while unmapping', shmName_filter,':  ',!ERROR_STATE.MSG
-			CATCH,/CANCEL
 		ENDIF
+		CATCH,/CANCEL
 		CATCH, Error_status3
 		for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
 		IF Error_status3 NE 0 THEN BEGIN
 			PRINT, 'Grouping: Error while destroying fbr_arr objects:  ',!ERROR_STATE.MSG
-			CATCH,/CANCEL
 		ENDIF
+		CATCH,/CANCEL
 		bridge_exists = 0
 	endif
 
-	ReloadParamlists, Event, [Gr_ind, GrX_ind, GrY_ind, GrSigX_ind, GrSigY_ind, GrNph_ind, Gr_size_ind, GrInd_ind, $
-							GrAmpL1_ind, GrAmpL2_ind, GrAmpL3_ind, GrZ_ind,GrSigZ_ind,GrCoh_ind,Gr_Ell_ind,UnwGrZ_ind,UnwGrZErr_ind]
-
+	indices0 = [Gr_ind, GrX_ind, GrY_ind, GrSigX_ind, GrSigY_ind, GrNph_ind, Gr_size_ind, GrInd_ind, $
+							GrAmpL1_ind, GrAmpL2_ind, GrAmpL3_ind, GrZ_ind, GrSigZ_ind, GrCoh_ind, Gr_Ell_ind, UnwGrZ_ind, UnwGrZErr_ind]
+	indices = indices0[where(indices0 ge 0)]
+	ReloadParamlists, Event, indices
 	OnGroupCentersButton, Event
 endif
 
@@ -234,23 +242,26 @@ end
 ;
 ;------------------------------------------------------------------------------------
 ;
-Pro GroupPeaksCluster, interrupt_load			;Master program to loop through group processing for cluster, using same fast new group processing core
+Pro GroupPeaksCluster_ReadBack, interrupt_load			;Master program to loop through group processing for cluster, using same fast new group processing core
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common test, test1, nlps, test2, test3
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
 FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
 SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
 Gr_ind = min(where(RowNames eq '18 Grouped Index'))						; CGroupParametersGP[18,*] - group #
 
-restore,'temp/temp.sav'
-spawn,'sh '+idl_pwd+'/group_status_check.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd			;Spawn grouping workers in cluster
+restore,(temp_dir+'/temp.sav')
+spawn,'sh '+idl_pwd+'/group_status_check.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir			;Start monitoring the grouping workers on cluster
 
 framefirst=long(ParamLimits[FrNum_ind,0])
 framelast=long(ParamLimits[FrNum_ind,1])
 
-file_delete,'temp/npks_det.sav'
+file_delete,(temp_dir+'/npks_det.sav')
 
+print,'Grouping finished, reading back the data...'
 oStatusBar = obj_new('PALM_StatusBar', $
         	COLOR=[0,0,255], $
         	TEXT_COLOR=[255,255,255], $
@@ -265,13 +276,15 @@ nlps = 0L
 while (nlps lt nloops) and (interrupt_load eq 0) do begin			;reassemble little pks files from all the workers into on big one
 	framestart=	framefirst + (nlps)*increment						;first frame in batch
 	framestop=(framefirst + (nlps+1L)*increment-1)<framelast
-	par_fname = curr_pwd+'/temp/group_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
+	par_fname = temp_dir+'/group_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
+	print,'Reading the data back from: ',par_fname
 	test1=file_info(par_fname)
 	if ~test1.exists then begin
 		print,'Did not found file:',test1.name
 	endif else begin
 		restore,filename = par_fname
 		if n_elements(CGroupParamsGP) gt 2 then begin
+			;print,'File returned peaks:', size(CGroupParamsGP)
 			if nlps gt 0 then CGroupParamsGP[Gr_ind,*]=CGroupParamsGP[Gr_ind,*]+max(CGroupParams[Gr_ind,*])+1
 			ind0 = (where(CGroupParams[FrNum_ind,*] ge framestart))[0]
 			;CGroupParams[*,indecis]=CGroupParamsGP  ;- slow!
@@ -289,17 +302,31 @@ while (nlps lt nloops) and (interrupt_load eq 0) do begin			;reassemble little p
 	interrupt_load = oStatusBar -> CheckCancel()
 endwhile
 obj_destroy, oStatusBar
+print,'Finished reading the data back from Cluster'
 return
 end
 ;
 ;------------------------------------------------------------------------------------
 ;
-Pro	GroupPeaksWorker,nlps,data_dir						;spawn mulitple copies of this programs for cluster
+Pro	GroupPeaksWorker, nlps, data_dir, temp_dir						;spawn mulitple copies of this programs for cluster
+
+CATCH, Error_status
+IF Error_status NE 0 THEN BEGIN
+    PRINT, 'GroupPeaksWorker Error index: ', Error_status
+    PRINT, 'GroupPeaksWorker Error message: ', !ERROR_STATE.MSG
+	CATCH, /CANCEL
+	return
+ENDIF
+
 Nlps=long((COMMAND_LINE_ARGS())[0])
 data_dir=(COMMAND_LINE_ARGS())[1]
+temp_dir=(COMMAND_LINE_ARGS())[2]
 cd,data_dir
 ;restore,'temp/temp.sav'
-restore,'temp/temp'+strtrim(Nlps,2)+'.sav'
+;restore,'temp/temp'+strtrim(Nlps,2)+'.sav'
+temp_data_file = temp_dir + '/temp'+strtrim(Nlps,2)+'.sav'
+print,'Starting GroupPeaksWorker, restore deta from file: ', temp_data_file
+restore, temp_data_file
 FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
 SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
 Gr_ind = min(where(RowNames eq '18 Grouped Index'))						; CGroupParametersGP[18,*] - group #
@@ -311,7 +338,7 @@ framestop=(framefirst + (nlps+1L)*increment-1L)<framelast
 CGPsz = size(CGroupParamsGP)
 CGrpSize = CGPsz[1]
 OKpkcnt = CGPsz[2]
-print,'Starting GroupPeaksCore for framefirst=',framestart,'framelast=',framestop,'OKpkcnt=',OKpkcnt
+print,'Starting GroupPeaksCore for framefirst=',framestart,',  framelast=',framestop,',  OKpkcnt=',OKpkcnt
 if OKpkcnt ge 1 then begin
 	;CGroupParamsGP=CGroupParams[*,GoodPeaks]
 	print,'Nlps=',Nlps
@@ -325,11 +352,11 @@ if OKpkcnt ge 1 then begin
 	print,'GroupDisplay: ', GroupDisplay
 	GroupPeaksCore, CGroupParamsGP, CGrpSize, OKpkcnt, grouping_radius, spacer,maxgrsize, disp_increment, GroupDisplay, RowNames
 endif else CGroupParamsGP=0
-save,CGroupParamsGP,filename=data_dir+'/temp/group_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
+save,CGroupParamsGP,filename=temp_dir+'/group_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
 spawn,'sync'
 spawn,'sync'
-print,'Wrote file '+data_dir+'/temp/group_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
-file_delete,'temp/temp'+strtrim(Nlps,2)+'.sav'
+print,'Wrote file '+temp_dir+'/group_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
+file_delete, temp_data_file
 return
 end
 ;
@@ -493,12 +520,17 @@ GrAmpL3_ind = min(where(RowNames eq 'Group A3'))						; CGroupParametersGP[39,*]
 
 Ell_ind = min(where(RowNames eq 'XY Ellipticity'))						; CGroupParametersGP[43,*] - XY Ellipticity
 Gr_Ell_ind = min(where(RowNames eq 'XY Group Ellipticity'))				; CGroupParametersGP[46,*] - Group Ellipticity
+Z_ind = min(where(RowNames eq 'Z Position'))                            ; CGroupParametersGP[34,*] - Peak Z Position
+SigZ_ind = min(where(RowNames eq 'Sigma Z'))                            ; CGroupParametersGP[35,*] - Sigma Z
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))                    ; CGroupParametersGP[40,*] - Group Z Position
+GrSigZ_ind = min(where(RowNames eq 'Group Sigma Z'))                    ; CGroupParametersGP[41,*] - Group Sigma Z
 
 CGroupParamsGP[Gr_ind,*]=-1											; initialize group ID to -1
 CGroupParamsGP[GrInd_ind,*]=1										; imitialize the group frame index in the group to 1 (they are indexed from 1, not from 0)
 CGroupParamsGP[Gr_size_ind,*]=1										; initialize the group peak count to 1
 CGroupParamsGP[GrNph_ind,*]=CGroupParamsGP[Nph_ind,*]				; initialize the group photon count to peak photon count
 CGroupParamsGP[GrX_ind:GrY_ind,*]=CGroupParamsGP[X_ind:Y_ind,*]		; initialize the group position to peak position
+CGroupParamsGP[GrZ_ind,*]=CGroupParamsGP[Z_ind,*]		; initialize the group position to peak position
 CGroupParamsGP[GrSigX_ind:GrSigY_ind,*]=CGroupParamsGP[SigX_ind:SigY_ind,*]		; initialize the group position sigma to peak position sigma
 if AmpL1_ind gt 0 then CGroupParamsGP[GrAmpL1_ind:GrAmpL3_ind,*]=CgroupParamsGP[AmpL1_ind:AmpL3_ind,*]
 if Gr_Ell_ind gt 0 then CGroupParamsGP[Gr_Ell_ind,*]=CgroupParamsGP[Ell_ind,*]	;	03/13/09 GES: initialize Group Ellipticity values with peak Ellipticity values
@@ -510,11 +542,13 @@ GroupNumber=0L
 
 GrPeaksX=fltarr(maxgrsize+1,OKpkcnt)	; these are 2D arrays where
 GrPeaksY=GrPeaksX						; the grouped peak parameters will be added during analysis, columns are
-GrPksStdX=GrPeaksX						; separate groups, up to maxgrsize+1 elements in each
-GrPksStdY=GrPksStdX						; element [maxgrsize,*] is a place where the data for larger groups is damped
+GrPeaksZ=GrPeaksX						; separate groups, up to maxgrsize+1 elements in each
+GrPksStdX=GrPeaksX						; element [maxgrsize,*] is a place where the data for larger groups is damped
+GrPksStdY=GrPksStdX						; simialr array for Number of Photons for each peak in the group
+GrPksStdZ=GrPeaksX
 GrGaussWidthX=GrPksStdX
 GrGaussWidthY=GrPksStdX
-GrNumPhotons=GrPksStdX					; simialr array for Number of Photons for each peak in the group
+GrNumPhotons=GrPksStdX
 
 if AmpL1_ind ge 0 then GrA1=GrPksStdX						; similar array for L1 amplitude
 if AmpL2_ind ge 0 then GrA2=GrPksStdX
@@ -541,6 +575,7 @@ for i=0L,uniq_frame_num-1 do begin		; cycle over all frames containing "good pea
 
 		GrPeaksX[0,GroupNumber+lindgen(frame_peak_number)]=CGroupParamsGP[X_ind,frame_peak_ind]
 		GrPeaksY[0,GroupNumber+lindgen(frame_peak_number)]=CGroupParamsGP[Y_ind,frame_peak_ind]
+		GrPeaksZ[0,GroupNumber+lindgen(frame_peak_number)]=CGroupParamsGP[Z_ind,frame_peak_ind]
 		GrPksStdX[0,GroupNumber+lindgen(frame_peak_number)]=CGroupParamsGP[SigX_ind,frame_peak_ind]
 		GrPksStdY[0,GroupNumber+lindgen(frame_peak_number)]=CGroupParamsGP[SigY_ind,frame_peak_ind]
 		GrGaussWidthX[0,GroupNumber+lindgen(frame_peak_number)]=CGroupParamsGP[Xwid_ind,frame_peak_ind]
@@ -559,7 +594,7 @@ for i=0L,uniq_frame_num-1 do begin		; cycle over all frames containing "good pea
 		Groups2D=transpose(replicate(COMPLEX(1,0),frame_peak_number)#COMPLEX(Groups[2,UntermedInd],Groups[3,UntermedInd]))
 		Peaks2D=replicate(COMPLEX(1,0),size1)#COMPLEX(CGroupParamsGP[X_ind,frame_peak_ind],CGroupParamsGP[Y_ind,frame_peak_ind])
 		Group_Peak_dist=abs(Peaks2D-Groups2D)
-		Group_peak_dist_min=min(Group_Peak_dist,grp_i,DIMENSION=1)		; for each peak fing the unterminated grop that is closest to it.
+		Group_peak_dist_min=min(Group_Peak_dist,grp_i,DIMENSION=1)		; for each peak find the unterminated grop that is closest to it.
 		abs_ind=grp_i[where(Group_peak_dist_min lt grouping_radius,num_found)>0]	; this needed to make sure that if there are two groups within the grouping criteria distance, group it with closest
 		if num_found gt 0 then begin					; assign the peaks to existing groups if within range (if any)
 			indii=ARRAY_INDICES(Group_Peak_dist,abs_ind)
@@ -582,6 +617,7 @@ for i=0L,uniq_frame_num-1 do begin		; cycle over all frames containing "good pea
 			IndHere=((grcnt-1)<maxgrsize)+Matched_Group_Indecis*(maxgrsize+1)
 			GrPeaksX[IndHere]=CGroupParamsGP[X_ind,peak_indices]
 			GrPeaksY[IndHere]=CGroupParamsGP[Y_ind,peak_indices]
+			GrPeaksZ[IndHere]=CGroupParamsGP[Z_ind,peak_indices]
 			GrPksStdX[IndHere]=CGroupParamsGP[SigX_ind,peak_indices]
 			GrPksStdY[IndHere]=CGroupParamsGP[SigY_ind,peak_indices]
 			GrGaussWidthX[IndHere]=CGroupParamsGP[Xwid_ind,peak_indices]
@@ -601,6 +637,7 @@ for i=0L,uniq_frame_num-1 do begin		; cycle over all frames containing "good pea
 			Groups[4,(GroupNumber+lindgen(num_remaining))]=CGroupParamsGP[Nph_ind,peak_indices]
 			GrPeaksX[0,GroupNumber+lindgen(num_remaining)]=CGroupParamsGP[X_ind,peak_indices]
 			GrPeaksY[0,GroupNumber+lindgen(num_remaining)]=CGroupParamsGP[Y_ind,peak_indices]
+			GrPeaksZ[0,GroupNumber+lindgen(num_remaining)]=CGroupParamsGP[Z_ind,peak_indices]
 			GrPksStdX[0,GroupNumber+lindgen(num_remaining)]=CGroupParamsGP[SigX_ind,peak_indices]
 			GrPksStdY[0,GroupNumber+lindgen(num_remaining)]=CGroupParamsGP[SigY_ind,peak_indices]
 			GrGaussWidthX[0,GroupNumber+lindgen(num_remaining)]=CGroupParamsGP[Xwid_ind,peak_indices]
@@ -633,7 +670,8 @@ GrInd=where((Groups[0,*] gt 1) and (Groups[0,*] le maxgrsize),GrCnt) ;indices of
 if grcnt gt 0 then begin
 	GrPeaksX=GrPeaksX[0:(maxgrsize-1),GrInd]			; elements of these 2D arrays are either valid peak cordinates or zeroes
 	GrPeaksY=GrPeaksY[0:(maxgrsize-1),GrInd]          	; only the groups (columns) with number of (non-zero) elements >1  and <maxgrsize
-	GrPksStdX=GrPksStdX[0:(maxgrsize-1),GrInd]      	; are analyzed at this step
+	GrPeaksZ=GrPeaksZ[0:(maxgrsize-1),GrInd]			; are analyzed at this step
+	GrPksStdX=GrPksStdX[0:(maxgrsize-1),GrInd]
 	GrPksStdY=GrPksStdY[0:(maxgrsize-1),GrInd]
 	GrNumPhotons=GrNumPhotons[0:(maxgrsize-1),GrInd]
 	GrGaussWidthX=GrGaussWidthX[0:(maxgrsize-1),GrInd]
@@ -656,6 +694,7 @@ if grcnt gt 0 then begin
 	GrNE=reform(replicate(1,maxgrsize)#Groups[0,GrInd],maxgrsize*GrCnt)		; Group Nymber of Elements
 	GrStdX=GrPeaksX
 	GrStdY=GrStdX
+	GrStdZ=GrStdX
 	cnt=total(ValidPks,1)
 ;	GrStdX=sqrt(total((GrPeaksX-GrMeanX)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]-1+total(GrPksStdX^2*GrNumPhotons,1)/(Groups[4,GrInd])^2)/sqrt(2)
 	GrStdX=sqrt(total((GrPeaksX-GrMeanX)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt)+total(GrPksStdX^2*GrNumPhotons,1)/(Groups[4,GrInd]*cnt))/sqrt(2)
@@ -663,21 +702,29 @@ if grcnt gt 0 then begin
 ;	GrStdY=sqrt(total((GrPeaksY-GrMeanY)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]-1)+total(GrPksStdY^2*GrNumPhotons,1)/(Groups[4,GrInd])^2)/sqrt(2)
 	GrStdY=sqrt(total((GrPeaksY-GrMeanY)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt)+total(GrPksStdY^2*GrNumPhotons,1)/(Groups[4,GrInd]*cnt))/sqrt(2)
 	GrStdYLimit=sqrt(total(GrGaussWidthX^2*GrNumPhotons,1))/Groups[4,GrInd]
-	GrStd=GrStdX>GrStdXLimit>GrStdY>GrStdYLimit
-	GrSX=reform(Mult#GrStd,maxgrsize*GrCnt)
-	GrSY=reform(Mult#GrStd,maxgrsize*GrCnt)
+	GrMeanZ = Mult # (total(GrPeaksZ*GrNumPhotons,1) / total(GrNumPhotons,1))
+	GrMZ = reform(GrMeanZ ,maxgrsize*GrCnt)
+	GrStdZ=sqrt(total((GrPeaksZ-GrMeanZ)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt))/sqrt(2)
+	;GrSX=reform(Mult#GrStd,maxgrsize*GrCnt)
+	;GrSY=reform(Mult#GrStd,maxgrsize*GrCnt)
+	;GrStd=GrStdX>GrStdXLimit>GrStdY>GrStdYLimit
+	GrSX=reform(Mult#(GrStdX>GrStdXLimit),maxgrsize*GrCnt)
+	GrSY=reform(Mult#(GrStdY>GrStdYLimit),maxgrsize*GrCnt)
+	GrSZ=reform(Mult#GrStdZ,maxgrsize*GrCnt)
 	if Gr_Ell_ind gt 0 then begin
 		GrGWx=total(GrGaussWidthX*GrNumPhotons,1)/Groups[4,GrInd]		; GES 03/13/09 calculate the Group Gaussian Width in X direction
 		GrGWy=total(GrGaussWidthY*GrNumPhotons,1)/Groups[4,GrInd]		; GES 03/13/09 calculate the Group Gaussian Width in Y direction
 		GrEllipticity=(GrGWx-GrGWy)/(GrGWx+GrGWy)						; GES 03/13/09 calculate the Group Ellipticity
 		GrEllipticityS=reform(Mult#GrEllipticity,maxgrsize*GrCnt)
 	endif
-	CGroupParamsGP[Gr_size_ind,CGP_Ind_1D[Pts]]=GrNE[Pts]	; total peaks forming the group
-	CGroupParamsGP[GrNph_ind,CGP_Ind_1D[Pts]]=GrNP[Pts]		; total photons forming the group
-	CGroupParamsGP[GrX_ind,CGP_Ind_1D[Pts]]=GrMX[Pts]		; averaged x position
-	CGroupParamsGP[GrY_ind,CGP_Ind_1D[Pts]]=GrMY[Pts]		; averaged y position
-	CGroupParamsGP[GrSigX_ind,CGP_Ind_1D[Pts]]=GrSX[Pts]	; new x sigma
-	CGroupParamsGP[GrSigY_ind,CGP_Ind_1D[Pts]]=GrSY[Pts]	; new y sigma
+	CGroupParamsGP[Gr_size_ind,CGP_Ind_1D[Pts]] = GrNE[Pts]	; total peaks forming the group
+	CGroupParamsGP[GrNph_ind,CGP_Ind_1D[Pts]]= GrNP[Pts]		; total photons forming the group
+	CGroupParamsGP[GrX_ind,CGP_Ind_1D[Pts]] = GrMX[Pts]		; averaged x position
+	CGroupParamsGP[GrY_ind,CGP_Ind_1D[Pts]] = GrMY[Pts]		; averaged y position
+	CGroupParamsGP[GrZ_ind,CGP_Ind_1D[Pts]]= GrMZ[Pts]			; averaged z position
+	CGroupParamsGP[GrSigX_ind,CGP_Ind_1D[Pts]] = GrSX[Pts]	; new x sigma
+	CGroupParamsGP[GrSigY_ind,CGP_Ind_1D[Pts]] = GrSY[Pts]	; new y sigma
+	CGroupParamsGP[GrSigZ_ind,CGP_Ind_1D[Pts]] = GrSZ[Pts]		; new z sigma
 
 	if AmpL1_ind gt 0 then begin
 		GrA1S=total(GrA1*GrNumPhotons*ValidPks,1)/Groups[4,GrInd]
@@ -695,7 +742,7 @@ if grcnt gt 0 then begin
 		CGroupParamsGP[GrAmpL3_ind,CGP_Ind_1D[Pts]]=GrA3R[Pts]	; averaged A3
 	endif
 
-	if Gr_Ell_ind gt 0 then CGroupParamsGP[Gr_Ell_ind,CGP_Ind_1D[Pts]]=GrEllipticityS[Pts]	; GES 03/13/09 assign the Group Ellipticity to all elements in the group
+	if Gr_Ell_ind gt 0 then CGroupParamsGP[Gr_Ell_ind,CGP_Ind_1D[Pts]]=float(GrEllipticityS[Pts])	; GES 03/13/09 assign the Group Ellipticity to all elements in the group
 	tint=systime(/seconds)
 	if GroupDisplay ge 1 then print,'total time after processing groups up to 10 (sec)=',tint-tstart
 endif
@@ -723,8 +770,12 @@ if NumToBeTermed ge 1 then begin
 			sqrt( total( ((CGroupParamsGP[Y_ind,ThisGroup]-CGroupParamsGP[GrY_ind,ThisGroup])^2 + CGroupParamsGP[SigY_ind,ThisGroup]^2)*Wgt ) )/sqrt(2)		;new y sigma ##10.61
 		GrStdXLimit=sqrt(total(CGroupParamsGP[Xwid_ind,ThisGroup]^2*CGroupParamsGP[Nph_ind,ThisGroup])/CGroupParamsGP[GrNph_ind,ThisGroup]^2)
 		GrStdYLimit=sqrt(total(CGroupParamsGP[Ywid_ind,ThisGroup]^2*CGroupParamsGP[Nph_ind,ThisGroup])/CGroupParamsGP[GrNph_ind,ThisGroup]^2)
-		CGroupParamsGP[GrSigX_ind,ThisGroup]=CGroupParamsGP[GrSigX_ind,ThisGroup]>CGroupParamsGP[GrSigY_ind,ThisGroup]>GrStdXLimit>GrStdYLimit
-		CGroupParamsGP[GrSigY_ind,ThisGroup]=CGroupParamsGP[GrSigX_ind,ThisGroup]
+		CGroupParamsGP[GrSigX_ind,ThisGroup] = CGroupParamsGP[GrSigX_ind,ThisGroup]>CGroupParamsGP[GrSigY_ind,ThisGroup]>GrStdXLimit>GrStdYLimit
+		CGroupParamsGP[GrSigY_ind,ThisGroup] = CGroupParamsGP[GrSigX_ind,ThisGroup]
+		Group_MeanZ = total(CGroupParamsGP[Z_ind,ThisGroup]*CGroupParamsGP[Nph_ind,ThisGroup])/Ntot
+		CGroupParamsGP[GrZ_ind,ThisGroup] = Group_MeanZ
+		CGroupParamsGP[GrSigZ_ind,ThisGroup] = sqrt(total((CGroupParamsGP[Z_ind,ThisGroup]-Group_MeanZ)^2*CGroupParamsGP[Nph_ind,ThisGroup])/(2*Ntot*cnt))
+
 		if AmpL1_ind gt 0 then CGroupParamsGP[GrAmpL1_ind,ThisGroup] = total(CGroupParamsGP[AmpL1_ind,ThisGroup]*CGroupParamsGP[Nph_ind,ThisGroup])/total(CGroupParamsGP[Nph_ind,ThisGroup])    ; group A1
 		if AmpL2_ind gt 0 then CGroupParamsGP[GrAmpL2_ind,ThisGroup] = total(CGroupParamsGP[AmpL2_ind,ThisGroup]*CGroupParamsGP[Nph_ind,ThisGroup])/total(CGroupParamsGP[Nph_ind,ThisGroup])    ; group A2
 		if AmpL3_ind gt 0 then CGroupParamsGP[GrAmpL3_ind,ThisGroup] = total(CGroupParamsGP[AmpL3_ind,ThisGroup]*CGroupParamsGP[Nph_ind,ThisGroup])/total(CGroupParamsGP[Nph_ind,ThisGroup])    ; group A3

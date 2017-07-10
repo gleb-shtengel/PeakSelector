@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	05/11/2017 15:08.13
+; Generated on:	07/06/2017 13:40.17
 ; 
 pro WID_BASE_Z_operations_Astig_event, Event
 
@@ -61,6 +61,10 @@ pro WID_BASE_Z_operations_Astig_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         WriteGudeStarRadius_Astig, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Convert_Fr_to_Z'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        On_Convert_Frame_to_Z, Event
+    end
     else:
   endcase
 
@@ -78,11 +82,11 @@ pro WID_BASE_Z_operations_Astig, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       ' Interference)' ,SPACE=3 ,XPAD=3 ,YPAD=3)
 
   
-  WID_SLIDER_Z_phase_offset =  $
+  WID_SLIDER_Z_phase_offset_Astig =  $
       Widget_Slider(WID_BASE_Z_operations_Astig,  $
-      UNAME='WID_SLIDER_Z_phase_offset' ,XOFFSET=25 ,YOFFSET=171  $
-      ,SCR_XSIZE=167 ,SCR_YSIZE=50 ,TITLE='Z offset (nm)'  $
-      ,MINIMUM=-200 ,MAXIMUM=200 ,VALUE=0)
+      UNAME='WID_SLIDER_Z_phase_offset_Astig' ,XOFFSET=25  $
+      ,YOFFSET=171 ,SCR_XSIZE=167 ,SCR_YSIZE=50 ,TITLE='Z offset'+ $
+      ' (nm)' ,MINIMUM=-200 ,MAXIMUM=200 ,VALUE=0)
 
   
   WID_BUTTON_ExtractZ_Astig =  $
@@ -111,22 +115,22 @@ pro WID_BASE_Z_operations_Astig, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_TEXT_WindFilename_Astig =  $
       Widget_Text(WID_BASE_Z_operations_Astig,  $
-      UNAME='WID_TEXT_WindFilename_Astig' ,XOFFSET=6 ,YOFFSET=4  $
-      ,SCR_XSIZE=380 ,SCR_YSIZE=49 ,/EDITABLE ,/WRAP ,XSIZE=20  $
+      UNAME='WID_TEXT_WindFilename_Astig' ,XOFFSET=5 ,YOFFSET=4  $
+      ,SCR_XSIZE=415 ,SCR_YSIZE=49 ,/EDITABLE ,/WRAP ,XSIZE=20  $
       ,YSIZE=2)
 
   
   WID_BUTTON_Write_Guide_Star_Astig =  $
       Widget_Button(WID_BASE_Z_operations_Astig,  $
       UNAME='WID_BUTTON_Write_Guide_Star_Astig' ,XOFFSET=408  $
-      ,YOFFSET=360 ,SCR_XSIZE=130 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      ,YOFFSET=375 ,SCR_XSIZE=130 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Write Guide Star')
 
   
   WID_BUTTON_Test_Guide_Star_Astig =  $
       Widget_Button(WID_BASE_Z_operations_Astig,  $
       UNAME='WID_BUTTON_Test_Guide_Star_Astig' ,XOFFSET=408  $
-      ,YOFFSET=320 ,SCR_XSIZE=130 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      ,YOFFSET=335 ,SCR_XSIZE=130 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Test Guide Star')
 
   
@@ -158,35 +162,35 @@ pro WID_BASE_Z_operations_Astig, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_Test_EllipticityOnly =  $
       Widget_Button(WID_BASE_Z_operations_Astig,  $
-      UNAME='WID_BUTTON_Test_EllipticityOnly' ,XOFFSET=60  $
+      UNAME='WID_BUTTON_Test_EllipticityOnly' ,XOFFSET=20  $
       ,YOFFSET=130 ,SCR_XSIZE=180 ,SCR_YSIZE=35 ,/ALIGN_CENTER  $
       ,VALUE='Test Ellipticity Calibration')
 
   
   WID_BUTTON_Save_EllipticityAndWind =  $
       Widget_Button(WID_BASE_Z_operations_Astig,  $
-      UNAME='WID_BUTTON_Save_EllipticityAndWind' ,XOFFSET=260  $
+      UNAME='WID_BUTTON_Save_EllipticityAndWind' ,XOFFSET=220  $
       ,YOFFSET=130 ,SCR_XSIZE=180 ,SCR_YSIZE=35 ,/ALIGN_CENTER  $
       ,VALUE='Save Ellipticity Calibration')
 
   
   WID_TEXT_GuideStarAncFilename_Astig =  $
       Widget_Text(WID_BASE_Z_operations_Astig,  $
-      UNAME='WID_TEXT_GuideStarAncFilename_Astig' ,XOFFSET=15  $
-      ,YOFFSET=224 ,SCR_XSIZE=344 ,SCR_YSIZE=49 ,/EDITABLE ,/WRAP  $
+      UNAME='WID_TEXT_GuideStarAncFilename_Astig' ,XOFFSET=5  $
+      ,YOFFSET=224 ,SCR_XSIZE=365 ,SCR_YSIZE=49 ,/EDITABLE ,/WRAP  $
       ,XSIZE=20 ,YSIZE=2)
 
   
   WID_BUTTON_PickAncFile = Widget_Button(WID_BASE_Z_operations_Astig,  $
-      UNAME='WID_BUTTON_PickAncFile' ,XOFFSET=380 ,YOFFSET=250  $
-      ,SCR_XSIZE=150 ,SCR_YSIZE=32 ,/ALIGN_CENTER ,VALUE='Pick ANC'+ $
+      UNAME='WID_BUTTON_PickAncFile' ,XOFFSET=380 ,YOFFSET=225  $
+      ,SCR_XSIZE=125 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Pick ANC'+ $
       ' File')
 
   
   WID_BASE_WriteEllipticityGuideStar_1 =  $
       Widget_Base(WID_BASE_Z_operations_Astig,  $
-      UNAME='WID_BASE_WriteEllipticityGuideStar_1' ,XOFFSET=379  $
-      ,YOFFSET=284 ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+      UNAME='WID_BASE_WriteEllipticityGuideStar_1' ,XOFFSET=380  $
+      ,YOFFSET=260 ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
 
   
   WID_BUTTON_UseMultipleANCs =  $
@@ -225,6 +229,25 @@ pro WID_BASE_Z_operations_Astig, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       UNAME='WID_SLIDER_Zastig_Fit' ,XOFFSET=33 ,YOFFSET=52  $
       ,SCR_XSIZE=300 ,SCR_YSIZE=55 ,TITLE='Polyn. Fit Order for'+ $
       ' Astigmatism vs Z' ,MINIMUM=1 ,MAXIMUM=10 ,VALUE=5)
+
+  
+  WID_BUTTON_Convert_Fr_to_Z =  $
+      Widget_Button(WID_BASE_Z_operations_Astig,  $
+      UNAME='WID_BUTTON_Convert_Fr_to_Z' ,XOFFSET=420 ,YOFFSET=130  $
+      ,SCR_XSIZE=140 ,SCR_YSIZE=35 ,/ALIGN_CENTER ,VALUE='Convert Fr'+ $
+      ' -> Z')
+
+  
+  WID_BASE_WriteEllipticity_MS_GuideStar_DPH =  $
+      Widget_Base(WID_BASE_Z_operations_Astig,  $
+      UNAME='WID_BASE_WriteEllipticity_MS_GuideStar_DPH' ,XOFFSET=380  $
+      ,YOFFSET=295 ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+
+  
+  WID_BUTTON_UseMultipleANCs_DH =  $
+      Widget_Button(WID_BASE_WriteEllipticity_MS_GuideStar_DPH,  $
+      UNAME='WID_BUTTON_UseMultipleANCs_DH' ,/ALIGN_LEFT ,VALUE='Use'+ $
+      ' Multiple GuideStars (DH)')
 
   Widget_Control, /REALIZE, WID_BASE_Z_operations_Astig
 

@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	04/15/2013 12:03.58
+; Generated on:	07/06/2017 08:22.11
 ; 
 pro WID_BASE_AnchorPts_event, Event
 
@@ -234,7 +234,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BASE_0 = Widget_Base(WID_BASE_AnchorPts, UNAME='WID_BASE_0'  $
-      ,XOFFSET=130 ,YOFFSET=130 ,TITLE='IDL' ,COLUMN=1  $
+      ,XOFFSET=110 ,YOFFSET=130 ,TITLE='IDL' ,COLUMN=1  $
       ,/NONEXCLUSIVE)
 
   
@@ -243,7 +243,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BASE_1 = Widget_Base(WID_BASE_AnchorPts, UNAME='WID_BASE_1'  $
-      ,XOFFSET=130 ,YOFFSET=160 ,TITLE='IDL' ,COLUMN=1  $
+      ,XOFFSET=110 ,YOFFSET=160 ,TITLE='IDL' ,COLUMN=1  $
       ,/NONEXCLUSIVE)
 
   
@@ -252,7 +252,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BASE_2 = Widget_Base(WID_BASE_AnchorPts, UNAME='WID_BASE_2'  $
-      ,XOFFSET=240 ,YOFFSET=160 ,TITLE='IDL' ,COLUMN=1  $
+      ,XOFFSET=230 ,YOFFSET=160 ,TITLE='IDL' ,COLUMN=1  $
       ,/NONEXCLUSIVE)
 
   
@@ -261,16 +261,16 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BASE_3 = Widget_Base(WID_BASE_AnchorPts, UNAME='WID_BASE_3'  $
-      ,XOFFSET=240 ,YOFFSET=130 ,TITLE='IDL' ,COLUMN=1  $
+      ,XOFFSET=225 ,YOFFSET=130 ,TITLE='IDL' ,XPAD=5 ,COLUMN=1  $
       ,/NONEXCLUSIVE)
 
   
   WID_BUTTON_GTR = Widget_Button(WID_BASE_3, UNAME='WID_BUTTON_GTR'  $
-      ,/ALIGN_LEFT ,VALUE='Green to Red')
+      ,XOFFSET=5 ,/ALIGN_LEFT ,VALUE='Green to Red')
 
   
   WID_BASE_4 = Widget_Base(WID_BASE_AnchorPts, UNAME='WID_BASE_4'  $
-      ,XOFFSET=350 ,YOFFSET=130 ,TITLE='IDL' ,COLUMN=1  $
+      ,XOFFSET=352 ,YOFFSET=130 ,TITLE='IDL' ,COLUMN=1  $
       ,/NONEXCLUSIVE)
 
   
@@ -279,7 +279,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BASE_5 = Widget_Base(WID_BASE_AnchorPts, UNAME='WID_BASE_5'  $
-      ,XOFFSET=350 ,YOFFSET=160 ,TITLE='IDL' ,COLUMN=1  $
+      ,XOFFSET=352 ,YOFFSET=160 ,TITLE='IDL' ,COLUMN=1  $
       ,/NONEXCLUSIVE)
 
   
@@ -320,7 +320,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_DROPLIST_TRANSFORM_METHOD = Widget_Droplist(WID_BASE_AnchorPts,  $
       UNAME='WID_DROPLIST_TRANSFORM_METHOD' ,XOFFSET=208 ,YOFFSET=8  $
       ,SCR_XSIZE=226 ,SCR_YSIZE=26 ,VALUE=[ 'Linear Regression',  $
-      'POLYWARP', 'Pivot and Average (3 pts only)' ])
+      'POLYWARP', 'Pivot and Average (3 pts only)', 'Shift' ])
 
   
   WID_LABEL_2 = Widget_Label(WID_BASE_AnchorPts, UNAME='WID_LABEL_2'  $
@@ -408,7 +408,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BUTTON_AutoDetect_0 = Widget_Button(WID_BASE_AnchorPts,  $
-      UNAME='WID_BUTTON_AutoDetect_0' ,XOFFSET=800 ,YOFFSET=75  $
+      UNAME='WID_BUTTON_AutoDetect_0' ,XOFFSET=810 ,YOFFSET=75  $
       ,SCR_XSIZE=200 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Autodetect'+ $
       ' Matching Fiducials')
 
@@ -451,21 +451,21 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BUTTON_Remove_Unmatched = Widget_Button(WID_BASE_AnchorPts,  $
-      UNAME='WID_BUTTON_Remove_Unmatched' ,XOFFSET=800 ,YOFFSET=110  $
+      UNAME='WID_BUTTON_Remove_Unmatched' ,XOFFSET=810 ,YOFFSET=110  $
       ,SCR_XSIZE=200 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Remove'+ $
       ' Unmatched Fiducials')
 
   
   WID_Anchors_Transf_AverageErrors = Widget_Table(WID_BASE_AnchorPts,  $
-      UNAME='WID_Anchors_Transf_AverageErrors' ,XOFFSET=764  $
-      ,YOFFSET=305 ,SCR_XSIZE=296 ,SCR_YSIZE=55 ,/EDITABLE  $
+      UNAME='WID_Anchors_Transf_AverageErrors' ,XOFFSET=754  $
+      ,YOFFSET=305 ,SCR_XSIZE=296 ,SCR_YSIZE=60 ,/EDITABLE  $
       ,COLUMN_LABELS=[ 'Dist. R-G', 'Dist. B-G', 'Dist. R-B' ]  $
       ,ROW_LABELS=[ 'Average' ] ,XSIZE=3 ,YSIZE=1)
 
   
   WID_Anchors_Transf_WorstErrors = Widget_Table(WID_BASE_AnchorPts,  $
-      UNAME='WID_Anchors_Transf_WorstErrors' ,XOFFSET=764  $
-      ,YOFFSET=245 ,SCR_XSIZE=296 ,SCR_YSIZE=55 ,/EDITABLE  $
+      UNAME='WID_Anchors_Transf_WorstErrors' ,XOFFSET=754  $
+      ,YOFFSET=245 ,SCR_XSIZE=296 ,SCR_YSIZE=60 ,/EDITABLE  $
       ,COLUMN_LABELS=[ 'Dist. R-G', 'Dist. B-G', 'Dist. R-B' ]  $
       ,ROW_LABELS=[ 'Worst' ] ,XSIZE=3 ,YSIZE=1)
 
@@ -488,12 +488,12 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_Remove_Bad_Fiducials = Widget_Button(WID_BASE_AnchorPts,  $
       UNAME='WID_BUTTON_Remove_Bad_Fiducials' ,XOFFSET=800  $
-      ,YOFFSET=153 ,SCR_XSIZE=180 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      ,YOFFSET=150 ,SCR_XSIZE=180 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Remove Bad Fiducials')
 
   
   WID_TEXT_FidRemove_Thr = Widget_Text(WID_BASE_AnchorPts,  $
-      UNAME='WID_TEXT_FidRemove_Thr' ,XOFFSET=995 ,YOFFSET=153  $
+      UNAME='WID_TEXT_FidRemove_Thr' ,XOFFSET=995 ,YOFFSET=150  $
       ,SCR_XSIZE=56 ,SCR_YSIZE=30 ,/EDITABLE ,/WRAP ,VALUE=[ '20' ]  $
       ,XSIZE=20 ,YSIZE=2)
 
@@ -505,7 +505,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_LABEL_andSAve_1 = Widget_Label(WID_BASE_AnchorPts,  $
-      UNAME='WID_LABEL_andSAve_1' ,XOFFSET=795 ,YOFFSET=190  $
+      UNAME='WID_LABEL_andSAve_1' ,XOFFSET=790 ,YOFFSET=185  $
       ,SCR_XSIZE=260 ,SCR_YSIZE=15 ,/ALIGN_LEFT ,VALUE='Repeat'+ $
       ' Test+Remove till Worst is better then above')
 
@@ -532,7 +532,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_XYlimits_table = Widget_Table(WID_BASE_AnchorPts,  $
       UNAME='WID_XYlimits_table' ,XOFFSET=440 ,YOFFSET=218  $
-      ,SCR_XSIZE=230 ,SCR_YSIZE=75 ,/EDITABLE ,COLUMN_LABELS=[ 'Min',  $
+      ,SCR_XSIZE=230 ,SCR_YSIZE=80 ,/EDITABLE ,COLUMN_LABELS=[ 'Min',  $
       'Max' ] ,ROW_LABELS=[ 'X', 'Y' ] ,XSIZE=2 ,YSIZE=2)
 
   

@@ -68,7 +68,7 @@ end
 ;-
 function FilterByParameter, CGroupParams, ParamLimits, indices, params
     compile_opt idl2, logical_predicate
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 doIDL=0
 sz = size(CGroupParams)
 CGrpSize = sz[1]
@@ -122,9 +122,10 @@ if (!VERSION.OS_family eq 'unix') then have_CUDA = scope_varfetch('haveCUDAFilte
 
 				;***************** If bridge had not been started, start IDL bridge workers
 				if bridge_exists eq 0 then begin
-					;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
-					n_br_loops = !CPU.HW_NCPU
-					print,'Bridge structure not set.    ',n_br_loops,'CPU cores are present, will set up as many bridge child processes'
+					;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+					n_br_loops = !CPU.HW_NCPU < n_br_max
+					print,'Bridge structure not set.    ',!CPU.HW_NCPU,'CPU cores are present
+					print, 'Will set up',n_br_loops,' bridge child processes'
 					CATCH, Error_status
 					IF Error_status NE 0 THEN BEGIN
 						SHMUnmap, shmName_data
@@ -136,12 +137,13 @@ if (!VERSION.OS_family eq 'unix') then have_CUDA = scope_varfetch('haveCUDAFilte
 					fbr_arr=obj_new("IDL_IDLBridge", output='')
 					for i=1, n_br_loops-1 do fbr_arr=[fbr_arr, obj_new("IDL_IDLBridge", output='')]
 					npk_sub = ceil(npk_tot/n_br_loops)
-					shmName_data='PALM_data'
+					sec_st = strtrim(ulong(SYSTIME(/seconds)),2)
+					shmName_data='PALM_data_' + sec_st
 					SHMMAP , shmName_data, /FLOAT, /DESTROY_SEGMENT, Dimension=[CGrpSize,npk_tot], GET_OS_HANDLE=OS_handle_val1
 					CGroupParams_bridge = SHMVAR(shmName_data)
 					CGroupParams_bridge[0,0] = CGroupParams
 					n_elem_CGP = n_elements(CGroupParams_bridge)
-					shmName_filter='PALM_filter'
+					shmName_filter='PALM_filter_' + sec_st
 					SHMMAP,shmName_filter, /LONG, /DESTROY_SEGMENT, Dimension=[npk_tot], GET_OS_HANDLE=OS_handle_val2
 					n_elem_fbr = npk_tot
 					imin = ulindgen(n_br_loops) * npk_sub
@@ -236,7 +238,7 @@ end
 ;--------------------------------------------------------------
 ;
 pro Set_Allow_Bridge, Event
-	common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+	common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 	allow_bridge = widget_info(Event.ID,/button_set)
 	if (allow_bridge eq 0) and (bridge_exists eq 1) then begin
 		CATCH, Error_status
@@ -1092,10 +1094,8 @@ end
 ;-----------------------------------------------------------------
 ;
 pro TVscales,wxsz,wysz,mgw,nm_per_pixel			;Draws micron scale bar
-;common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
-
 displaypix_per_micron=1000.*mgw/nm_per_pixel
-if (displaypix_per_micron lt 20) and (displaypix_per_micron ge 10) then scl=0.1
+if (displaypix_per_micron lt 20) and (displaypix_per_micron ge 1) then scl=0.1
 if (displaypix_per_micron lt 40) and (displaypix_per_micron ge 20) then scl=0.2
 if (displaypix_per_micron lt 50) and (displaypix_per_micron ge 40) then scl=0.4
 if (displaypix_per_micron lt 100) and (displaypix_per_micron ge 50) then scl=0.5
@@ -1108,7 +1108,7 @@ if (displaypix_per_micron lt 4000) and (displaypix_per_micron ge 2000) then scl=
 if (displaypix_per_micron lt 5000) and (displaypix_per_micron ge 4000) then scl=40.
 if (displaypix_per_micron lt 10000) and (displaypix_per_micron ge 5000) then scl=50.
 if (displaypix_per_micron lt 20000) and (displaypix_per_micron ge 10000) then scl=100.
-if (displaypix_per_micron lt 10) or (displaypix_per_micron ge 20000) then return
+if (displaypix_per_micron lt 1) or (displaypix_per_micron ge 20000) then return
 bar=replicate(255,displaypix_per_micron/scl,5)
 tv,bar,wxsz*0.8,wysz*0.04
 if scl le 5 then xyouts,0.85,0.015,string(1.0/scl,format='(G5.3)')+' micron',/normal,align=0.5,col=255l+256l*255l
@@ -1633,7 +1633,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 filename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav','*.prm'],title='Select *IDL.sav file to open')
 if filename eq '' then begin
@@ -1871,7 +1871,7 @@ if strpos(filename,'IDL.sav') ne -1 then begin
 	existing_ind=where(RawFilenames ne '')  ; normally would not need this, but in case of loading older files with extra empty filenames - get rid of empty overheads
 	SavFilenames = [SavFilenames0, filename]
 	sz=size(CGroupParams)
-	TotalRawData = TotalRawData0
+	;TotalRawData = TotalRawData0
 
 	; check if the "RawFileName" points to a non-local file
 	; if the local file with the same name exists, chasnge RawFileName to point to it
@@ -2063,9 +2063,7 @@ if cnt lt 1 then begin
 	z=dialog_message('Filter returned no valid peaks')
 	return      ; if data not loaded return
 endif
-CGroupParamsGP=CGroupParams[*,pk_indecis]
-CGroupParams=CGroupParamsGP
-delvar,CGroupParamsGP
+CGroupParams = temporary(CGroupParams[*,pk_indecis])
 ReloadParamlists, Event
 end
 ;
@@ -2073,15 +2071,18 @@ end
 ;
 pro Purge_Group_Filtered, Event		;Purges peaks with group filter=0 and collapses CGroupParams
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+GrInd_ind = min(where(RowNames eq 'Frame Index in Grp'))                ; CGroupParametersGP[25,*] - Frame Index in the Group
+
 GroupFilterIt
-pk_indecis=where(filter,cnt)
+pk_indecis=where(filter and CGroupParams[GrInd_ind,*] eq 1,cnt)
+
 if cnt lt 1 then begin
 	z=dialog_message('Group filter returned no valid peaks')
 	return      ; if data not loaded return
 endif
-CGroupParamsGP=CGroupParams[*,pk_indecis]
-CGroupParams=CGroupParamsGP
-delvar,CGroupParamsGP
+CGroupParams=temporary(CGroupParams[*,pk_indecis])
+
 ReloadParamlists, Event
 end
 ;
@@ -2094,9 +2095,7 @@ if cnt lt 1 then begin
 	z=dialog_message('Filter returned no valid peaks')
 	return      ; if data not loaded return
 endif
-CGroupParamsGP=CGroupParams[*,pk_indecis]
-CGroupParams=CGroupParamsGP
-delvar,CGroupParamsGP
+CGroupParams = temporary(CGroupParams[*,pk_indecis])
 ReloadParamlists, Event
 end
 ;
@@ -2137,17 +2136,20 @@ if cnt lt 1 then begin
 	z=dialog_message('Filter returned no valid peaks')
 	return      ; if data not loaded return
 endif
-CGroupParamsGP=CGroupParams[*,pk_indecis]
-CGroupParams=CGroupParamsGP
-delvar,CGroupParamsGP
-
+CGroupParams = temporary(CGroupParams[*,pk_indecis])
+ReloadParamlists, Event
 end
 ;
 ;-----------------------------------------------------------------
 ;
 pro Purge_by_XY_coords, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common managed, ids, names, modalList
+X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
+GrX_ind = min(where(RowNames eq 'Group X Position'))                    ; CGroupParametersGP[19,*] - average x - position in the group
+GrY_ind = min(where(RowNames eq 'Group Y Position'))                    ; CGroupParametersGP[20,*] - average y - position in the group
 
 tstart = systime(/SECONDS)
 topID = ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
@@ -2157,7 +2159,7 @@ if (n_elements(CGroupParams) le 2) then begin
 	return      ; if data not loaded return
 endif
 
-params = [2,3]
+params = [X_ind,Y_ind]
 indices = intarr(CGrpSize)
 indices[params]=1
 ;ParamLimits_init=ParamLimits
@@ -2171,12 +2173,12 @@ wlabel = widget_info(topID, find_by_uname='WID_LABEL_NumberSelected')
 widget_control,wlabel,set_value='Peak Count = '+string(peakcount)
 print,'total filtering time (sec):  ',(systime(/seconds)-tstart),'     total filtered peaks:  ',peakcount
 
-xsz=ParamLimits[2,1]-ParamLimits[2,0]
-ysz=ParamLimits[3,1]-ParamLimits[3,0]
+xsz=ParamLimits[X_ind,1]-ParamLimits[X_ind,0]
+ysz=ParamLimits[Y_ind,1]-ParamLimits[Y_ind,0]
 xydsz=[xsz,ysz]
 
-if n_elements(TotalRawData) gt 1 then TotalRawData=TotalRawData(ParamLimits[2,0]:ParamLimits[2,1],ParamLimits[3,0]:ParamLimits[3,1])
-if n_elements(DIC) gt 1 then DIC=DIC(ParamLimits[2,0]:ParamLimits[2,1],ParamLimits[3,0]:ParamLimits[3,1])
+if n_elements(TotalRawData) gt 1 then TotalRawData=TotalRawData(ParamLimits[X_ind,0]:ParamLimits[X_ind,1],ParamLimits[Y_ind,0]:ParamLimits[Y_ind,1])
+if n_elements(DIC) gt 1 then DIC=DIC(ParamLimits[X_ind,0]:ParamLimits[X_ind,1],ParamLimits[Y_ind,0]:ParamLimits[Y_ind,1])
 
 pk_indecis=where(filter,cnt)
 if cnt lt 1 then begin
@@ -2184,10 +2186,10 @@ if cnt lt 1 then begin
 	return      ; if data not loaded return
 endif
 CGroupParamsGP=CGroupParams[*,pk_indecis]
-CGroupParamsGP[2,*]=CGroupParamsGP[2,*]-ParamLimits[2,0]
-CGroupParamsGP[19,*]=CGroupParamsGP[19,*]-ParamLimits[2,0]
-CGroupParamsGP[3,*]=CGroupParamsGP[3,*]-ParamLimits[3,0]
-CGroupParamsGP[20,*]=CGroupParamsGP[20,*]-ParamLimits[3,0]
+CGroupParamsGP[X_ind,*]=CGroupParamsGP[X_ind,*]-ParamLimits[X_ind,0]
+CGroupParamsGP[GrX_ind,*]=CGroupParamsGP[GrX_ind,*]-ParamLimits[X_ind,0]
+CGroupParamsGP[Y_ind,*]=CGroupParamsGP[Y_ind,*]-ParamLimits[Y_ind,0]
+CGroupParamsGP[GrY_ind,*]=CGroupParamsGP[GrY_ind,*]-ParamLimits[Y_ind,0]
 CGroupParams=CGroupParamsGP
 delvar,CGroupParamsGP
 end
@@ -2356,7 +2358,7 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -2884,7 +2886,7 @@ allind1 = [Gr_ind, $
 		GrNph_ind, $
 		;Gr_size_ind, $
 		;GrInd_ind, $
-		LabelSet_ind, $
+		;LabelSet_ind, $
 		GrAmpL1_ind, $
 		GrAmpL2_ind, $
 		GrAmpL3_ind, $
@@ -3085,7 +3087,6 @@ for lbl_i=lbl_min,lbl_max do begin
 	lbl_i0=lbl_i-lbl_min
 	if mult_colors_hist then filter_lbl=filter*(CGroupParams[LabelSet_ind,*] eq lbl_i) else filter_lbl=filter
 	hist_set=where(filter_lbl,cnt)
-
 	if PALM_with_groups AND Pam_is_Grp then begin
 		GrPkIndMin = min(CGroupParams[GrInd_ind,filter_lbl])
 		hist_set=where(filter_lbl*(CGroupParams[GrInd_ind,*] eq GrPkIndMin),cnt)
@@ -3599,6 +3600,12 @@ if n_elements(TotalRawData) le 1 then begin
 	return      ; if data not loaded return
 endif
 
+CATCH, Error_status
+IF Error_status NE 0 THEN BEGIN
+	PRINT, 'Error during TotalRaw rendering:',!ERROR_STATE.MSG
+	CATCH,/CANCEL
+	return
+ENDIF
 if Event.top eq TopID then begin						; if called from the main menu, the image size is 1024x1024, otherwise Cust_TIFF_Pix_X x Cust_TIFF_Pix_Y
 	wxsz=1024 & wysz=1024								; size of the display window
 endif else begin
@@ -3661,6 +3668,39 @@ modified = 'Do not plot Bars/Legends'
 widget_control,wID,get_value=DrawLegends
 if DrawLegends eq original then TVscales,wxsz,wysz,mgw,nm_per_pixel
 
+CATCH,/CANCEL
+
+end
+;
+;-----------------------------------------------------------------
+;
+pro Replace_TotalRaw_with_Rendered, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+
+if n_elements(TotalRawData) le 1 then begin
+	z=dialog_message('Please load a data file')
+	return      ; if data not loaded return
+endif
+
+CATCH, Error_status
+IF Error_status NE 0 THEN BEGIN
+	PRINT, 'Error during replacing TotalRaw:',!ERROR_STATE.MSG
+	CATCH,/CANCEL
+	return
+ENDIF
+
+presentimage=tvrd()
+
+TR_size=size(TotalRawData)
+
+TotalRawData = congrid(presentimage,TR_size[1],TR_size[2])
+
+CATCH,/CANCEL
 end
 ;
 ;-----------------------------------------------------------------
@@ -4200,7 +4240,7 @@ WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
 WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
 Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
-if Tie_RGB then labelContrast[0,*]=Event.value else labelContrast[0,selectedlabel]
+if Tie_RGB then labelContrast[0,*]=Event.value else labelContrast[0,selectedlabel]=Event.value
 ;labelContrast[0,selectedlabel]=Event.value
 AdjustContrastnDisplay,Event
 end
@@ -4218,7 +4258,7 @@ WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
 WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
 Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
-if Tie_RGB then labelContrast[1,*]=Event.value else labelContrast[1,selectedlabel]
+if Tie_RGB then labelContrast[1,*]=Event.value else labelContrast[1,selectedlabel]=Event.value
 ;labelContrast[1,*]=Event.value
 AdjustContrastnDisplay, Event
 end
@@ -4236,7 +4276,7 @@ WidDL_LabelID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
 WID_BUTTON_Tie_RGB_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Tie_RGB')
 Tie_RGB = Widget_Info(WID_BUTTON_Tie_RGB_ID, /BUTTON_SET)
-if Tie_RGB then labelContrast[1,*]=Event.value else labelContrast[1,selectedlabel]
+if Tie_RGB then labelContrast[2,*]=Event.value else labelContrast[2,selectedlabel]=Event.value
 ;labelContrast[2,selectedlabel]=Event.value
 AdjustContrastnDisplay, Event
 end
@@ -4570,7 +4610,7 @@ common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common Zdisplay, Z_scale_multiplier, vbar_top
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -4690,7 +4730,7 @@ start=DOUBLE(systime(2))
 if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge then begin
 ; ***** IDL Bridge Version ******************************
 		print,'Starting Bridge rendering, no intermediate display updates'
-		;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+		;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 		npk_sub = ceil(npk_tot/n_br_loops)
 		for i=0, n_br_loops-1 do begin
 			if i eq 0 then begin
@@ -4930,12 +4970,17 @@ if sz_im[0] eq 3 then begin
 		for i=0,2 do image_max[i]=max(image[*,*,i])
 		; scale_factor=0.010 * mgw^2 above is done so that the molecular probability of 0.003 molecule per nm^2 will have v=0.5
 
-		h=hue_scale/251.*findgen(251)#replicate(1.0,29)							; generate the data for the color bar
+		xa_bar = 347 < im_sz[1]*0.95
+		xi_bar = (xa_bar - 250) >0
+		dx =  float(xa_bar-xi_bar+1)
+		h=hue_scale/dx*findgen(dx)#replicate(1.0,29)							; generate the data for the color bar
 		s=h*0+1.0
-		v=(1.0*replicate(1.,251)#((findgen(29)+1)/29.0)^2)<1
+		v=(1.0*replicate(1.,dx)#((findgen(29)+1)/29.0)^2)<1
 		color_convert,h,s,v,rbar,gbar,bbar,/hsv_rgb
 		cbar=[[[rbar]],[[gbar]],[[bbar]]]
-		image[97:347,Bar_Vpos:(Bar_Vpos+28),*]=cbar
+		im_sz = size(image)
+
+		image[xi_bar:xa_bar,Bar_Vpos:(Bar_Vpos+28),*]=cbar
 
 		Wid_ColorBarExtend = Widget_Info(TopID, find_by_uname='W_MENU_ColorBarExtend')
 		original='Extend Color Bar'
@@ -4944,20 +4989,20 @@ if sz_im[0] eq 3 then begin
 		extend_color_bar = test eq modified
 
 		if extend_color_bar  then begin
-			h_add=hue_scale/251.*findgen(251)#replicate(1.0,58)							; generate the data for the color bar
+			h_add=hue_scale/dx*findgen(dx)#replicate(1.0,58)							; generate the data for the color bar
 			s_add=h_add*0+1.0
 			v_add=(1.0*replicate(1.,251)#((findgen(58)+1)/58.0)^2)<1
 			color_convert,h_add,s_add,v_add,rbar_add,gbar_add,bbar_add,/hsv_rgb
 			cbar_add=[[[rbar_add]],[[gbar_add]],[[bbar_add]]]
-			image[97:347,(Bar_Vpos+29):(Bar_Vpos+57),*]=cbar_add[*,29:57,*]*4
+			image[xi_bar:xa_bar,(Bar_Vpos+29):(Bar_Vpos+57),*]=cbar_add[*,29:57,*]*4
 		endif
 
 		AdjustContrastnDisplay,event										; refresh the image with the color bar
-		xyouts,97,(Bar_Vpos-20),strtrim(fix(hbar_min),2),/device,col=255,align=0.5		;375		; print color grade title
-		xyouts,225,(Bar_Vpos-20),'Z position  (nm)',/device,col=255,align=0.45			;500
-		xyouts,350,(Bar_Vpos-20),strtrim(fix(hbar_max),2),/device,col=255,align=0.5		;625
-		hbar=(findgen(251) mod 25)#replicate(1,5) eq 0									;  generate "ticks" array
-		tvscl,hbar,97,(Bar_Vpos-5)													;375		;  plot ticks
+		xyouts,xi_bar,(Bar_Vpos-20),strtrim(fix(hbar_min),2),/device,col=255,align=0.5		;375		; print color grade title
+		xyouts,xi_bar+dx/3,(Bar_Vpos-20),'Z position  (nm)',/device,col=255,align=0.45			;500
+		xyouts,xa_bar-3,(Bar_Vpos-20),strtrim(fix(hbar_max),2),/device,col=255,align=0.5		;625
+		hbar=(findgen(dx) mod 25)#replicate(1,5) eq 0									;  generate "ticks" array
+		tvscl,hbar,xi_bar,(Bar_Vpos-5)													;375		;  plot ticks
 
 ;
 ;default vbar_top= molecular probability of 0.003 molecule per nm^2, then vbar_top/(mgW/nm_per_pixel)^2 is molecular probabilty per pixel
@@ -5100,20 +5145,20 @@ if FilterItem then begin		; grouped parameters
 	SigY = (YZ_swap_state eq SWYZ_swaped) ? ParamLimits[GrSigY_ind,1]/nm_per_pixel  :  ParamLimits[GrSigY_ind,1]
 	xtext='Gr. !4'+ STRING("162B)+'!3!IX!N < ' + strtrim(string(SigX,FORMAT='(F10.3)'),2) + ' pix'
 	ytext='Gr. !4'+ STRING("162B)+'!3!IY!N < ' + strtrim(string(SigY,FORMAT='(F10.3)'),2) + ' pix'
-	if SigZ_ind gt 0 then begin
+	if SigZ_ind ge 0 then begin
 		SigZ = ((XZ_swap_state eq SWXZ_swaped) or (YZ_swap_state eq SWYZ_swaped)) ? ParamLimits[GrSigZ_ind,1]*nm_per_pixel  :  ParamLimits[GrSigZ_ind,1]
 		ztext0='Gr. !4'+ STRING("162B)+'!3!IZ!N < ' + strtrim(string(SigZ,FORMAT='(F10.3)'),2) + ' nm'
-		if UnwGrZ_Err_ind lt CGrpSize then ztext1= strtrim(string(ParamLimits[UnwGrZ_Err_ind,0],FORMAT='(F10.1)'),2) + ' nm < Unwr.Gr.Z.Err < '+ strtrim(string(ParamLimits[UnwGrZ_Err_ind,1],FORMAT='(F10.1)'),2)
+		if UnwGrZ_Err_ind ge 0 then ztext1= strtrim(string(ParamLimits[UnwGrZ_Err_ind,0],FORMAT='(F10.1)'),2) + ' nm < Unwr.Gr.Z.Err < '+ strtrim(string(ParamLimits[UnwGrZ_Err_ind,1],FORMAT='(F10.1)'),2)
 	endif
 endif else begin
 	SigX = (XZ_swap_state eq SWXZ_swaped) ? ParamLimits[SigX_ind,1]/nm_per_pixel  :  ParamLimits[SigX_ind,1]
 	SigY = (YZ_swap_state eq SWYZ_swaped) ? ParamLimits[SigY_ind,1]/nm_per_pixel  :  ParamLimits[SigY_ind,1]
 	xtext='!4' + STRING("162B)+'!3!IX!N < ' + strtrim(string(SigX,FORMAT='(F10.3)'),2) + ' pix'
 	ytext='!4' + STRING("162B)+'!3!IY!N < ' + strtrim(string(SigY,FORMAT='(F10.3)'),2) + ' pix'
-	if SigZ_ind gt 0 then begin
+	if SigZ_ind ge 0 then begin
 		SigZ = ((XZ_swap_state eq SWXZ_swaped) or (YZ_swap_state eq SWYZ_swaped)) ? ParamLimits[SigZ_ind,1]*nm_per_pixel  :  ParamLimits[SigZ_ind,1]
 		ztext0='!4' + STRING("162B)+'!3!IZ!N < ' + strtrim(string(SigZ,FORMAT='(F10.3)'),2) + ' nm'
-		if UnwZ_Err_ind gt 0 then ztext1= strtrim(string(ParamLimits[UnwZ_Err_ind,0],FORMAT='(F10.1)'),2) + ' nm < Unwr.Z.Err < '+ strtrim(string(ParamLimits[UnwZ_Err_ind,1],FORMAT='(F10.1)'),2)
+		if UnwZ_Err_ind ge 0 then ztext1= strtrim(string(ParamLimits[UnwZ_Err_ind,0],FORMAT='(F10.1)'),2) + ' nm < Unwr.Z.Err < '+ strtrim(string(ParamLimits[UnwZ_Err_ind,1],FORMAT='(F10.1)'),2)
 	endif
 endelse
 
@@ -5133,8 +5178,8 @@ y3 = round(wysz*0.9570)
 y4 = round(wysz*0.9424)
 xyouts,x1,y1,xtext,col=FCOL,align=0.5,/device
 xyouts,x1,y2,ytext,col=FCOL,align=0.5,/device
-if SigZ_ind gt 0 then xyouts,x1,y3,ztext0,col=FCOL,align=0.5,/device
-if UnwZ_Err_ind gt 0 then xyouts,x2,y4,ztext1,col=FCOL,align=0.5,/device
+if SigZ_ind ge 0 then xyouts,x1,y3,ztext0,col=FCOL,align=0.5,/device
+if UnwZ_Err_ind ge 0 then xyouts,x2,y4,ztext1,col=FCOL,align=0.5,/device
 
 
 end
@@ -5488,7 +5533,7 @@ common SaveASCII, SaveASCII_Filename, SaveASCII_Filter, SaveASCII_units, SaveASC
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 ;WID_BASE_0_PeakSelector resizing to fit computer screen
@@ -5539,7 +5584,7 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 
 Wid_ID_allow_bridge = Widget_Info(wWidget, find_by_uname='WID_BUTTON_Allow_Bridge')
@@ -5581,6 +5626,7 @@ Z_scale_multiplier=1.0	; Z-scale multiplier for X-Z and Y-Z swapped displays
 vbar_top=0.003			; molecular probability (for the color bar top value)
 Max_Prob_2DPALM=0.05	; molecular probability (for the color bar top value)
 
+n_br_max = 1024;
 hist_nbins = 128;  number of histogram bins
 
 Cust_TIFF_Pix_X = 1024	; image window size for "Custom TIFF"
@@ -5704,7 +5750,7 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 ini_file_info=FILE_INFO(ini_file)
 if ~(ini_file_info.exists) then return
@@ -6716,7 +6762,7 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common Zdisplay, Z_scale_multiplier, vbar_top
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 if n_elements(CGroupParams) le 2 then begin
 	z=dialog_message('Please load a data file')
@@ -6811,11 +6857,11 @@ widget_control,XZ_swap_menue_ID,set_button=(1-XZ_swaped)
 		CGroupParams_bridge[GrSigZ_ind,*] = CGroupParams[GrSigZ_ind,*]
 		IF Error_status NE 0 THEN BEGIN
 			PRINT, 'Bridge Refresh Error: Drift Correction:',!ERROR_STATE.MSG
+			PRINT, 'System Error Message:',!ERROR_STATE.SYS_MSG
 			bridge_exists = 0
 			SHMUnmap, shmName_data
 			SHMUnmap, shmName_filter
 			for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
-			PRINT, 'Starting: Error:',!ERROR_STATE.MSG
 			CATCH,/CANCEL
 		ENDIF
 		CATCH,/CANCEL
@@ -6831,7 +6877,7 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common Zdisplay, Z_scale_multiplier, vbar_top
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
 Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
@@ -6930,11 +6976,11 @@ widget_control,YZ_swap_menue_ID,set_button=(1-YZ_swaped)
 		CGroupParams_bridge[GrSigZ_ind,*] = CGroupParams[GrSigZ_ind,*]
 		IF Error_status NE 0 THEN BEGIN
 			PRINT, 'Bridge Refresh Error: Drift Correction:',!ERROR_STATE.MSG
+			PRINT, 'System Error Message:',!ERROR_STATE.SYS_MSG
 			bridge_exists = 0
 			SHMUnmap, shmName_data
 			SHMUnmap, shmName_filter
 			for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
-			PRINT, 'Starting: Error:',!ERROR_STATE.MSG
 			CATCH,/CANCEL
 		ENDIF
 		CATCH,/CANCEL
@@ -6948,7 +6994,7 @@ end
 pro Swap_Z_Unwrapped_Z, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
 Z_ind=min(where(RowNames eq 'Z Position'))
 SigZ_ind=min(where(RowNames eq 'Sigma Z'))
@@ -7023,11 +7069,11 @@ if button then widget_control,event.id,set_button=0 else widget_control,event.id
 		CGroupParams_bridge[UnwGrZ_ind,*] = CGroupParams[UnwGrZ_ind,*]
 		IF Error_status NE 0 THEN BEGIN
 			PRINT, 'Bridge Refresh Error: Drift Correction:',!ERROR_STATE.MSG
+			PRINT, 'System Error Message:',!ERROR_STATE.SYS_MSG
 			bridge_exists = 0
 			SHMUnmap, shmName_data
 			SHMUnmap, shmName_filter
 			for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
-			PRINT, 'Starting: Error:',!ERROR_STATE.MSG
 			CATCH,/CANCEL
 		ENDIF
 		CATCH,/CANCEL
@@ -7608,4 +7654,3 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 end
 ;
 ;-----------------------------------------------------------------
-;

@@ -183,7 +183,7 @@ for nlps=0l,nloops-1 do begin			;reassemble little pks files from all the worker
 		file_delete , file_fragment
 	endif
 endfor
-file_delete,'temp/npks_det.sav'
+file_delete,'npks_det.sav'
 return
 end
 ;
@@ -391,6 +391,8 @@ pro ReadRawLoopMultipleLabel, DisplayType			;Master program to read data and loo
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 										;use SigmaSym as a flag to indicate xsigma and ysigma are not independent and locked together in the fit
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 nlbls=n_elements(MLRawFilenames)
 print,'MLRawFilenames:    ',MLRawFilenames
@@ -407,16 +409,18 @@ increment = (thisfitcond.LocalizationMethod gt 0) ?	min_frames_per_node	:	long((
 ;if DisplayType eq 4 then increment=5000
 if (thisfitcond.LocalizationMethod eq 0) and (thisfitcond.FrmN le 500) then increment = thisfitcond.FrmN-thisfitcond.Frm0+1
 increment = long(round(increment * 125.0 / thisfitcond.maxcnt1)) > 1L
-if DisplayType eq 4 and (!CPU.HW_NCPU gt 1) then increment = (long((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/!CPU.HW_NCPU))>1L
+if DisplayType eq 4 and (!CPU.HW_NCPU gt 1) then increment = (long((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/(!CPU.HW_NCPU < n_br_max)))>1L
 
 n_cluster_nodes_max = 256
 nloops = long((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/increment) < n_cluster_nodes_max			;nloops=long((framelast-framefirst)/increment)
 ;don't allow to use more then n_cluster_nodes_max cluster cores
 if (DisplayType eq 4) then begin
-	print,!CPU.HW_NCPU,'  CPU cores are present, will start as many bridge child processes'
-	nloops = nloops < !CPU.HW_NCPU
+	print,!CPU.HW_NCPU,'  CPU cores are present'
+	nloops = (nloops < !CPU.HW_NCPU) < n_br_max
+		; don't allow more bridge processes than there are CPU's
+	print, 'will start', nloops,' bridge child processes'
 endif
-; don't allow more bridge processes than there are CPU's
+
 increment = long(ceil((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/nloops))
 print,'increment=',increment
 nloops = long(ceil((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/increment)) > 1L

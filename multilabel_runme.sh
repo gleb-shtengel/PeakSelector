@@ -23,7 +23,8 @@ for i in `seq 0 $((NUM-1))`;
     echo "source /misc/local/exelis/idl/bin/idl_setup.bash" 1>>${SCRIPT_NAME}${i}.sh
     echo "idl -rt=${IDL_SCR_DIR}/${PROG_NAME} -args "${i}" "${PALM_DATA_DIR} 1>>${SCRIPT_NAME}${i}.sh
      chmod +x ${SCRIPT_NAME}${i}.sh
-    qsub -l sl7=true -cwd -pe batch 2 -l h_rt=3599 -V -N ${SCRIPT_NAME}${i} -j y -o ${SCRIPT_NAME}${i}.out -b y -l idl_rt=6 ${PALM_DATA_DIR}/${TEMP_DIR}${SCRIPT_NAME}${i}.sh
+#    qsub -cwd -pe batch 5 -l h_rt=3599 -V -N ${SCRIPT_NAME}${i} -j y -o ${SCRIPT_NAME}${i}.out -b y -l idl_rt=6 ${PALM_DATA_DIR}/${TEMP_DIR}${SCRIPT_NAME}${i}.sh
+    bsub -n 5 -J ${SCRIPT_NAME}${i} -o ${SCRIPT_NAME}${i}.out idl_rt=6 ${PALM_DATA_DIR}/${TEMP_DIR}${SCRIPT_NAME}${i}.sh
     JOBLIST=$JOBLIST${SCRIPT_NAME}${i},
 done
 
@@ -31,8 +32,7 @@ cd ${IDL_SCR_DIR}
 #source /usr/local/rsi/idl/bin/idl_setup.bash
 source /misc/local/exelis/idl/bin/idl_setup.bash
 idl -rt=${IDL_SCR_DIR}/${MONITOR_NAME} -arg ${PALM_DATA_DIR}/${TEMP_DIR}
-
-qsub -l sl7=true -pe batch 2 -l h_rt=3599 -N last -o /dev/null -j y -b y -cwd -V -hold_jid $JOBLIST
+#qsub -pe batch 1 -l h_rt=3599 -N last -o /dev/null -j y -b y -cwd -V -hold_jid $JOBLIST
 echo "finished cluster processing"
 
 cd ${PALM_DATA_DIR}

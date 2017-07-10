@@ -1,10 +1,10 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	04/19/2011 16:21.00
+; Generated on:	07/06/2017 13:38.26
 VERSION 1
 END
 
-WID_BASE_GuideStar BASE 5 5 332 492
+WID_BASE_GuideStar BASE 5 5 358 507
 REALIZE "Initialize_XY_GuideStar"
 TLB
 CAPTION "Test/Write XY Guide Star"
@@ -45,18 +45,18 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnButtonClose"
   END
-  WID_TEXT_XY_GuideStarAncFilename TEXT 8 231 296 49
+  WID_TEXT_XY_GuideStarAncFilename TEXT 5 237 325 70
   EDITABLE
   WRAP
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_BUTTON_PickAncFile_MultipleGS_XY PUSHBUTTON 160 194 150 32
+  WID_BUTTON_PickAncFile_MultipleGS_XY PUSHBUTTON 12 203 120 32
   VALUE "Pick ANC File"
   ALIGNCENTER
   ONACTIVATE "OnPick_XYGuideStarAncFile"
   END
-  WID_BASE_XY_Multiple_Guidestars BASE 14 198 0 0
+  WID_BASE_XY_Multiple_Guidestars BASE 140 165 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -66,15 +66,25 @@ BEGIN
     ALIGNLEFT
     END
   END
-  WID_BUTTON_Write_GuideStarRadius PUSHBUTTON 9 296 218 30
+  WID_BUTTON_Write_GuideStarRadius PUSHBUTTON 9 315 218 30
   VALUE "Set Guidestar Area Radius (pix)"
   ALIGNCENTER
   ONACTIVATE "Write_XY_GudeStarRadius"
   END
-  WID_TEXT_XY_GuideStar_Radius TEXT 237 297 70 30
+  WID_TEXT_XY_GuideStar_Radius TEXT 237 315 70 30
   EDITABLE
   WRAP
   WIDTH = 20
   HEIGHT = 2
+  END
+  WID_BASE_XY_Multiple_Guidestars_DH BASE 140 200 0 0
+  COLUMNS = 1
+  NONEXCLUSIVE
+  CAPTION "IDL"
+  BEGIN
+    WID_BUTTON_UseMultipleGuideStars_XY_DH PUSHBUTTON -1 -1 0 0
+    VALUE "Use Multiple GuideStars DH"
+    ALIGNLEFT
+    END
   END
 END

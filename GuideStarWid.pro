@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	04/19/2011 16:21.24
+; Generated on:	07/06/2017 13:38.34
 ; 
 pro WID_BASE_GuideStar_event, Event
 
@@ -47,8 +47,8 @@ pro WID_BASE_GuideStar, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   Resolve_Routine, 'GuideStarWid_eventcb',/COMPILE_FULL_FILE  ; Load event callback routines
   
   WID_BASE_GuideStar = Widget_Base( GROUP_LEADER=wGroup,  $
-      UNAME='WID_BASE_GuideStar' ,XOFFSET=5 ,YOFFSET=5 ,SCR_XSIZE=332  $
-      ,SCR_YSIZE=492 ,NOTIFY_REALIZE='Initialize_XY_GuideStar'  $
+      UNAME='WID_BASE_GuideStar' ,XOFFSET=5 ,YOFFSET=5 ,SCR_XSIZE=358  $
+      ,SCR_YSIZE=507 ,NOTIFY_REALIZE='Initialize_XY_GuideStar'  $
       ,TITLE='Test/Write XY Guide Star' ,SPACE=3 ,XPAD=3 ,YPAD=3)
 
   
@@ -88,21 +88,21 @@ pro WID_BASE_GuideStar, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_TEXT_XY_GuideStarAncFilename = Widget_Text(WID_BASE_GuideStar,  $
-      UNAME='WID_TEXT_XY_GuideStarAncFilename' ,XOFFSET=8  $
-      ,YOFFSET=231 ,SCR_XSIZE=296 ,SCR_YSIZE=49 ,/EDITABLE ,/WRAP  $
+      UNAME='WID_TEXT_XY_GuideStarAncFilename' ,XOFFSET=5  $
+      ,YOFFSET=237 ,SCR_XSIZE=325 ,SCR_YSIZE=70 ,/EDITABLE ,/WRAP  $
       ,XSIZE=20 ,YSIZE=2)
 
   
   WID_BUTTON_PickAncFile_MultipleGS_XY =  $
       Widget_Button(WID_BASE_GuideStar,  $
-      UNAME='WID_BUTTON_PickAncFile_MultipleGS_XY' ,XOFFSET=160  $
-      ,YOFFSET=194 ,SCR_XSIZE=150 ,SCR_YSIZE=32 ,/ALIGN_CENTER  $
+      UNAME='WID_BUTTON_PickAncFile_MultipleGS_XY' ,XOFFSET=12  $
+      ,YOFFSET=203 ,SCR_XSIZE=120 ,SCR_YSIZE=32 ,/ALIGN_CENTER  $
       ,VALUE='Pick ANC File')
 
   
   WID_BASE_XY_Multiple_Guidestars = Widget_Base(WID_BASE_GuideStar,  $
-      UNAME='WID_BASE_XY_Multiple_Guidestars' ,XOFFSET=14  $
-      ,YOFFSET=198 ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+      UNAME='WID_BASE_XY_Multiple_Guidestars' ,XOFFSET=140  $
+      ,YOFFSET=165 ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
 
   
   WID_BUTTON_UseMultipleGuideStars_XY =  $
@@ -114,14 +114,26 @@ pro WID_BASE_GuideStar, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_BUTTON_Write_GuideStarRadius =  $
       Widget_Button(WID_BASE_GuideStar,  $
       UNAME='WID_BUTTON_Write_GuideStarRadius' ,XOFFSET=9  $
-      ,YOFFSET=296 ,SCR_XSIZE=218 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      ,YOFFSET=315 ,SCR_XSIZE=218 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Set Guidestar Area Radius (pix)')
 
   
   WID_TEXT_XY_GuideStar_Radius = Widget_Text(WID_BASE_GuideStar,  $
-      UNAME='WID_TEXT_XY_GuideStar_Radius' ,XOFFSET=237 ,YOFFSET=297  $
+      UNAME='WID_TEXT_XY_GuideStar_Radius' ,XOFFSET=237 ,YOFFSET=315  $
       ,SCR_XSIZE=70 ,SCR_YSIZE=30 ,/EDITABLE ,/WRAP ,XSIZE=20  $
       ,YSIZE=2)
+
+  
+  WID_BASE_XY_Multiple_Guidestars_DH =  $
+      Widget_Base(WID_BASE_GuideStar,  $
+      UNAME='WID_BASE_XY_Multiple_Guidestars_DH' ,XOFFSET=140  $
+      ,YOFFSET=200 ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+
+  
+  WID_BUTTON_UseMultipleGuideStars_XY_DH =  $
+      Widget_Button(WID_BASE_XY_Multiple_Guidestars_DH,  $
+      UNAME='WID_BUTTON_UseMultipleGuideStars_XY_DH' ,/ALIGN_LEFT  $
+      ,VALUE='Use Multiple GuideStars DH')
 
   Widget_Control, /REALIZE, WID_BASE_GuideStar
 

@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	05/11/2017 16:38.35
+; Generated on:	07/06/2017 16:25.06
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -352,6 +352,10 @@ pro WID_BASE_0_PeakSelector_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Save_Histograms_BMP'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnSaveHistBMP, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Replace_TotalRaw_with_Rendered'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Replace_TotalRaw_with_Rendered, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Group_Centers'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -932,6 +936,11 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   W_MENU_Save_Histograms_BMP = Widget_Button(W_MENU_9,  $
       UNAME='W_MENU_Save_Histograms_BMP' ,VALUE='Save Histograms as'+ $
       ' BMP')
+
+  
+  W_MENU_Replace_TotalRaw_with_Rendered = Widget_Button(W_MENU_9,  $
+      UNAME='W_MENU_Replace_TotalRaw_with_Rendered' ,VALUE='Replace'+ $
+      ' TotalRaw with Rendered Image')
 
   
   WID_BUTTON_Group_Centers = Widget_Button(WID_BASE_0_PeakSelector,  $

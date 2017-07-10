@@ -68,7 +68,7 @@ for i=0,n_out_files-1 do begin
 	npks_det[i]= x le 0 ? 0 : ulong(strtrim(strmid(status,x+strlen(search_str)),2))
 endfor
 dir_tm = strmid(dir,0,strpos(dir,'temp_shells',/REVERSE_SEARCH))
-save,npks_det,sorted_job_nums,out_files,filename=dir_tm+'/temp/npks_det.sav'
+save,npks_det,sorted_job_nums,out_files,filename=dir_tm+'/npks_det.sav'
 wdelete,9
 wset,def_wind
 return

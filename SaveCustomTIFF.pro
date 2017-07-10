@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	05/11/2017 16:55.48
+; Generated on:	07/10/2017 14:14.21
 ; 
 pro WID_BASE_SaveCustomTIFF_event, Event
 
@@ -113,6 +113,10 @@ pro WID_BASE_SaveCustomTIFF_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Set_Tie_RGB_CustTIFF, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Save_cust_TIFF_float'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Save_cust_TIFF_float, Event
+    end
     else:
   endcase
 
@@ -131,7 +135,7 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_Save_Separate_TIFFs =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Save_Separate_TIFFs' ,XOFFSET=51 ,YOFFSET=790  $
+      UNAME='WID_BUTTON_Save_Separate_TIFFs' ,XOFFSET=51 ,YOFFSET=820  $
       ,SCR_XSIZE=280 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Save Volume'+ $
       ' as Separate TIFF files')
 
@@ -145,7 +149,7 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_IMAGE_SCALING_Parameters =  $
       Widget_Table(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_IMAGE_SCALING_Parameters' ,XOFFSET=21 ,YOFFSET=304  $
+      UNAME='WID_IMAGE_SCALING_Parameters' ,XOFFSET=21 ,YOFFSET=340  $
       ,SCR_XSIZE=335 ,SCR_YSIZE=110 ,/EDITABLE ,/RESIZEABLE_COLUMNS  $
       ,COLUMN_LABELS=[ 'Value' ] ,ROW_LABELS=[ 'NM per Image Pixel',  $
       'Total Image Pixels X', 'Total Image Pixels Y' ] ,XSIZE=1  $
@@ -206,7 +210,7 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_Save_cust_TIFF_0 =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Save_cust_TIFF_0' ,XOFFSET=51 ,YOFFSET=267  $
+      UNAME='WID_BUTTON_Save_cust_TIFF_0' ,XOFFSET=30 ,YOFFSET=260  $
       ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Save TIFF')
 
   
@@ -218,13 +222,13 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BUTTON_Generate3D = Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Generate3D' ,XOFFSET=81 ,YOFFSET=612  $
+      UNAME='WID_BUTTON_Generate3D' ,XOFFSET=81 ,YOFFSET=640  $
       ,SCR_XSIZE=193 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Generate 3D'+ $
       ' Volume')
 
   
   WID_SLIDER_Z_slice = Widget_Slider(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_SLIDER_Z_slice' ,XOFFSET=16 ,YOFFSET=658  $
+      UNAME='WID_SLIDER_Z_slice' ,XOFFSET=16 ,YOFFSET=690  $
       ,SCR_XSIZE=350 ,SCR_YSIZE=55 ,TITLE='Z slice #' ,MAXIMUM=100  $
       ,VALUE=50)
 
@@ -232,32 +236,32 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_BUTTON_Save_Multiframe_TIFF =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
       UNAME='WID_BUTTON_Save_Multiframe_TIFF' ,XOFFSET=51  $
-      ,YOFFSET=742 ,SCR_XSIZE=280 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      ,YOFFSET=770 ,SCR_XSIZE=280 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Save Volume as Multi-frame TIFF file')
 
   
   WID_IMAGE_Zcoord_Parameters = Widget_Table(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_IMAGE_Zcoord_Parameters' ,XOFFSET=21 ,YOFFSET=424  $
+      UNAME='WID_IMAGE_Zcoord_Parameters' ,XOFFSET=21 ,YOFFSET=460  $
       ,SCR_XSIZE=335 ,SCR_YSIZE=125 ,/EDITABLE ,COLUMN_LABELS=[  $
       'Value' ] ,ROW_LABELS=[ 'Z start (nm)', 'Z stop (nm)', 'Z step'+ $
       ' (nm)', 'Z - X scaling' ] ,XSIZE=1 ,YSIZE=4)
 
   
   WID_TEXT_Zsubvolume = Widget_Text(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_TEXT_Zsubvolume' ,XOFFSET=281 ,YOFFSET=564  $
+      UNAME='WID_TEXT_Zsubvolume' ,XOFFSET=281 ,YOFFSET=590  $
       ,SCR_XSIZE=70 ,SCR_YSIZE=30 ,/EDITABLE ,/ALL_EVENTS ,/WRAP  $
       ,VALUE=[ '100.0', '' ] ,XSIZE=20 ,YSIZE=2)
 
   
   WID_LABEL_subvolume_txt = Widget_Label(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_LABEL_subvolume_txt' ,XOFFSET=21 ,YOFFSET=572  $
+      UNAME='WID_LABEL_subvolume_txt' ,XOFFSET=21 ,YOFFSET=600  $
       ,SCR_XSIZE=250 ,SCR_YSIZE=15 ,/ALIGN_LEFT ,VALUE='Gaussian'+ $
       ' Cloud Radius (subvolume) (nm)')
 
   
   WID_BUTTON_Save_Separate_PNGs =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Save_Separate_PNGs' ,XOFFSET=51 ,YOFFSET=838  $
+      UNAME='WID_BUTTON_Save_Separate_PNGs' ,XOFFSET=51 ,YOFFSET=870  $
       ,SCR_XSIZE=280 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Save Volume'+ $
       ' as Separate PNG files')
 
@@ -265,14 +269,14 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_BUTTON_Overlay_DIC_EM_cust_TIFF =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
       UNAME='WID_BUTTON_Overlay_DIC_EM_cust_TIFF' ,XOFFSET=20  $
-      ,YOFFSET=190 ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      ,YOFFSET=180 ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Overlay DIC/EM')
 
   
   WID_BUTTON_Save_Multiframe_Monochrome_TIFF =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Save_Multiframe_Monochrome_TIFF' ,XOFFSET=48  $
-      ,YOFFSET=886 ,SCR_XSIZE=280 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      UNAME='WID_BUTTON_Save_Multiframe_Monochrome_TIFF' ,XOFFSET=20  $
+      ,YOFFSET=920 ,SCR_XSIZE=340 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Save Volume as Monochrome Multi-frame TIFF stack')
 
   
@@ -284,7 +288,7 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BUTTON_Render_cust_DIC = Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Render_cust_DIC' ,XOFFSET=20 ,YOFFSET=225  $
+      UNAME='WID_BUTTON_Render_cust_DIC' ,XOFFSET=20 ,YOFFSET=220  $
       ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Render Only'+ $
       ' DIC/EM')
 
@@ -298,6 +302,13 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       Widget_Button(WID_BASE_Tie_RGB_CustTIFF,  $
       UNAME='WID_BUTTON_Tie_RGB_CustTIFF' ,/ALIGN_LEFT ,VALUE='Tie'+ $
       ' RGB')
+
+  
+  WID_BUTTON_Save_cust_TIFF_float =  $
+      Widget_Button(WID_BASE_SaveCustomTIFF,  $
+      UNAME='WID_BUTTON_Save_cust_TIFF_float' ,XOFFSET=30  $
+      ,YOFFSET=300 ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      ,VALUE='Save TIFF float')
 
   Widget_Control, /REALIZE, WID_BASE_SaveCustomTIFF
 
