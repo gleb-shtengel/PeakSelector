@@ -278,9 +278,9 @@ common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d,
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
-WIDID_TEXT_ZCalStep = Widget_Info(wWidget, find_by_uname='WID_TEXT_ZCalStep_Astig')
-nmperframe_txt=string(nmperframe,FORMAT='(F8.2)')
-widget_control,WIDID_TEXT_ZCalStep,SET_VALUE = nmperframe_txt
+WIDID_TEXT_ZCalStep = Widget_Info(Event.top, find_by_uname='WID_TEXT_ZCalStep_Astig')
+widget_control,WIDID_TEXT_ZCalStep,GET_VALUE = nmperframe_txt
+nmperframe = float(nmperframe_txt[0])
 
 FrNum_ind = min(where(RowNames eq 'Frame Number'))                        ; CGroupParametersGP[9,*] - frame number
 Z_ind=min(where(RowNames eq 'Z Position'))
