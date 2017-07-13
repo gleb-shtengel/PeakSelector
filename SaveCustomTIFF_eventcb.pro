@@ -384,14 +384,14 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 	if filename eq '' then return
 	if (size(image))[0] eq 2 then begin
 		filename=AddExtension(filename,'.tif')		; monochrome
-		write_tiff,filename,reverse(image,2),/float
+		write_tiff,filename,reverse(image,2), /float
 	endif else begin
 		filename_r=AddExtension(filename,'_r.tif')		; monochrome
-		write_tiff,filename_r,reverse(image[*,*,0],2),/float
+		write_tiff,filename_r,reverse(image[*,*,0],2), /float
 		filename_g=AddExtension(filename,'_g.tif')		; monochrome
-		write_tiff,filename_g,reverse(image[*,*,1],2),/float
+		write_tiff,filename_g,reverse(image[*,*,1],2), /float
 		filename_b=AddExtension(filename,'_b.tif')		; monochrome
-		write_tiff,filename_b,reverse(image[*,*,2],2),/float
+		write_tiff,filename_b,reverse(image[*,*,2],2), /float
 	endelse
 end
 ;
@@ -1039,6 +1039,56 @@ common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 				write_tiff, filename_g, reverse(slice[*,*,1],2), /float, orientation=1, /append
 				write_tiff, filename_b, reverse(slice[*,*,2],2), /float, orientation=1, /append
 			endelse
+		endelse
+
+		fraction_complete=float(slice_ID)/(Num_frames-1.0)
+		if	(fraction_complete-fraction_complete_last) gt pr_bar_inc then begin
+			fraction_complete_last=fraction_complete
+			oStatusBar -> UpdateStatus, fraction_complete
+		endif
+	endfor
+	obj_destroy, oStatusBar	;********* Status Bar Close ******************
+
+end
+;
+;-----------------------------------------------------------------
+;
+pro Save_Volume_TIFF_separate_files_Monochrome, Event
+common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
+	vol_size=size(Cust_TIFF_volume_image)
+	if vol_size[0] lt 3 then begin
+		z=dialog_message('No 3D Volume image present')
+		return      ; if data not loaded return
+	endif
+	if vol_size[0] eq 4 then Num_frames = vol_size[4] else Num_frames = vol_size[3]
+	; vol_size[0] = 4 for multi-color image; vol_size[0] = 3  for single-color image
+	filename0 = Dialog_Pickfile(/write,get_path=fpath)
+
+	if strlen(fpath) ne 0 then cd,fpath
+	if filename0 eq '' then return
+	widget_control, /HOURGLASS	;  Show the hourglass
+
+	;********* Status Bar Initialization  ******************
+	oStatusBar = obj_new('PALM_StatusBar', COLOR=[0,0,255], TEXT_COLOR=[255,255,255], TITLE='Saving into a Multi-Frame TIFF file...', TOP_LEVEL_BASE=tlb)
+	fraction_complete_last=0.0
+	pr_bar_inc=0.01
+	for slice_ID=0, Num_frames-1 do begin
+		print,'Slice_ID=',slice_ID
+		ext_new='_slice_'+strtrim(string(slice_ID,FORMAT='(i3.3)'),2)
+		filename =AddExtension(filename0,(ext_new+'.tif'))
+		filename_r=AddExtension(filename0,('_r'+ext_new+'.tif'))
+		filename_g=AddExtension(filename0,('_g'+ext_new+'.tif'))
+		filename_b=AddExtension(filename0,('_b'+ext_new+'.tif'))
+		if vol_size[0] eq 3 then begin
+			slice = Cust_TIFF_volume_image[*,*,slice_ID]
+			write_tiff, filename, reverse(slice,2), /float, orientation=1
+		endif else begin
+			slice = Cust_TIFF_volume_image[*,*,*,slice_ID]
+			write_tiff, filename_r, reverse(slice[*,*,0],2), /float, orientation=1
+			write_tiff, filename_g, reverse(slice[*,*,1],2), /float, orientation=1
+			write_tiff, filename_b, reverse(slice[*,*,2],2), /float, orientation=1
 		endelse
 
 		fraction_complete=float(slice_ID)/(Num_frames-1.0)

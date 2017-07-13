@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/10/2017 14:14.16
+; Generated on:	07/11/2017 17:04.39
 VERSION 1
 END
 
@@ -185,5 +185,10 @@ BEGIN
   VALUE "Save TIFF float"
   ALIGNCENTER
   ONACTIVATE "Save_cust_TIFF_float"
+  END
+  WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF PUSHBUTTON 20 960 340 30
+  VALUE "Save Volume as separate Monochrome TIFF files"
+  ALIGNCENTER
+  ONACTIVATE "Save_Volume_TIFF_separate_files_Monochrome"
   END
 END

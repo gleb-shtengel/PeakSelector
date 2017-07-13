@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/10/2017 14:14.21
+; Generated on:	07/11/2017 17:04.45
 ; 
 pro WID_BASE_SaveCustomTIFF_event, Event
 
@@ -116,6 +116,10 @@ pro WID_BASE_SaveCustomTIFF_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Save_cust_TIFF_float'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Save_cust_TIFF_float, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Save_Volume_TIFF_separate_files_Monochrome, Event
     end
     else:
   endcase
@@ -309,6 +313,14 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       UNAME='WID_BUTTON_Save_cust_TIFF_float' ,XOFFSET=30  $
       ,YOFFSET=300 ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Save TIFF float')
+
+  
+  WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF =  $
+      Widget_Button(WID_BASE_SaveCustomTIFF,  $
+      UNAME='WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF'  $
+      ,XOFFSET=20 ,YOFFSET=960 ,SCR_XSIZE=340 ,SCR_YSIZE=30  $
+      ,/ALIGN_CENTER ,VALUE='Save Volume as separate Monochrome TIFF'+ $
+      ' files')
 
   Widget_Control, /REALIZE, WID_BASE_SaveCustomTIFF
 

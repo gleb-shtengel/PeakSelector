@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/06/2017 13:40.12
+; Generated on:	07/12/2017 11:23.44
 VERSION 1
 END
 
@@ -106,6 +106,7 @@ BEGIN
     WID_BUTTON_UseMultipleANCs PUSHBUTTON -1 -1 0 0
     VALUE "Use Multiple GuideStars"
     ALIGNLEFT
+    ONACTIVATE "OnButton_Press_use_multiple_GS"
     END
   END
   WID_BUTTON_Write_GuideStarRadius PUSHBUTTON 19 278 250 30
@@ -149,6 +150,7 @@ BEGIN
     WID_BUTTON_UseMultipleANCs_DH PUSHBUTTON -1 -1 0 0
     VALUE "Use Multiple GuideStars (DH)"
     ALIGNLEFT
+    ONACTIVATE "OnButton_Press_use_multiple_GS_DH"
     END
   END
 END

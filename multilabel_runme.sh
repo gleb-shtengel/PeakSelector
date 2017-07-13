@@ -24,7 +24,7 @@ for i in `seq 0 $((NUM-1))`;
     echo "idl -rt=${IDL_SCR_DIR}/${PROG_NAME} -args "${i}" "${PALM_DATA_DIR} 1>>${SCRIPT_NAME}${i}.sh
      chmod +x ${SCRIPT_NAME}${i}.sh
 #    qsub -cwd -pe batch 5 -l h_rt=3599 -V -N ${SCRIPT_NAME}${i} -j y -o ${SCRIPT_NAME}${i}.out -b y -l idl_rt=6 ${PALM_DATA_DIR}/${TEMP_DIR}${SCRIPT_NAME}${i}.sh
-    bsub -n 5 -J ${SCRIPT_NAME}${i} -o ${SCRIPT_NAME}${i}.out idl_rt=6 ${PALM_DATA_DIR}/${TEMP_DIR}${SCRIPT_NAME}${i}.sh
+    bsub -n 5 -R"rusage[idl_rt=6]" -J ${SCRIPT_NAME}${i} -o ${SCRIPT_NAME}${i}.out idl_rt=6 ${PALM_DATA_DIR}/${TEMP_DIR}${SCRIPT_NAME}${i}.sh
     JOBLIST=$JOBLIST${SCRIPT_NAME}${i},
 done
 

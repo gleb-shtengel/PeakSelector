@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/06/2017 13:40.17
+; Generated on:	07/12/2017 11:23.48
 ; 
 pro WID_BASE_Z_operations_Astig_event, Event
 
@@ -57,6 +57,10 @@ pro WID_BASE_Z_operations_Astig_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnPickGuideStarAncFile_Astig, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnButton_Press_use_multiple_GS, Event
+    end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Write_GuideStarRadius'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         WriteGudeStarRadius_Astig, Event
@@ -64,6 +68,10 @@ pro WID_BASE_Z_operations_Astig_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Convert_Fr_to_Z'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         On_Convert_Frame_to_Z, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs_DH'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnButton_Press_use_multiple_GS_DH, Event
     end
     else:
   endcase

@@ -23,4 +23,4 @@ echo "source /usr/local/rsi/idl/bin/idl_setup.bash" 1>>${SCRIPT_NAME}${NUM}.sh
 echo "idl -rt=${IDL_SCR_DIR}/${PROG_NAME} -args "${NUM}" "${PALM_DATA_DIR}" "${TEMP_FOLDER} 1>>${SCRIPT_NAME}${NUM}.sh
  chmod +x ${SCRIPT_NAME}${NUM}.sh
 #qsub -cwd -pe batch 4 -l d_rt=3599 -V -N ${SCRIPT_NAME}${NUM} -j y -o ${SCRIPT_NAME}${NUM}.out -b y -l idl_rt=6 ${PALM_DATA_DIR}/${TEMP_DIR}${SCRIPT_NAME}${NUM}.sh
-bsub -n 4 -J ${SCRIPT_NAME}${NUM} -o ${SCRIPT_NAME}${NUM}.out idl_rt=6 ${TEMP_DIR}${SCRIPT_NAME}${NUM}.sh
+bsub -n 4 -R"rusage[idl_rt=6]" -J ${SCRIPT_NAME}${NUM} -o ${SCRIPT_NAME}${NUM}.out idl_rt=6 ${TEMP_DIR}${SCRIPT_NAME}${NUM}.sh

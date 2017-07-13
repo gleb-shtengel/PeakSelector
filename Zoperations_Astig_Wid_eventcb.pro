@@ -78,6 +78,24 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro OnButton_Press_use_multiple_GS, Event
+common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+	use_multiple_GS_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs_DH')
+	if use_multiple_GS_DH_id gt 0 then use_multiple_GS_DH = widget_info(use_multiple_GS_DH_id,/button_set) else use_multiple_GS_DH=0
+	if use_multiple_GS_DH and Event.select then widget_control, use_multiple_GS_DH_id, set_button=0
+end
+;
+;-----------------------------------------------------------------
+;
+pro OnButton_Press_use_multiple_GS_DH, Event
+common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+	use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
+	if use_multiple_GS_id gt 0 then use_multiple_GS = widget_info(use_multiple_GS_id,/button_set) else use_multiple_GS = 0
+	if use_multiple_GS and Event.select then widget_control, use_multiple_GS_id, set_button=0
+end
+;
+;-----------------------------------------------------------------
+;
 Pro ExtractEllipticityCalib_Astig, Event		; perform z-calibration on filtered data set
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
@@ -107,7 +125,11 @@ Nph_ind = min(where(RowNames eq '6 N Photons'))                            ; CGr
 sz=size(CGroupParams)
 
 use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
-use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
+if use_multiple_GS_id gt 0 then use_multiple_GS = widget_info(use_multiple_GS_id,/button_set) else use_multiple_GS=0
+use_multiple_GS_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs_DH')
+if use_multiple_GS_DH_id gt 0 then use_multiple_GS_DH = widget_info(use_multiple_GS_DH_id,/button_set) else use_multiple_GS_DH=0
+use_multiple_GS = use_multiple_GS or use_multiple_GS_DH
+
 WID_TEXT_GuideStarAncFilename_Astig_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_GuideStarAncFilename_Astig')
 widget_control,WID_TEXT_GuideStarAncFilename_Astig_ID,GET_VALUE = GS_anc_fname
 GS_anc_file_info=FILE_INFO(GS_anc_fname)
@@ -154,7 +176,7 @@ for jp=0,(ip_cnt-1) do begin
 		center_fr = total(CGroupParams[Frame_Number,subsetindex] * CGroupParams[Nph_ind,subsetindex])/total(CGroupParams[Nph_ind,subsetindex])
 		print,'Center Frame: ',center_fr
 		zz=transpose(CGroupParams[Frame_Number,subsetindex] - center_fr)*nmperframe * nd_oil/nd_water
-		plot, zz, ellipticity, xtitle='Z position (nm)', ytitle='Ellipticity', ystyle=1, psym=6
+		plot, zz, ellipticity, xtitle='Z position (nm)', ytitle='Ellipticity', ystyle=1, psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
 	endif else begin
 		col=(250-jp*50)>50
 		ellipticity_add = transpose(CGroupParams[Ell_ind,subsetindex])
@@ -184,19 +206,26 @@ cal_lookup_zz=zzmin+findgen(zzmax-zzmin)
 
 WidSldFitOrderID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Zastig_Fit')
 widget_control,WidSldFitOrderID,get_value=fitorder
-z_unwrap_coeff = poly_fit(zz,ellipticity,fitorder)
+z_unwrap_coeff = poly_fit(zz,ellipticity,fitorder,/double)
+
 cal_lookup_data = poly(cal_lookup_zz,z_unwrap_coeff)
 
 cal_min = min(cal_lookup_data, ind0)
 cal_max = max(cal_lookup_data, ind1)
-cal_lookup_data = cal_lookup_data[min([ind0,ind1]):max([ind0,ind1])]
-cal_lookup_zz = cal_lookup_zz[min([ind0,ind1]):max([ind0,ind1])]
+indmin = min([ind0,ind1])+1
+indmax = max([ind0,ind1])-1
+cal_lookup_data = cal_lookup_data[indmin:indmax]
+cal_lookup_zz = cal_lookup_zz[indmin:indmax]
+
+ncoeff = n_elements(z_unwrap_coeff)-1
+deriv_coeff = (z_unwrap_coeff*findgen(ncoeff+1))[1:ncoeff]
+deriv_lookup_data = poly(cal_lookup_zz,deriv_coeff)
 
 	oplot,cal_lookup_zz,cal_lookup_data,col=250, THICK=3
+	oplot,cal_lookup_zz,1.0/deriv_lookup_data/1.0e5,col=150, THICK=3
 	for i =0,(n_elements(z_unwrap_coeff)-1) do xyouts,0.8,0.90-0.02*i,z_unwrap_coeff[i],/normal
 
 !p.background=0
-
 return
 end
 ;
@@ -214,6 +243,15 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 
 if wfilename eq '' then return
 
+Xwid_ind = min(where(RowNames eq 'X Peak Width'))                        ; CGroupParametersGP[4,*] - Peak X Gaussian Width
+Ywid_ind = min(where(RowNames eq 'Y Peak Width'))                        ; CGroupParametersGP[5,*] - Peak Y Gaussian Width
+Nph_ind = min(where(RowNames eq '6 N Photons'))                            ; CGroupParametersGP[6,*] - Number of Photons in the Peak
+SigX_ind = min(where(RowNames eq 'Sigma X Pos Full'))                    ; CGroupParametersGP[16,*] - x - sigma
+SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))                    ; CGroupParametersGP[17,*] - y - sigma
+GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))                ; CGroupParametersGP[21,*] - new x - position sigma
+GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))                ; CGroupParametersGP[22,*] - new y - position sigma
+
+
 Z_ind=min(where(RowNames eq 'Z Position'))
 SigZ_ind=min(where(RowNames eq 'Sigma Z'))
 GrZ_ind=min(where(RowNames eq 'Group Z Position'))
@@ -227,12 +265,32 @@ if (n_elements(cal_lookup_zz) le 1) or (n_elements(cal_lookup_data) le 1) then b
 	return      ; if data not loaded return
 endif
 
-CGroupParams[Z_ind,*] = cal_lookup_zz[(VALUE_LOCATE(cal_lookup_data,CGroupParams[Ell_ind,*])>0)]
+ncoeff = n_elements(z_unwrap_coeff)-1
+deriv_coeff = (z_unwrap_coeff*findgen(ncoeff+1))[1:ncoeff]
+deriv_lookup_data = poly(cal_lookup_zz,deriv_coeff)
 
-if (mean(CGroupParams[Gr_Size,*]) ne 0) then  $
-CGroupParams[GrZ_ind,*] = cal_lookup_zz[(VALUE_LOCATE(cal_lookup_data,CGroupParams[Gr_Ell_ind,*])>0)]
+fit_index = VALUE_LOCATE(cal_lookup_data,CGroupParams[Ell_ind,*])
+CGroupParams[Z_ind,*] = cal_lookup_zz[fit_index>0]
 
-ReloadParamlists, Event, [Z_ind, GrZ_ind]
+; below is an estimate of uncertainty of determination of ellipticity
+;sigma_ellipticity = 2.0*CGroupParams[Xwid_ind,*]*CGroupParams[Ywid_ind,*]/(CGroupParams[Xwid_ind,*]+CGroupParams[Ywid_ind,*])^2;/sqrt(CGroupParams[Nph_ind,*])
+;sigma_ellipticity = 0.5*(1.0-CGroupParams[Ell_ind,*]*CGroupParams[Ell_ind,*])/sqrt(CGroupParams[Nph_ind,*])
+sigma_ellipticity = 2.0 * sqrt((CGroupParams[Xwid_ind,*]*CGroupParams[SigY_ind,*])^2+(CGroupParams[Ywid_ind,*]*CGroupParams[SigX_ind,*])^2) / $
+(CGroupParams[Xwid_ind,*]+CGroupParams[Ywid_ind,*])^2;/sqrt(CGroupParams[Nph_ind,*])
+; propagate uncertainty through ellipticity-> extraction
+CGroupParams[SigZ_ind,*] = sigma_ellipticity/abs(deriv_lookup_data[fit_index>0])
+;CGroupParams[11,*] = 1/abs(deriv_lookup_data[fit_index>0])
+
+if (mean(CGroupParams[Gr_Size,*]) ne 0) then  begin
+	fit_gr_index = VALUE_LOCATE(cal_lookup_data,CGroupParams[Gr_Ell_ind,*])
+	CGroupParams[GrZ_ind,*] = cal_lookup_zz[fit_gr_index>0]
+	sigma_ellipticity = 2.0 * sqrt((CGroupParams[Xwid_ind,*]*CGroupParams[GrSigY_ind,*])^2+(CGroupParams[Ywid_ind,*]*CGroupParams[GrSigX_ind,*])^2) / $
+	(CGroupParams[Xwid_ind,*]+CGroupParams[Ywid_ind,*])^2;/sqrt(CGroupParams[Nph_ind,*])
+	; propagate uncertainty through ellipticity-> extraction
+	CGroupParams[GrSigZ_ind,*] = sigma_ellipticity/abs(deriv_lookup_data[fit_index>0])
+endif
+
+ReloadParamlists, Event, [Z_ind, SigZ_ind, GrZ_ind, GrSigZ_ind]
 
 if bridge_exists then begin
 	print,'Reloading the Bridge Array'
@@ -240,6 +298,8 @@ if bridge_exists then begin
 	CGroupParams_bridge = SHMVAR(shmName_data)
 	CGroupParams_bridge[Z_ind,*] = CGroupParams[Z_ind,*]
 	CGroupParams_bridge[GrZ_ind,*] = CGroupParams[GrZ_ind,*]
+	CGroupParams_bridge[SigZ_ind,*] = CGroupParams[SigZ_ind,*]
+	CGroupParams_bridge[GrSigZ_ind,*] = CGroupParams[GrSigZ_ind,*]
 	IF Error_status NE 0 THEN BEGIN
 		PRINT, 'Bridge Refresh Error: Drift Correction:',!ERROR_STATE.MSG
 		PRINT, 'System Error Message:',!ERROR_STATE.SYS_MSG
@@ -318,9 +378,16 @@ common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
 if n_elements(CGroupParams) lt 1 then begin
-	z=dialog_message('Please load a data file')
+
 	return      ; if data not loaded return
 endif
+
+CATCH, Error_status
+IF Error_status NE 0 THEN BEGIN
+	z=dialog_message('Error: Drift Correction: '+string(!ERROR_STATE.MSG))
+	CATCH,/CANCEL
+	return
+ENDIF
 
 Z_ind=min(where(RowNames eq 'Z Position'))
 SigZ_ind=min(where(RowNames eq 'Sigma Z'))
@@ -533,6 +600,7 @@ endelse
 
 ParamLimits = ParamLimits0
 filter = filter0
+CATCH,/CANCEL
 return
 end
 ;
@@ -542,7 +610,11 @@ pro OnTestZDrift_Astig, Event
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 
 use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
-use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
+if use_multiple_GS_id gt 0 then use_multiple_GS = widget_info(use_multiple_GS_id,/button_set) else use_multiple_GS=0
+;use_multiple_GS_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs_DH')
+;if use_multiple_GS_DH_id gt 0 then use_multiple_GS_DH = widget_info(use_multiple_GS_DH_id,/button_set) else use_multiple_GS_DH=0
+;use_multiple_GS = use_multiple_GS or use_multiple_GS_DH
+
 WID_TEXT_GuideStarAncFilename_Astig_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_GuideStarAncFilename_Astig')
 widget_control,WID_TEXT_GuideStarAncFilename_Astig_ID,GET_VALUE = GS_anc_fname
 GS_anc_file_info=FILE_INFO(GS_anc_fname)
@@ -568,7 +640,11 @@ Gr_Size = min(where(RowNames eq '24 Group Size'))
 Frame_Number = min(where(RowNames eq 'Frame Number'))
 
 use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
-use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
+if use_multiple_GS_id gt 0 then use_multiple_GS = widget_info(use_multiple_GS_id,/button_set) else use_multiple_GS=0
+;use_multiple_GS_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs_DH')
+;if use_multiple_GS_DH_id gt 0 then use_multiple_GS_DH = widget_info(use_multiple_GS_DH_id,/button_set) else use_multiple_GS_DH=0
+;use_multiple_GS = use_multiple_GS or use_multiple_GS_DH
+
 WID_TEXT_GuideStarAncFilename_Astig_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_GuideStarAncFilename_Astig')
 widget_control,WID_TEXT_GuideStarAncFilename_Astig_ID,GET_VALUE = GS_anc_fname
 GS_anc_file_info=FILE_INFO(GS_anc_fname)
@@ -753,6 +829,4 @@ if BASE_GuideStar_num ge 0 then begin
 endif
 GS_radius = float(GS_radius_txt[0])
 end
-;-----------------------------------------------------------------
-;
 
