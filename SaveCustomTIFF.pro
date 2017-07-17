@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/11/2017 17:04.45
+; Generated on:	07/14/2017 14:00.35
 ; 
 pro WID_BASE_SaveCustomTIFF_event, Event
 
@@ -139,7 +139,7 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_Save_Separate_TIFFs =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Save_Separate_TIFFs' ,XOFFSET=51 ,YOFFSET=820  $
+      UNAME='WID_BUTTON_Save_Separate_TIFFs' ,XOFFSET=51 ,YOFFSET=815  $
       ,SCR_XSIZE=280 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Save Volume'+ $
       ' as Separate TIFF files')
 
@@ -265,7 +265,7 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_Save_Separate_PNGs =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Save_Separate_PNGs' ,XOFFSET=51 ,YOFFSET=870  $
+      UNAME='WID_BUTTON_Save_Separate_PNGs' ,XOFFSET=51 ,YOFFSET=860  $
       ,SCR_XSIZE=280 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Save Volume'+ $
       ' as Separate PNG files')
 
@@ -280,7 +280,7 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_BUTTON_Save_Multiframe_Monochrome_TIFF =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
       UNAME='WID_BUTTON_Save_Multiframe_Monochrome_TIFF' ,XOFFSET=20  $
-      ,YOFFSET=920 ,SCR_XSIZE=340 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
+      ,YOFFSET=905 ,SCR_XSIZE=340 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Save Volume as Monochrome Multi-frame TIFF stack')
 
   
@@ -318,9 +318,16 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF =  $
       Widget_Button(WID_BASE_SaveCustomTIFF,  $
       UNAME='WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF'  $
-      ,XOFFSET=20 ,YOFFSET=960 ,SCR_XSIZE=340 ,SCR_YSIZE=30  $
-      ,/ALIGN_CENTER ,VALUE='Save Volume as separate Monochrome TIFF'+ $
-      ' files')
+      ,XOFFSET=10 ,YOFFSET=965 ,SCR_XSIZE=360 ,SCR_YSIZE=30  $
+      ,/ALIGN_CENTER ,VALUE='Generate Volume + save into Monochrome'+ $
+      ' TIFF files')
+
+  
+  WID_LABEL_dont_generate_Volume =  $
+      Widget_Label(WID_BASE_SaveCustomTIFF,  $
+      UNAME='WID_LABEL_dont_generate_Volume' ,XOFFSET=70  $
+      ,YOFFSET=1000 ,SCR_XSIZE=250 ,SCR_YSIZE=20 ,/ALIGN_LEFT  $
+      ,VALUE='Do NOT generate volume with this')
 
   Widget_Control, /REALIZE, WID_BASE_SaveCustomTIFF
 

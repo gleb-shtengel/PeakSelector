@@ -134,6 +134,9 @@ if (!VERSION.OS_family eq 'unix') then have_CUDA = scope_varfetch('haveCUDAFilte
 						PRINT, 'Starting: Error:',!ERROR_STATE.MSG
 						CATCH,/CANCEL
 					ENDIF
+					i=0
+					;fbr_arr=obj_new("IDL_IDLBridge", output=('Z:\IDL\PeakSelector_V9.6\debug\Bridge_output'+strtrim(i,2)+'.txt'))
+					;for i=1, n_br_loops-1 do fbr_arr=[fbr_arr, obj_new("IDL_IDLBridge", output=('Z:\IDL\PeakSelector_V9.6\debug\Bridge_output'+strtrim(i,2)+'.txt'))]
 					fbr_arr=obj_new("IDL_IDLBridge", output='')
 					for i=1, n_br_loops-1 do fbr_arr=[fbr_arr, obj_new("IDL_IDLBridge", output='')]
 					npk_sub = ceil(npk_tot/n_br_loops)
@@ -4485,13 +4488,15 @@ function build_fimage, CGroupParams, filter, ParamLimits, render_ind, render_par
 
 	wxpkpos	= mgw * (CGroupParams[X_ind,filterlist]-dxmn)		;x peak positions in units of display window pixels - vector for filtered peaks
 	wypkpos	= mgw * (CGroupparams[Y_ind,filterlist]-dymn)
-	wxofs_v	=(fix(wxpkpos)>0)
-	wyofs_v	=(fix(wypkpos)>0)
+	;wxofs_v	=(fix(wxpkpos)>0)
+	;wyofs_v	=(fix(wypkpos)>0)
+	wxofs_v	=floor(wxpkpos)
+	wyofs_v	=floor(wypkpos)
 
 	if FunctionItem gt 0 then begin
 		wdd=2*wd+1
-		wx=findgen(wdd)-wd									;wdd x vector of window pixels (zero is in middle of array)
-		wy=findgen(wdd)-wd									;wdd y vector
+		wx = findgen(wdd)-wd									;wdd x vector of window pixels (zero is in middle of array)
+		wy = findgen(wdd)-wd									;wdd y vector
 		wxsig	= mgw * CGroupParams[xs_ind,filterlist]				;x sigma  in units of display window pixels - vector for filtered peaks
 		wysig	= mgw * CGroupParams[ys_ind,filterlist]
 		A1 = 1.0D/(2.*!pi*wxsig*wysig)*(FunctionItem eq 1) + CGroupParams[Nph_ind,filterlist]*(FilterItem eq 0)/mgw/mgw*(FunctionItem eq 2);Gaussian amplitude - vector for filtered peaks
@@ -5631,6 +5636,7 @@ hist_nbins = 128;  number of histogram bins
 
 Cust_TIFF_Pix_X = 1024	; image window size for "Custom TIFF"
 Cust_TIFF_Pix_Y = 1024	; image window size for "Custom TIFF"
+Cust_TIFF_Z_subvol_nm = 100.0  	; size of the Gaussian cloud for custom TIFF render
 
 SaveASCII_Filter = 0	; 0 for Peak Filtered; 1 for Group Filtered
 SaveASCII_units  = 0	; 0 for pixels, 1 for nm

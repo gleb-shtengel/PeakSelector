@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/11/2017 17:04.39
+; Generated on:	07/14/2017 14:00.28
 VERSION 1
 END
 
@@ -12,7 +12,7 @@ XPAD = 3
 YPAD = 3
 SPACE = 3
 BEGIN
-  WID_BUTTON_Save_Separate_TIFFs PUSHBUTTON 51 820 280 30
+  WID_BUTTON_Save_Separate_TIFFs PUSHBUTTON 51 815 280 30
   VALUE "Save Volume as Separate TIFF files"
   ALIGNCENTER
   ONACTIVATE "Save_Volume_TIFF_separate_files"
@@ -145,7 +145,7 @@ BEGIN
   VALUE "Gaussian Cloud Radius (subvolume) (nm)"
   ALIGNLEFT
   END
-  WID_BUTTON_Save_Separate_PNGs PUSHBUTTON 51 870 280 30
+  WID_BUTTON_Save_Separate_PNGs PUSHBUTTON 51 860 280 30
   VALUE "Save Volume as Separate PNG files"
   ALIGNCENTER
   ONACTIVATE "Save_Volume_PNG_separate_files"
@@ -155,7 +155,7 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "Overlay_DIC_cust_TIFF"
   END
-  WID_BUTTON_Save_Multiframe_Monochrome_TIFF PUSHBUTTON 20 920 340 30
+  WID_BUTTON_Save_Multiframe_Monochrome_TIFF PUSHBUTTON 20 905 340 30
   VALUE "Save Volume as Monochrome Multi-frame TIFF stack"
   ALIGNCENTER
   ONACTIVATE "Save_Volume_TIFF_Monochrome"
@@ -186,9 +186,13 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "Save_cust_TIFF_float"
   END
-  WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF PUSHBUTTON 20 960 340 30
-  VALUE "Save Volume as separate Monochrome TIFF files"
+  WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF PUSHBUTTON 10 965 360 30
+  VALUE "Generate Volume + save into Monochrome TIFF files"
   ALIGNCENTER
   ONACTIVATE "Save_Volume_TIFF_separate_files_Monochrome"
+  END
+  WID_LABEL_dont_generate_Volume LABEL 70 1000 250 20
+  VALUE "Do NOT generate volume with this"
+  ALIGNLEFT
   END
 END

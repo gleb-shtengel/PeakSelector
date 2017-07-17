@@ -251,7 +251,6 @@ SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))                    ; CGrou
 GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))                ; CGroupParametersGP[21,*] - new x - position sigma
 GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))                ; CGroupParametersGP[22,*] - new y - position sigma
 
-
 Z_ind=min(where(RowNames eq 'Z Position'))
 SigZ_ind=min(where(RowNames eq 'Sigma Z'))
 GrZ_ind=min(where(RowNames eq 'Group Z Position'))

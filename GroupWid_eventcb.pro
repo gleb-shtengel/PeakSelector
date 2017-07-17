@@ -74,7 +74,7 @@ case GroupEngine of
 		grouping_radius=FLOAT(grouping_radius100)/100	; in CCD pixel units
 		spacer = grouping_gap+2
 		maxgrsize = 10						; not absolute max group size: max group size for arrayed processing (groups with elements>maxgroupsize are later analyzed separately)
-		disp_increment = 500				; frame interval for progress display
+		disp_increment = 100				; frame interval for progress display
 		GroupDisplay = 0					; 0 for cluster, 1 for local
 		if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR')	else	idl_pwd=pref_get('IDL_WDE_START_DIR')
 		cd,current=curr_pwd
@@ -161,7 +161,7 @@ case GroupEngine of
 		grouping_radius = FLOAT(grouping_radius100)/100	; in CCD pixel units
 		spacer = grouping_gap + 2
 		maxgrsize = 10						; not absolute max group size: max group size for arrayed processing (groups with elements>maxgroupsize are later analyzed separately)
-		disp_increment = 500					; frame interval for progress display
+		disp_increment = 100					; frame interval for progress display
 		GroupDisplay = 0						; 0 for cluster, 1 for local
 		if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR')	else	idl_pwd=pref_get('IDL_WDE_START_DIR')
 		cd, current = curr_pwd
@@ -229,7 +229,7 @@ widget_control,wGrpGapID,get_value=grouping_radius100
 grouping_radius=FLOAT(grouping_radius100)/100	; in CCD pixel units
 spacer=grouping_gap+2
 maxgrsize=10						; not absolute max group size: max group size for arrayed processing (groups with elements>maxgroupsize are later analyzed separately)
-disp_increment=500					; frame interval for progress display
+disp_increment=100					; frame interval for progress display
 GroupDisplay=1						; 0 for cluster, 1 for local
 ;
 ;************ 2	Grouping

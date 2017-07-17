@@ -37,7 +37,7 @@ UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroup
 Cust_TIFF_3D = 0
 Cust_TIFF_volume_image = 0
 Cust_TIFF_Z_multiplier = 1.0
-Cust_TIFF_Z_subvol_nm = 100.0
+
 Top_AccumId=widget_info(Event1.top, FIND_BY_UNAME='WID_DROPLIST_Accumulate')
 Cust_TIFF_Accumulation=widget_info(Top_AccumId,/DropList_Select)
 Cust_TIFF_AccumId=widget_info(wWidget, FIND_BY_UNAME='WID_DROPLIST_Accumulate_cust_TIFF')
@@ -509,15 +509,15 @@ function build_volume, CGroupParams, filter, ParamLimits, render_ind, render_par
 	vbar_top = render_win[10]
 
 if liveupdate gt 0 then begin
-		cancel_button_present = (liveupdate eq 1) ? 1 : 0	; do not allow for cancel button in Bridge
-        oStatusBar = obj_new('PALM_StatusBar', $
-        	COLOR=[0,0,255], $
-        	TEXT_COLOR=[255,255,255], $
-        	CANCEL_BUTTON_PRESENT = cancel_button_present, $
-       	 	TITLE='Generating  Volume...', $
-	       	TOP_LEVEL_BASE=tlb)
-		fraction_complete_last=0.0D
-		pr_bar_inc=0.01D
+	cancel_button_present = (liveupdate eq 1) ? 1 : 0	; do not allow for cancel button in Bridge
+	oStatusBar = obj_new('PALM_StatusBar', $
+	COLOR=[0,0,255], $
+	TEXT_COLOR=[255,255,255], $
+	CANCEL_BUTTON_PRESENT = cancel_button_present, $
+	TITLE='Generating  Volume...', $
+	TOP_LEVEL_BASE=tlb)
+	fraction_complete_last=0.0D
+	pr_bar_inc=0.01D
 endif
 
 loc=fltarr(wxsz,wysz)
@@ -536,9 +536,9 @@ wzsz = fix(round((dzmx-dzmn) / z_scale))
 if (lbl_mx gt 0) or rend_z_color then f3image = fltarr(3,wxsz,wysz,wzsz) else	fimage = fltarr(wxsz,wysz,wzsz)
 
 start=systime(2)
-wx=findgen(wdd)-wd									;wdd x vector of window pixels (zero is in middle of array)
-wy=findgen(wdd)-wd									;wdd y vector
-wz=findgen(wddz)-wdz								;wddz z vector
+wx = findgen(wdd)-wd									;wdd x vector of window pixels (zero is in middle of array)
+wy = findgen(wdd)-wd									;wdd y vector
+wz = findgen(wddz)-wdz								;wddz z vector
 
 wxpkpos	= mgw * (CGroupParams[x_ind,filterlist]-dxmn)		;x peak positions (in units of display pixels) - vector for filtered peaks
 wypkpos	= mgw * (CGroupparams[y_ind,filterlist]-dymn)
@@ -548,9 +548,11 @@ wysig	= mgw * CGroupParams[ys_ind,filterlist]
 wzsig	= CGroupParams[zs_ind,filterlist] / z_scale
 sigzero_loc = where(wzsig eq 0, cnt_zsig_zero)
 if cnt_zsig_zero gt 0 then wzsig[sigzero_loc] = (wysig[sigzero_loc] + wysig[sigzero_loc]) *3
-wxofs_v	=(fix(wxpkpos)>0)
-wyofs_v	=(fix(wypkpos)>0)
-wzofs_v	=(fix(wzpkpos)>0)
+
+wxofs_v	= floor(wxpkpos)					; the offset of the center of the cloud in display units.
+wyofs_v	= floor(wypkpos)
+wzofs_v	= floor(wzpkpos)
+
 ;amp = (1.0d / ((2.*!pi)^1.5*(ssx/df)*(ssy/df)*(ssz/df)))<1.d
 
 A1	=1.d/(2.*!pi)^1.5/(wxsig*wysig*wzsig)*(FunctionItem eq 1) + $			;Gaussian amplitude - vector for filtered peaks
@@ -576,71 +578,79 @@ for j=0l,cnt-1 do begin											;loop through all peaks
 	wxofs=wxofs_v[j]
 	wyofs=wyofs_v[j]
 	wzofs=wzofs_v[j]
-	dwx=(wx-(wxpkpos[j]-fix(wxpkpos[j])))/wxsig[j]
-	dwy=(wy-(wypkpos[j]-fix(wypkpos[j])))/wysig[j]
-	dwz=(wz-(wzpkpos[j]-fix(wzpkpos[j])))/wzsig[j]
-	;print,wxsig[j],wysig[j],wzsig[j]
-	;stop
-	   ; Gauss2D = reform(expB#(amp[i]*expC),dy*dz)  created and tested by HH
-       ; R = reform(expA#Gauss2D, dx, dy, dz)
+
+	dwx = (wx-(wxpkpos[j]-wxofs))/wxsig[j]
+	dwy = (wy-(wypkpos[j]-wyofs))/wysig[j]
+	dwz = (wz-(wzpkpos[j]-wzofs))/wzsig[j]
+
     expA=exp(-(((dwx^2)/2.)<100000.))
     expB=exp(-(((dwy^2)/2.)<100000.))
     expC=exp(-(((dwz^2)/2.)<100000.))
-    gausscenter=A1[j]*reform(expA#(reform(expB#expC,wdd*wddz)), wdd, wdd, wddz)
-	gausscenter=gausscenter[(wd-wxofs)>0:(2*wd+((wxsz-1-wxofs-wd)<0)),(wd-wyofs)>0:(2*wd+((wysz-1-wyofs-wd)<0)),(wdz-wzofs)>0:(2*wdz+((wzsz-1-wzofs-wdz)<0))]
-	if rend_z_color eq 0 then begin	; DO NOT use Hue for z-coordinate
-		if (lbl_mx eq 0)	then begin	; single label
-			;q=fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]
-			if (AccumItem eq 1) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]+=gausscenter 	;+ q	;Sum
-			if (AccumItem eq 0) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]>=gausscenter 	;> q	;Envelope
-		endif else	begin					; multiple labels
-			labelindex=CGroupParams[LabelSet_ind,filterlist[j]]
-			;q=f3image[(labelindex-1),(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]
-			if (AccumItem eq 1) then f3image[(labelindex-1),(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]+=gausscenter ;+ q		;Sum
-			if (AccumItem eq 0) then f3image[(labelindex-1),(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]>=gausscenter ;> q		;Envelope
-		endelse
-	endif else begin								; use Hue for z-coordinate
+    gausscenter=A1[j]*reform(expA#(reform(expB#expC,wdd*wddz)), wdd, wdd, wddz) ; gauss cloud offset by a rounded position center
 
-		hue=hue_scale*(normZval[j]-fix(normZval[j]))							;multiply hue_scale * normalized z to range
-		huep=hue/60.0
-		V= scale_factor * gausscenter
-		rgb_gauss=dblarr(3,(size(V))[1],(size(V))[2],(size(V))[3])
-		X=V*(1.0-abs((huep mod 2)-1.0))
+    xi = (wd-wxofs)>0
+    xa = (2*wd+((wxsz-1-wxofs-wd)<0))
+    yi = (wd-wyofs)>0
+    ya = (2*wd+((wysz-1-wyofs-wd)<0))
+    zi = (wdz-wzofs)>0
+    za = (2*wdz+((wzsz-1-wzofs-wdz)<0))
+	;if (xi gt xa) or (yi gt ya) or (zi gt za) then print,xi,xa,yi,ya,zi,za
 
-		if (huep ge 0) and (huep lt 1) then begin
+	if zi le za then begin
+		gausscenter=gausscenter[xi:xa,yi:ya,zi:za]
+		if rend_z_color eq 0 then begin	; DO NOT use Hue for z-coordinate
+			if (lbl_mx eq 0)	then begin	; single label
+				;q=fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]
+				if (AccumItem eq 1) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]+=gausscenter 	;+ q	;Sum
+				if (AccumItem eq 0) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]>=gausscenter 	;> q	;Envelope
+			endif else	begin					; multiple labels
+				labelindex=CGroupParams[LabelSet_ind,filterlist[j]]
+					;q=f3image[(labelindex-1),(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]
+				if (AccumItem eq 1) then f3image[(labelindex-1),(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]+=gausscenter ;+ q		;Sum
+				if (AccumItem eq 0) then f3image[(labelindex-1),(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)]>=gausscenter ;> q		;Envelope
+			endelse
+		endif else begin								; use Hue for z-coordinate
+
+			hue=hue_scale*(normZval[j]-fix(normZval[j]))							;multiply hue_scale * normalized z to range
+			huep=hue/60.0
+			V= scale_factor * gausscenter
+			rgb_gauss=dblarr(3,(size(V))[1],(size(V))[2],(size(V))[3])
+			X=V*(1.0-abs((huep mod 2)-1.0))
+
+			if (huep ge 0) and (huep lt 1) then begin
 				rgb_gauss[0,*,*,*] = V
 			 	rgb_gauss[1,*,*,*] = X
-		endif
+			endif
 
-		if (huep ge 1) and (huep lt 2) then begin
+			if (huep ge 1) and (huep lt 2) then begin
 				rgb_gauss[0,*,*,*] = X
 				rgb_gauss[1,*,*,*] = V
-		endif
+			endif
 
-		if (huep ge 2) and (huep lt 3) then begin
+			if (huep ge 2) and (huep lt 3) then begin
 				rgb_gauss[1,*,*,*] = V
 				rgb_gauss[2,*,*,*] = X
-		endif
+			endif
 
-		if (huep ge 3) and (huep lt 4) then begin
+			if (huep ge 3) and (huep lt 4) then begin
 				rgb_gauss[1,*,*,*] = X
 				rgb_gauss[2,*,*,*] = V
-		endif
+			endif
 
-		if (huep ge 4) and (huep lt 5) then begin
+			if (huep ge 4) and (huep lt 5) then begin
 				rgb_gauss[0,*,*,*] = X
 				rgb_gauss[2,*,*,*] = V
-		endif
+			endif
 
-		if (huep ge 5) and (huep lt 6) then begin
+			if (huep ge 5) and (huep lt 6) then begin
 				rgb_gauss[0,*,*,*] = V
 				rgb_gauss[2,*,*,*] = X
-		endif
+			endif
 
-		if (AccumItem eq 1) then f3image[*,(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)] += rgb_gauss; + q		;Sum
-		if (AccumItem eq 0) then f3image[*,(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)] >= rgb_gauss; > q		;Envelope
-	endelse
-
+			if (AccumItem eq 1) then f3image[*,(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)] += rgb_gauss; + q		;Sum
+			if (AccumItem eq 0) then f3image[*,(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),(wzofs-wdz)>0:(wzofs+wdz)<(wzsz-1)] >= rgb_gauss; > q		;Envelope
+		endelse
+	endif
 		; liveupdate = 1 - all updates, liveupdate = 2 - only progress bar
 	if liveupdate gt 0 then begin
 		if oStatusBar -> CheckCancel() then begin
@@ -811,7 +821,7 @@ if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge
 			fbr_arr[i]->setvar, 'render_params', render_params
 			fbr_arr[i]->setvar, 'render_win', render_win
 			fbr_arr[i]->setvar, 'ParamLimits', ParamLimits
-			fbr_arr[i]->execute,'volume_i = build_volume (CGroupParams_bridge[*,istart:istop], filter_bridge[istart:istop], ParamLimits, render_ind, render_params, render_win, liveupdate)', /NOWAIT
+			fbr_arr[i]->execute,'volume_i = build_volume (CGroupParams_bridge, filter_bridge, ParamLimits, render_ind, render_params, render_win, liveupdate)', /NOWAIT
 		endfor
 
 		Alldone = 0
@@ -1053,7 +1063,290 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+function Save_Slices_bridge, subvolume, start_Sclice_ID, file_name_prefix, liveupdate
+CATCH, Error_status
+IF Error_status NE 0 THEN BEGIN
+	;z=dialog_message(' Save_Slices_bridge:  '+!ERROR_STATE.msg)
+	z = !ERROR_STATE.msg
+	CATCH, /CANCEL
+	return, z
+ENDIF
+	vol_size = size(subvolume)
+	;z=dialog_message(string(vol_size))
+	if vol_size[0] eq 4 then Num_frames = vol_size[4] else Num_frames = vol_size[3]
+	;********* Status Bar Initialization  ******************
+	if liveupdate then begin
+		oStatusBar = obj_new('PALM_StatusBar', COLOR=[0,0,255], TEXT_COLOR=[255,255,255], TITLE='Saving slices into TIF files...', TOP_LEVEL_BASE=tlb)
+		fraction_complete_last=0.0
+		pr_bar_inc=0.01
+	endif
+	for slice_ID=0, Num_frames-1 do begin
+		print,'Slice_ID=',slice_ID
+		ext_new='_slice_'+strtrim(string((slice_ID + start_Sclice_ID),FORMAT='(i3.3)'),2)
+		filename =AddExtension(file_name_prefix,(ext_new+'.tif'))
+		filename_r=AddExtension(file_name_prefix,('_r'+ext_new+'.tif'))
+		filename_g=AddExtension(file_name_prefix,('_g'+ext_new+'.tif'))
+		filename_b=AddExtension(file_name_prefix,('_b'+ext_new+'.tif'))
+		if vol_size[0] eq 3 then begin
+			slice = subvolume[*,*,slice_ID]
+			write_tiff, filename, reverse(slice,2), /float, orientation=1
+		endif else begin
+			slice = subvolume[*,*,*,slice_ID]
+			write_tiff, filename_r, reverse(slice[*,*,0],2), /float, orientation=1
+			write_tiff, filename_g, reverse(slice[*,*,1],2), /float, orientation=1
+			write_tiff, filename_b, reverse(slice[*,*,2],2), /float, orientation=1
+		endelse
+		if liveupdate then begin
+			fraction_complete=float(slice_ID)/(Num_frames-1.0)
+			if	(fraction_complete-fraction_complete_last) gt pr_bar_inc then begin
+				fraction_complete_last=fraction_complete
+				oStatusBar -> UpdateStatus, fraction_complete
+			endif
+		endif
+	endfor
+	if liveupdate then obj_destroy, oStatusBar	;********* Status Bar Close ******************
+CATCH, /CANCEL
+return,!ERROR_STATE.msg
+end
+;
+;-----------------------------------------------------------------
+;
 pro Save_Volume_TIFF_separate_files_Monochrome, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common Zdisplay, Z_scale_multiplier, vbar_top
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+Event1={ WIDGET, ID:TopID, TOP:TopID, HANDLER:TopID }
+cur_win=!D.window
+
+WARN_on_NOGROUPS=0
+if n_elements(CGroupParams) le 1 then begin
+	z=dialog_message('Please load a data file')
+	return      ; if data not loaded return
+endif
+
+Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
+Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
+X_ind = min(where(RowNames eq 'X Position'))							; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))							; CGroupParametersGP[3,*] - Peak Y  Position
+Xwid_ind = min(where(RowNames eq 'X Peak Width'))						; CGroupParametersGP[4,*] - Peak X Gaussian Width
+Ywid_ind = min(where(RowNames eq 'Y Peak Width'))						; CGroupParametersGP[5,*] - Peak Y Gaussian Width
+
+Nph_ind = min(where(RowNames eq '6 N Photons'))							; CGroupParametersGP[6,*] - Number of Photons in the Peak
+Chi_ind = min(where(RowNames eq 'ChiSquared'))							; CGroupParametersGP[7,*] - Chi Squared
+FitOK_ind = min(where(RowNames eq 'FitOK'))								; CGroupParametersGP[8,*] - Original FitOK
+FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
+PkInd_ind = min(where(RowNames eq 'Peak Index of Frame'))
+PkGlInd_ind = min(where(RowNames eq 'Peak Global Index'))
+Par12_ind = min(where(RowNames eq '12 X PkW * Y PkW'))					; CGroupParametersGP[12,*] - (Peak X Gaussian Width-const)*(Peak X Gaussian Width-const)
+SigAmp_ind = min(where(RowNames eq 'Sigma Amplitude'))
+SigNphX_ind = min(where(RowNames eq 'Sigma X Pos rtNph'))				; CGroupParametersGP[14,*] - Peak X Sigma (based on Nph only)
+SigNphY_ind = min(where(RowNames eq 'Sigma Y Pos rtNph'))				; CGroupParametersGP[15,*] - Peak Y Sigma (based on Nph only)
+SigX_ind = min(where(RowNames eq 'Sigma X Pos Full'))					; CGroupParametersGP[16,*] - x - sigma
+SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
+
+Gr_ind = min(where(RowNames eq '18 Grouped Index'))						; CGroupParametersGP[18,*] - group #
+GrX_ind = min(where(RowNames eq 'Group X Position'))					; CGroupParametersGP[19,*] - average x - position in the group
+GrY_ind = min(where(RowNames eq 'Group Y Position'))					; CGroupParametersGP[20,*] - average y - position in the group
+GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))				; CGroupParametersGP[21,*] - new x - position sigma
+GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))				; CGroupParametersGP[22,*] - new y - position sigma
+GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[23,*] - total Photons in the group
+Gr_size_ind = min(where(RowNames eq '24 Group Size'))					; CGroupParametersGP[24,*] - total peaks in the group
+GrInd_ind = min(where(RowNames eq 'Frame Index in Grp'))				; CGroupParametersGP[25,*] - Frame Index in the Group
+LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
+AmpL1_ind = min(where(RowNames eq 'Amplitude L1'))						; CGroupParametersGP[27,*] - Label 1 Amplitude
+AmpL2_ind = min(where(RowNames eq 'Amplitude L2'))						; CGroupParametersGP[28,*] - Label 2 Amplitude
+AmpL3_ind = min(where(RowNames eq 'Amplitude L3'))						; CGroupParametersGP[29,*] - Label 3 Amplitude
+SigL1_ind = min(where(RowNames eq 'Zeta0'))								; CGroupParametersGP[31,*] - Label 1 Amplitude Sigma
+SigL2_ind = min(where(RowNames eq 'Sigma Amp L2'))						; CGroupParametersGP[32,*] - Label 2 Amplitude Sigma
+SigL3_ind = min(where(RowNames eq 'Sigma Amp L3'))						; CGroupParametersGP[33,*] - Label 3 Amplitude Sigma
+Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
+SigZ_ind = min(where(RowNames eq 'Sigma Z'))							; CGroupParametersGP[35,*] - Sigma Z
+Coh_ind = min(where(RowNames eq '36 Coherence'))						; CGroupParametersGP[36,*] - Coherence
+GrAmpL1_ind = min(where(RowNames eq 'Group A1'))						; CGroupParametersGP[37,*] - Group L1 Amplitude
+GrAmpL2_ind = min(where(RowNames eq 'Group A2'))						; CGroupParametersGP[38,*] - Group L2 Amplitude
+GrAmpL3_ind = min(where(RowNames eq 'Group A3'))						; CGroupParametersGP[39,*] - Group L3 Amplitude
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+GrSigZ_ind = min(where(RowNames eq 'Group Sigma Z'))					; CGroupParametersGP[41,*] - Group Sigma Z
+GrCoh_ind = min(where(RowNames eq '42 Group Coherence'))				; CGroupParametersGP[42,*] - Group Coherence
+Ell_ind = min(where(RowNames eq 'XY Ellipticity'))						; CGroupParametersGP[43,*] - XY Ellipticity
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))						; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwZErr_ind = min(where(RowNames eq 'Unwrapped Z Error'))				; CGroupParametersGP[45,*] - Peak Z Position Error (Phase unwrapped)
+Gr_Ell_ind = min(where(RowNames eq 'XY Group Ellipticity'))				; CGroupParametersGP[46,*] - Group Ellipticity
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))				; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))		; CGroupParametersGP[48,*] - Group Z Position Error
+
+FunctionId=widget_info(TopID, FIND_BY_UNAME='WID_DROPLIST_Function')
+FunctionItem=widget_info(FunctionId,/DropList_Select)						;	(0: Center Locations,  1: Gaussian Normalized,   2: Gaussian Amplitude)
+FilterId=widget_info(TopID, FIND_BY_UNAME='WID_DROPLIST_Filter')
+FilterItem=widget_info(FilterId,/DropList_Select)							;	(0: Frame Peaks,   1: Group Peaks)
+AccumId=widget_info(TopID, FIND_BY_UNAME='WID_DROPLIST_Accumulate')
+AccumItem=widget_info(AccumId,/DropList_Select)								;	(0: Envelope,   1: Sum)
+
+
+filename0 = Dialog_Pickfile(/write,get_path=fpath)
+if strlen(fpath) ne 0 then cd,fpath
+if filename0 eq '' then return
+widget_control, /HOURGLASS	;  Show the hourglass
+start=FLOAT(systime(2))
+
+if FilterItem eq 0 then 	FilterIt
+if FilterItem eq 1 then begin
+	GroupFilterIt
+	filter=filter*(CGroupParams[GrInd_ind,*] eq 1)
+endif
+if (FunctionItem eq 0) and (FilterItem eq 0) then begin
+	OnPeakCentersButton, Event1
+	return
+endif
+if (FunctionItem eq 0) and (FilterItem eq 1) then begin
+	OnGroupCentersButton, Event1
+	return
+endif
+
+filterlist=where(filter eq 1,cnt)					; indcis of the peaks/groups to be displayed
+if cnt le 1 then begin
+	if WARN_on_NOGROUPS then z=dialog_message('No valid Peaks/Groups')
+	return      ; if data not loaded return
+endif
+lbl_mx=max(CGroupParams[LabelSet_ind,filterlist])
+wID = Widget_Info(TopID, find_by_uname='W_MENU_54')
+widget_control,wID,get_value=z_color
+rend_z_color = z_color eq 'Z using Hue Scale'
+XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
+testXZ=Widget_Info(XZ_swap_menue_ID,/button_set)
+YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
+testYZ=Widget_Info(YZ_swap_menue_ID,/button_set)
+Z_UnwZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+Z_UnwZ_swaped=Widget_Info(Z_UnwZ_swap_menue_ID,/button_set)
+
+print, 'FilterItem=',FilterItem,(FilterItem ? '     (Groups)' : '     (Peaks)')
+X_ind = FilterItem ? GrX_ind : X_ind
+Y_ind = FilterItem ? GrY_ind : Y_ind
+Z_ind = Z_UnwZ_swaped ? UnwZ_ind : Z_ind
+GrZ_ind = Z_UnwZ_swaped ? UnwGrZ_ind : GrZ_ind
+Z_ind = FilterItem ? GrZ_ind : Z_ind
+xs_ind = FilterItem ? GrSigX_ind : SigX_ind
+ys_ind = FilterItem ? GrSigY_ind : SigY_ind
+zs_ind = FilterItem ? GrSigZ_ind : SigZ_ind
+
+dxsz=xydsz[0] & dysz=xydsz[1]
+dxmn = paramlimits[x_ind,0]							; image size
+dymn = paramlimits[y_ind,0]
+dzmn = paramlimits[z_ind,0]
+dxmx = paramlimits[x_ind,1]
+dymx = paramlimits[y_ind,1]
+dzmx = paramlimits[z_ind,1]
+wxsz = Cust_TIFF_Pix_X
+wysz = Cust_TIFF_Pix_Y
+
+mgw=(wxsz /(dxmx-dxmn))<(wysz /(dymx-dymn))
+print,'mgw=',mgw,'   cust_nm_per_pixel=',cust_nm_per_pix
+; # of display pixels per CCD pixel = ratio of the display window size to th ethe image size (magnification)
+z_scale = cust_nm_per_pix / Cust_TIFF_Z_multiplier	; z display window scale - nm per window pixel
+wzsz = fix(round((dzmx-dzmn) / z_scale))
+
+render_ind = [X_ind, Y_ind, Z_ind, Xs_ind, Ys_ind, Zs_ind, Nph_ind, GrNph_ind, FrNum_ind, LabelSet_ind]
+render_params = [FilterItem, FunctionItem, AccumItem, rend_z_color, lbl_mx, testXZ, testYZ, cust_nm_per_pix, Cust_TIFF_Z_subvol_nm, Cust_TIFF_Z_multiplier]
+render_win0 = [cur_win, dxmn, dymn, dzmn, dxmx, dymx, dzmx, hue_scale, wxsz, wysz, vbar_top]
+
+if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge then begin
+
+	dz_bridge = ceil(wzsz / n_br_loops)
+	Z_min = dzmn + findgen(n_br_loops)*dz_bridge*z_scale
+	Z_max = (Z_min + dz_bridge*z_scale) < dzmx
+	ID_start = findgen(n_br_loops)*dz_bridge
+	; ***** IDL Bridge Version ******************************
+	print,'Starting Bridge rendering, no intermediate display updates'
+	;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+	for i=0, n_br_loops-1 do begin
+		if i eq 0 then begin
+			fbr_arr[i]->setvar, 'liveupdate',2
+		endif else fbr_arr[i]->setvar, 'liveupdate',0
+		render_win = render_win0
+		render_win[3] = Z_min[i]
+		render_win[6] = Z_max[i]
+		fbr_arr[i]->setvar, 'filename0', filename0
+		fbr_arr[i]->setvar, 'render_ind', render_ind
+		fbr_arr[i]->setvar, 'render_params', render_params
+		fbr_arr[i]->setvar, 'render_win', render_win
+		fbr_arr[i]->setvar, 'ParamLimits', ParamLimits
+		fbr_arr[i]->setvar, 'ID_start', ID_start
+		fbr_arr[i]->execute,'Z_ind = render_ind[2]'
+		fbr_arr[i]->execute,'subvol_nm = render_params[8]'
+		fbr_arr[i]->execute,'Zmin = render_win[3] - 2*subvol_nm'
+		fbr_arr[i]->execute,'Zmax = render_win[6] + 2*subvol_nm'
+		fbr_arr[i]->execute,'filter_bridge_i = filter_bridge and (CGroupParams_bridge[Z_ind,*] ge Zmin) and (CGroupParams_bridge[Z_ind,*] le Zmax)'
+		fbr_arr[i]->execute,'volume_i = build_volume (CGroupParams_bridge, filter_bridge_i, ParamLimits, render_ind, render_params, render_win, liveupdate)', /NOWAIT
+	endfor
+
+print,'step1 finished'
+	Alldone = 0
+	while (alldone EQ 0) do begin
+		wait,0.5
+		Alldone = 1
+		for i=0, n_br_loops-1 do begin
+			bridge_done = fbr_arr[i]->Status(ERROR=ErrorString)
+			err_str = strlen(ErrorString) eq 0 ? '' : (',   Error String: '+ErrorString)
+			print,'Step 2: Bridge',i,'  status: ', bridge_done, err_str
+			Alldone = Alldone * (bridge_done eq 0)
+		endfor
+	endwhile
+
+
+bridge_starts = intarr(n_br_loops)
+	Alldone = 0
+	while (alldone EQ 0) or (product(bridge_starts) eq 0) do begin
+		wait,0.5
+		Alldone = 1
+		for i=0, n_br_loops-1 do begin
+			bridge_done=fbr_arr[i]->Status(ERROR=ErrorString)
+			err_str = strlen(ErrorString) eq 0 ? '' : (',   Error String: '+ErrorString)
+			print,'Step 3: Bridge',i,'  status: ', bridge_done, err_str
+			Alldone = Alldone * (bridge_done ne 1)
+			if (bridge_done eq 0) and (bridge_starts[i] eq 0) then begin
+				fbr_arr[i]->execute,'test=size(volume_i)'
+				test = fbr_arr[i]->getvar('test')
+				print,'Bridge',i,'  returned array:',string(test)
+				fbr_arr[i]->setvar, 'nlps', i
+				fbr_arr[i]->execute,'error_message = Save_Slices_bridge(volume_i, ID_start[nlps], filename0, liveupdate)', /NOWAIT
+				bridge_starts[i] =1				; indicate that the second part had started
+			endif
+		endfor
+	endwhile
+
+	Alldone = 0
+	while (alldone EQ 0) do begin
+		wait,0.5
+		Alldone = 1
+		for i=0, n_br_loops-1 do begin
+			bridge_done=fbr_arr[i]->Status(ERROR=ErrorString)
+			err_str = strlen(ErrorString) eq 0 ? '' : (',   Error String: '+ErrorString)
+			print,'Step 3: Bridge',i,'  status: ', bridge_done, err_str
+			Alldone = Alldone * (bridge_done ne 1)
+		endfor
+	endwhile
+
+endif else begin
+;***** Non Bridge Version **************** loop through all peaks
+	liveupdate = 1
+	volume_image = build_volume (CGroupParams, filter, ParamLimits, render_ind, render_params, render_win0, liveupdate)
+	error_message = Save_Slices_bridge(volume_image, 0, filename0, liveupdate)
+endelse
+
+print,'finshed saving monochrome slices',FLOAT(systime(2))-start,'  seconds render time'
+end
+;
+;-----------------------------------------------------------------
+;
+pro Save_Volume_TIFF_separate_files_Monochrome_original, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w

@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/06/2017 16:25.06
+; Generated on:	07/14/2017 12:19.23
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -538,7 +538,7 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_TABLE_0 = Widget_Table(WID_BASE_0_PeakSelector,  $
       UNAME='WID_TABLE_0' ,FRAME=1 ,XOFFSET=4 ,YOFFSET=65  $
       ,SCR_XSIZE=550 ,SCR_YSIZE=490 ,/EDITABLE ,/RESIZEABLE_COLUMNS  $
-      ,COLUMN_LABELS=[ 'Lower Bound', 'Upper Bound', 'Mediam',  $
+      ,COLUMN_LABELS=[ 'Lower Bound', 'Upper Bound', 'Center',  $
       'Range', 'Peak' ] ,ROW_LABELS=[ 'Offset', 'Amplitude', 'X'+ $
       ' Position', 'Y Position', 'X Peak Width', 'Y Peak Width', '6 N'+ $
       ' Photons', 'ChiSquared', 'FitOK', 'Frame Number', 'Peak Index'+ $

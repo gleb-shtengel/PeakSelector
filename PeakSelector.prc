@@ -23,7 +23,7 @@ BEGIN
   NUMCOLLABELS = 5
   COLLABEL "Lower Bound"
   COLLABEL "Upper Bound"
-  COLLABEL "Mediam"
+  COLLABEL "Center"
   COLLABEL "Range"
   COLLABEL "Peak"
   NUMROWLABELS = 27
