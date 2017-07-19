@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/14/2017 14:00.35
+; Generated on:	07/18/2017 17:06.41
 ; 
 pro WID_BASE_SaveCustomTIFF_event, Event
 
@@ -83,11 +83,11 @@ pro WID_BASE_SaveCustomTIFF_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TABLE_CH' )then $
         DoInsert_Cust_TIFF_ZScale_Param, Event
     end
-    Widget_Info(wWidget, FIND_BY_UNAME='WID_TEXT_Zsubvolume'): begin
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_TEXT_XY_subvolume'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TEXT_CH' )then $
-        Change_Subvolume, Event
+        Change_XY_Subvolume, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TEXT_STR' )then $
-        Change_Subvolume, Event
+        Change_XY_Subvolume, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Save_Separate_PNGs'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -120,6 +120,12 @@ pro WID_BASE_SaveCustomTIFF_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Save_Volume_Multiple_Monochrome_TIFF'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Save_Volume_TIFF_separate_files_Monochrome, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_TEXT_Z_subvolume'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TEXT_CH' )then $
+        Change_Z_Subvolume, Event
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TEXT_STR' )then $
+        Change_Z_Subvolume, Event
     end
     else:
   endcase
@@ -226,13 +232,13 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BUTTON_Generate3D = Widget_Button(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_BUTTON_Generate3D' ,XOFFSET=81 ,YOFFSET=640  $
+      UNAME='WID_BUTTON_Generate3D' ,XOFFSET=81 ,YOFFSET=670  $
       ,SCR_XSIZE=193 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Generate 3D'+ $
       ' Volume')
 
   
   WID_SLIDER_Z_slice = Widget_Slider(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_SLIDER_Z_slice' ,XOFFSET=16 ,YOFFSET=690  $
+      UNAME='WID_SLIDER_Z_slice' ,XOFFSET=16 ,YOFFSET=710  $
       ,SCR_XSIZE=350 ,SCR_YSIZE=55 ,TITLE='Z slice #' ,MAXIMUM=100  $
       ,VALUE=50)
 
@@ -251,16 +257,16 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       ' (nm)', 'Z - X scaling' ] ,XSIZE=1 ,YSIZE=4)
 
   
-  WID_TEXT_Zsubvolume = Widget_Text(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_TEXT_Zsubvolume' ,XOFFSET=281 ,YOFFSET=590  $
+  WID_TEXT_XY_subvolume = Widget_Text(WID_BASE_SaveCustomTIFF,  $
+      UNAME='WID_TEXT_XY_subvolume' ,XOFFSET=281 ,YOFFSET=590  $
       ,SCR_XSIZE=70 ,SCR_YSIZE=30 ,/EDITABLE ,/ALL_EVENTS ,/WRAP  $
       ,VALUE=[ '100.0', '' ] ,XSIZE=20 ,YSIZE=2)
 
   
-  WID_LABEL_subvolume_txt = Widget_Label(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_LABEL_subvolume_txt' ,XOFFSET=21 ,YOFFSET=600  $
-      ,SCR_XSIZE=250 ,SCR_YSIZE=15 ,/ALIGN_LEFT ,VALUE='Gaussian'+ $
-      ' Cloud Radius (subvolume) (nm)')
+  WID_LABEL_XY_subvolume_txt = Widget_Label(WID_BASE_SaveCustomTIFF,  $
+      UNAME='WID_LABEL_XY_subvolume_txt' ,XOFFSET=21 ,YOFFSET=600  $
+      ,SCR_XSIZE=250 ,SCR_YSIZE=15 ,/ALIGN_LEFT ,VALUE='XY Gauss.'+ $
+      ' Cloud Radius (subvol) (nm)')
 
   
   WID_BUTTON_Save_Separate_PNGs =  $
@@ -325,9 +331,21 @@ pro WID_BASE_SaveCustomTIFF, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_LABEL_dont_generate_Volume =  $
       Widget_Label(WID_BASE_SaveCustomTIFF,  $
-      UNAME='WID_LABEL_dont_generate_Volume' ,XOFFSET=70  $
-      ,YOFFSET=1000 ,SCR_XSIZE=250 ,SCR_YSIZE=20 ,/ALIGN_LEFT  $
-      ,VALUE='Do NOT generate volume with this')
+      UNAME='WID_LABEL_dont_generate_Volume' ,XOFFSET=10  $
+      ,YOFFSET=1000 ,SCR_XSIZE=365 ,SCR_YSIZE=20 ,/ALIGN_LEFT  $
+      ,VALUE='David, do NOT press "Generate 3D Volume" with this')
+
+  
+  WID_LABEL_Z_subvolume_txt = Widget_Label(WID_BASE_SaveCustomTIFF,  $
+      UNAME='WID_LABEL_Z_subvolume_txt' ,XOFFSET=20 ,YOFFSET=635  $
+      ,SCR_XSIZE=250 ,SCR_YSIZE=15 ,/ALIGN_LEFT ,VALUE='Z Gauss.'+ $
+      ' Cloud Radius (subvol) (nm)')
+
+  
+  WID_TEXT_Z_subvolume = Widget_Text(WID_BASE_SaveCustomTIFF,  $
+      UNAME='WID_TEXT_Z_subvolume' ,XOFFSET=280 ,YOFFSET=630  $
+      ,SCR_XSIZE=70 ,SCR_YSIZE=30 ,/EDITABLE ,/ALL_EVENTS ,/WRAP  $
+      ,VALUE=[ '100.0' ] ,XSIZE=20 ,YSIZE=2)
 
   Widget_Control, /REALIZE, WID_BASE_SaveCustomTIFF
 

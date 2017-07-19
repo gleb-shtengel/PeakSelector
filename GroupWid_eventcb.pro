@@ -530,8 +530,9 @@ CGroupParamsGP[GrInd_ind,*]=1										; imitialize the group frame index in the
 CGroupParamsGP[Gr_size_ind,*]=1										; initialize the group peak count to 1
 CGroupParamsGP[GrNph_ind,*]=CGroupParamsGP[Nph_ind,*]				; initialize the group photon count to peak photon count
 CGroupParamsGP[GrX_ind:GrY_ind,*]=CGroupParamsGP[X_ind:Y_ind,*]		; initialize the group position to peak position
-CGroupParamsGP[GrZ_ind,*]=CGroupParamsGP[Z_ind,*]		; initialize the group position to peak position
-CGroupParamsGP[GrSigX_ind:GrSigY_ind,*]=CGroupParamsGP[SigX_ind:SigY_ind,*]		; initialize the group position sigma to peak position sigma
+if GrZ_ind gt 0 then CGroupParamsGP[GrZ_ind,*]=CGroupParamsGP[Z_ind,*]					; initialize the group position to peak position
+CGroupParamsGP[GrSigX_ind:GrSigY_ind,*]=CGroupParamsGP[SigX_ind:SigY_ind,*]				; initialize the group X-Y sigmas to peak X-Y sigmas
+if GrSigZ_ind gt 0 then CGroupParamsGP[GrSigZ_ind,*]=CGroupParamsGP[SigZ_ind,*]			; initialize the group Z sigma to peak Z sigma
 if AmpL1_ind gt 0 then CGroupParamsGP[GrAmpL1_ind:GrAmpL3_ind,*]=CgroupParamsGP[AmpL1_ind:AmpL3_ind,*]
 if Gr_Ell_ind gt 0 then CGroupParamsGP[Gr_Ell_ind,*]=CgroupParamsGP[Ell_ind,*]	;	03/13/09 GES: initialize Group Ellipticity values with peak Ellipticity values
 

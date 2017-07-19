@@ -11,12 +11,12 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 COMMON managed,	ids, $		; IDs of widgets being managed
-  			names, $	; and their names
-			modalList	; list of active modal widgets
+  			names, $		; and their names
+			modalList		; list of active modal widgets
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 Event1={ WIDGET, ID:TopID, TOP:TopID, HANDLER:TopID }
 
@@ -75,9 +75,13 @@ Zstep=cust_nm_per_pix/Cust_TIFF_Z_multiplier
 params=[Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Zstep, Cust_TIFF_Z_multiplier]
 widget_control,WID_IMAGE_Zcoord_Parameters_ID,set_value=transpose(params), use_table_select=[0,0,0,3]
 
-WID_TEXT_Zsubvolume_ID = Widget_Info(wWidget, find_by_uname='WID_TEXT_Zsubvolume')
+WID_TEXT_Z_subvolume_ID = Widget_Info(wWidget, find_by_uname='WID_TEXT_Z_subvolume')
 Cust_TIFF_Z_subvol_nm_txt=string(Cust_TIFF_Z_subvol_nm,FORMAT='(F8.2)')
-widget_control,WID_TEXT_Zsubvolume_ID,SET_VALUE = Cust_TIFF_Z_subvol_nm_txt
+widget_control,WID_TEXT_Z_subvolume_ID,SET_VALUE = Cust_TIFF_Z_subvol_nm_txt
+
+WID_TEXT_XY_subvolume_ID = Widget_Info(wWidget, find_by_uname='WID_TEXT_XY_subvolume')
+Cust_TIFF_XY_subvol_nm_txt=string(Cust_TIFF_XY_subvol_nm,FORMAT='(F8.2)')
+widget_control,WID_TEXT_XY_subvolume_ID,SET_VALUE = Cust_TIFF_XY_subvol_nm_txt
 
 WID_IMAGE_SCALING_Parameters_ID = Widget_Info(wWidget, find_by_uname='WID_IMAGE_SCALING_Parameters')
 widget_control,WID_IMAGE_SCALING_Parameters_ID,COLUMN_WIDTH=[180,150],use_table_select = [ -1, 0, 0, 3 ]
@@ -112,7 +116,7 @@ end
 ;
 pro Cust_TIFF_Select_Accumulation, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -127,7 +131,7 @@ end
 ;
 pro Cust_TIFF_Select_Filter, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -142,7 +146,7 @@ end
 ;
 pro Cust_TIFF_Select_Function, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -157,7 +161,7 @@ end
 ;
 pro OnLabelDropList_cust_TIFF, Event			;Change color scale sliders to match label
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -189,7 +193,7 @@ end
 ;
 pro OnStretchTop_cust_TIFF, Event				;Set max of color range
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -223,7 +227,7 @@ end
 ;
 pro OnGamma_cust_TIFF, Event					;Set gamma of color range
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -253,7 +257,7 @@ end
 ;
 pro OnStretchBottom_cust_TIFF, Event			;Set min of color range
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -283,7 +287,7 @@ end
 ;
 pro DoInsert_Cust_TIFF_Scale_Param, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 widget_control,event.id,get_value=thevalue
@@ -316,7 +320,7 @@ end
 ;
 pro DoInsert_Cust_TIFF_ZScale_Param, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 widget_control,event.id,get_value=thevalue
 CASE event.y OF
@@ -332,19 +336,32 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro Change_Subvolume, Event
+pro Change_XY_Subvolume, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
-		WID_TEXT_Zsubvolume_ID = Widget_Info(Event.top, find_by_uname='WID_TEXT_Zsubvolume')
-		widget_control,WID_TEXT_Zsubvolume_ID,GET_VALUE = Cust_TIFF_Z_subvol_nm_txt
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
+
+		WID_TEXT_XY_subvolume_ID = Widget_Info(Event.top, find_by_uname='WID_TEXT_XY_subvolume')
+		widget_control,WID_TEXT_XY_subvolume_ID,GET_VALUE = Cust_TIFF_XY_subvol_nm_txt
+		Cust_TIFF_XY_subvol_nm=float(Cust_TIFF_XY_subvol_nm_txt[0])
+end
+;
+;-----------------------------------------------------------------
+;
+pro Change_Z_Subvolume, Event
+common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
+
+		WID_TEXT_Z_subvolume_ID = Widget_Info(Event.top, find_by_uname='WID_TEXT_Z_subvolume')
+		widget_control,WID_TEXT_Z_subvolume_ID,GET_VALUE = Cust_TIFF_Z_subvol_nm_txt
 		Cust_TIFF_Z_subvol_nm=float(Cust_TIFF_Z_subvol_nm_txt[0])
 end
+
 ;
 ;-----------------------------------------------------------------
 ;
 pro Render_cust_TIFF, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 Cust_TIFF_3D=0
 wset,Cust_TIFF_window
@@ -356,7 +373,7 @@ end
 ;
 pro OnAddScaleBarButton_cust_TIFF, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 wset,Cust_TIFF_window
 OnAddScaleBarButton, Event
@@ -367,7 +384,7 @@ end
 ;
 pro Save_cust_TIFF, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 wset,Cust_TIFF_window
 SaveImageTIFF, Event
@@ -400,7 +417,7 @@ end
 pro SaveImageTIFF_cust, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -493,8 +510,9 @@ function build_volume, CGroupParams, filter, ParamLimits, render_ind, render_par
 	testXZ = render_params[5]
 	testYZ = render_params[6]
 	cust_nm_per_pixel = render_params[7]
-	subvol_nm = render_params[8]
-	z_multiplier = render_params[9]
+	XY_subvol_nm = render_params[8]
+	Z_subvol_nm = render_params[9]
+	z_multiplier = render_params[10]
 
 	cur_win = render_win[0]
 	dxmn = render_win[1]
@@ -526,12 +544,12 @@ print,'mgw=',mgw,'   cust_nm_per_pixel=',cust_nm_per_pixel
 ; # of display pixels per CCD pixel = ratio of the display window size to th ethe image size (magnification)
 
 xy_scale = cust_nm_per_pixel ;/ mgw		; x-y display window scale - nm per window pixel
-wd=fix(round(subvol_nm / xy_scale))		; x-y radius (in units of display pixels) of sub-window to render Gaussian cloud
+wd=fix(round(XY_subvol_nm / xy_scale))		; x-y radius (in units of display pixels) of sub-window to render Gaussian cloud
 wdd=2*wd+1
 z_scale = xy_scale / z_multiplier	; z display window scale - nm per window pixel
-wdz=fix(round(subvol_nm / z_scale))		; z radius (in units of display pixels) of sub-window to render Gaussian cloud
+wdz=fix(round(Z_subvol_nm / z_scale))		; z radius (in units of display pixels) of sub-window to render Gaussian cloud
 wddz=2*wdz+1
-wzsz = fix(round((dzmx-dzmn) / z_scale))
+wzsz = round((dzmx-dzmn) / z_scale)
 ;allocate 3D image arrays for single or multiple colors
 if (lbl_mx gt 0) or rend_z_color then f3image = fltarr(3,wxsz,wysz,wzsz) else	fimage = fltarr(wxsz,wysz,wzsz)
 
@@ -672,7 +690,7 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro Generate_3D_Volume, wxsz, wysz, cust_nm_per_pixel, Zstart, Zstop, z_multiplier, subvol_nm, volume_image, WARN_on_NOGROUPS			;Render the display according to function filter & accum settings (maybe slow)
+pro Generate_3D_Volume, wxsz, wysz, cust_nm_per_pixel, Zstart, Zstop, z_multiplier, XY_subvol_nm, Z_subvol_nm, volume_image, WARN_on_NOGROUPS			;Render the display according to function filter & accum settings (maybe slow)
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
@@ -767,6 +785,8 @@ if (FunctionItem eq 0) and (FilterItem eq 1) then begin
 	return
 endif
 
+t_start = FLOAT(systime(2))
+
 filterlist=where(filter eq 1,cnt)					; indcis of the peaks/groups to be displayed
 if cnt le 1 then begin
 	if WARN_on_NOGROUPS then z=dialog_message('No valid Peaks/Groups')
@@ -802,10 +822,8 @@ dymx = paramlimits[y_ind,1]
 dzmx = paramlimits[z_ind,1]
 
 render_ind = [X_ind, Y_ind, Z_ind, Xs_ind, Ys_ind, Zs_ind, Nph_ind, GrNph_ind, FrNum_ind, LabelSet_ind]
-render_params = [FilterItem, FunctionItem, AccumItem, rend_z_color, lbl_mx, testXZ, testYZ, cust_nm_per_pixel, subvol_nm, z_multiplier]
+render_params = [FilterItem, FunctionItem, AccumItem, rend_z_color, lbl_mx, testXZ, testYZ, cust_nm_per_pixel, XY_subvol_nm, Z_subvol_nm, z_multiplier]
 render_win = [cur_win, dxmn, dymn, dzmn, dxmx, dymx, dzmx, hue_scale, wxsz, wysz, vbar_top]
-
-start=FLOAT(systime(2))
 
 if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge then begin
 ; ***** IDL Bridge Version ******************************
@@ -850,7 +868,7 @@ endif else begin
 	volume_image = build_volume (CGroupParams, filter, ParamLimits, render_ind, render_params, render_win, liveupdate)
 endelse
 ParamLimits=ParamLimits0
-print,'finshed rendering 3D Volume',FLOAT(systime(2))-start,'  seconds render time'
+print,'finshed rendering 3D Volume',FLOAT(systime(2))-t_start,'  seconds render time'
 end
 ;
 ;-----------------------------------------------------------------
@@ -859,7 +877,7 @@ pro On_Generate3D, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -875,12 +893,11 @@ endif
 widget_control, /HOURGLASS   ;  Show the hourglass
 Cust_TIFF_volume_image = 0
 Cust_TIFF_3D=0
-Generate_3D_Volume, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y, cust_nm_per_pix, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_multiplier, Cust_TIFF_Z_subvol_nm, Cust_TIFF_volume_image, WARN_on_NOGROUPS
+Generate_3D_Volume, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y, cust_nm_per_pix, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_multiplier, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm, Cust_TIFF_volume_image, WARN_on_NOGROUPS
 Cust_TIFF_3D=1
 cust_size=size(Cust_TIFF_volume_image)
 if n_elements(cust_size) le 3 then begin
 	z=dialog_message('Data not grouped?, cust_size='+strtrim(n_elements(cust_size),2))
-	stop
 	return      ; if data not loaded return
 endif
 if cust_size[0] eq 4 then begin
@@ -903,7 +920,7 @@ end
 ;
 pro Display_Zslice, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -933,7 +950,7 @@ end
 ;
 pro create_cust_slice, slice_ID, slice
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 if n_elements(Cust_TIFF_max) gt 1 then begin
 	g=reform(labelcontrast[1,1:3]/1000.0,3)
@@ -962,7 +979,7 @@ end
 ;
 pro Save_Volume_TIFF, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 vol_size=size(Cust_TIFF_volume_image)
 if vol_size[0] lt 3 then begin
@@ -1009,7 +1026,7 @@ end
 ;
 pro Save_Volume_TIFF_Monochrome, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 	vol_size=size(Cust_TIFF_volume_image)
 	if vol_size[0] lt 3 then begin
@@ -1081,7 +1098,7 @@ ENDIF
 		pr_bar_inc=0.01
 	endif
 	for slice_ID=0, Num_frames-1 do begin
-		print,'Slice_ID=',slice_ID
+		print,'Slice_ID=',slice_ID + start_Sclice_ID
 		ext_new='_slice_'+strtrim(string((slice_ID + start_Sclice_ID),FORMAT='(i3.3)'),2)
 		filename =AddExtension(file_name_prefix,(ext_new+'.tif'))
 		filename_r=AddExtension(file_name_prefix,('_r'+ext_new+'.tif'))
@@ -1118,7 +1135,7 @@ common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr,
 common Zdisplay, Z_scale_multiplier, vbar_top
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -1195,7 +1212,8 @@ filename0 = Dialog_Pickfile(/write,get_path=fpath)
 if strlen(fpath) ne 0 then cd,fpath
 if filename0 eq '' then return
 widget_control, /HOURGLASS	;  Show the hourglass
-start=FLOAT(systime(2))
+
+t_start = FLOAT(systime(2))
 
 if FilterItem eq 0 then 	FilterIt
 if FilterItem eq 1 then begin
@@ -1251,15 +1269,15 @@ mgw=(wxsz /(dxmx-dxmn))<(wysz /(dymx-dymn))
 print,'mgw=',mgw,'   cust_nm_per_pixel=',cust_nm_per_pix
 ; # of display pixels per CCD pixel = ratio of the display window size to th ethe image size (magnification)
 z_scale = cust_nm_per_pix / Cust_TIFF_Z_multiplier	; z display window scale - nm per window pixel
-wzsz = fix(round((dzmx-dzmn) / z_scale))
+wzsz = round((dzmx-dzmn) / z_scale)
 
 render_ind = [X_ind, Y_ind, Z_ind, Xs_ind, Ys_ind, Zs_ind, Nph_ind, GrNph_ind, FrNum_ind, LabelSet_ind]
-render_params = [FilterItem, FunctionItem, AccumItem, rend_z_color, lbl_mx, testXZ, testYZ, cust_nm_per_pix, Cust_TIFF_Z_subvol_nm, Cust_TIFF_Z_multiplier]
+render_params = [FilterItem, FunctionItem, AccumItem, rend_z_color, lbl_mx, testXZ, testYZ, cust_nm_per_pix, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm, Cust_TIFF_Z_multiplier]
 render_win0 = [cur_win, dxmn, dymn, dzmn, dxmx, dymx, dzmx, hue_scale, wxsz, wysz, vbar_top]
 
 if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge then begin
 
-	dz_bridge = ceil(wzsz / n_br_loops)
+	dz_bridge = floor(wzsz / n_br_loops)+1
 	Z_min = dzmn + findgen(n_br_loops)*dz_bridge*z_scale
 	Z_max = (Z_min + dz_bridge*z_scale) < dzmx
 	ID_start = findgen(n_br_loops)*dz_bridge
@@ -1280,9 +1298,9 @@ if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge
 		fbr_arr[i]->setvar, 'ParamLimits', ParamLimits
 		fbr_arr[i]->setvar, 'ID_start', ID_start
 		fbr_arr[i]->execute,'Z_ind = render_ind[2]'
-		fbr_arr[i]->execute,'subvol_nm = render_params[8]'
-		fbr_arr[i]->execute,'Zmin = render_win[3] - 2*subvol_nm'
-		fbr_arr[i]->execute,'Zmax = render_win[6] + 2*subvol_nm'
+		fbr_arr[i]->execute,'Z_subvol_nm = render_params[9]'
+		fbr_arr[i]->execute,'Zmin = render_win[3] - 2*Z_subvol_nm'
+		fbr_arr[i]->execute,'Zmax = render_win[6] + 2*Z_subvol_nm'
 		fbr_arr[i]->execute,'filter_bridge_i = filter_bridge and (CGroupParams_bridge[Z_ind,*] ge Zmin) and (CGroupParams_bridge[Z_ind,*] le Zmax)'
 		fbr_arr[i]->execute,'volume_i = build_volume (CGroupParams_bridge, filter_bridge_i, ParamLimits, render_ind, render_params, render_win, liveupdate)', /NOWAIT
 	endfor
@@ -1341,14 +1359,14 @@ endif else begin
 	error_message = Save_Slices_bridge(volume_image, 0, filename0, liveupdate)
 endelse
 
-print,'finshed saving monochrome slices',FLOAT(systime(2))-start,'  seconds render time'
+print,'finshed saving monochrome slices',FLOAT(systime(2))-t_start,'  seconds render time'
 end
 ;
 ;-----------------------------------------------------------------
 ;
 pro Save_Volume_TIFF_separate_files_Monochrome_original, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 	vol_size=size(Cust_TIFF_volume_image)
 	if vol_size[0] lt 3 then begin
@@ -1398,7 +1416,7 @@ end
 ;
 pro Save_Volume_TIFF_separate_files, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 vol_size=size(Cust_TIFF_volume_image)
 if vol_size[0] lt 3 then begin
@@ -1450,7 +1468,7 @@ end
 ;
 pro Save_Volume_PNG_separate_files, Event
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 vol_size=size(Cust_TIFF_volume_image)
 if vol_size[0] lt 3 then begin
@@ -1509,7 +1527,7 @@ end
 pro Overlay_DIC_cust_TIFF, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 if (n_elements(DIC) le 1) then begin
 	z=dialog_message('DIC image not loaded')
@@ -1567,7 +1585,7 @@ end
 pro Draw_DIC_only_cust_TIFF, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 if (n_elements(DIC) le 1) then begin
 	z=dialog_message('DIC image not loaded')
@@ -1623,7 +1641,7 @@ pro OnTotalRawDataButton_cust, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
-		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_Z_subvol_nm
+		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 if n_elements(CGroupParams) le 1 then begin
 	z=dialog_message('Please load a data file')
@@ -1663,4 +1681,3 @@ end;-----------------------------------------------------------------
 pro Set_Tie_RGB_CustTIFF, Event
 
 end
-;-----------------------------------------------------------------

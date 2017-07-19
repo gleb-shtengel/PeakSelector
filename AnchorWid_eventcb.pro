@@ -95,10 +95,8 @@ print,'calculating single fiducial shift transformation'
 	CGroupParams[Y_ind,indecis] = CGroupParams[Y_ind,indecis] + dY
 	CGroupParams[GrX_ind,indecis] = CGroupParams[GrX_ind,indecis] + dX
 	CGroupParams[GrY_ind,indecis] = CGroupParams[GrY_ind,indecis] + dY
-
 	FiducialCoeff[LabelToTransform-1].P=[[-1*dX,0],[1,0]]
 	FiducialCoeff[LabelToTransform-1].Q=[[-1*dY,1],[0,0]]
-
 endif
 
 
@@ -1655,13 +1653,13 @@ cc=where(AnchorPnts[cc[0],*] ne 0, fid0_cnt)		; number of non-zero fields in one
 cc=where(AnchorPnts[*,*] ne 0, fid_tot_cnt)		; total number of non-zero fields
 
 n_fid_lbl=fid_tot_cnt/fid0_cnt					; this ratio should be 4 (two labels) or 6 (3 labels)
-
 if (n_fid_lbl ne 4) and (n_fid_lbl ne 6) then begin	; stop if the above is not true
 	print, 'inconsisten fiducial number'
 	print, 'number of non-zero fields in the first column=',fid0_cnt
 	print, 'total number of non-zero fields=',fid_tot_cnt
 	return
 endif
+
 
 Xo=reform(DatFid[0,anc_ind])
 Yo=reform(DatFid[1,anc_ind])
@@ -1681,27 +1679,28 @@ print,'Testing linear regression for complex linear Fit:   Zi=M*Zo+N'
 	print,'Magnification= ', Mag
 endif else begin
 	;only one point just shift
-		if  (fid0_cnt eq 1) and ((fid_tot_cnt eq 4) or (fid_tot_cnt eq 6)) then begin
+	if  (Transf_Meth eq 3) then begin
 		print,'testing single fiducial shift transformation'
-		P=[[XTarg0-XDat0,0],[1,0]]
-		Q=[[YTarg0-YDat0,1],[0,0]]
+		P=[[mean(XTarg0)-XDat0,0],[1,0]]
+		Q=[[mean(YTarg0)-YDat0,1],[0,0]]
 	endif
 	;only two points (shift mag and tilt)
-	if (fid0_cnt eq 2) and ((fid_tot_cnt eq 8) or (fid_tot_cnt eq 12)) then begin
-		print,'testing 2-fiducial shift mag and tilt transformation'
-		D_DatFid=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)				;distance between dat fiducials
-		D_TargFid=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between target fiducials
-		Mag=D_TargFid/D_DatFid														;mag is ratio of target dist to dat distance
-		AngleDatFid=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for dat fiducial vector
-		AngleTargFid=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))				;angle for target fiducial vector
-		DeltaAngle=AngleTargFid-AngleDatFid
-		P=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
-			[Mag*cos(DeltaAngle),0]]
-		Q=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
-			[Mag*sin(DeltaAngle),0]]
-	endif
+	;if (fid0_cnt eq 2) and ((fid_tot_cnt eq 8) or (fid_tot_cnt eq 12)) then begin
+  	;	print,'testing 2-fiducial shift mag and tilt transformation'
+	;	D_DatFid=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)				;distance between dat fiducials
+	;	D_TargFid=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between target fiducials
+	;	Mag=D_TargFid/D_DatFid														;mag is ratio of target dist to dat distance
+	;	AngleDatFid=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for dat fiducial vector
+	;	AngleTargFid=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))				;angle for target fiducial vector
+	;	DeltaAngle=AngleTargFid-AngleDatFid
+	;	P=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
+	;		[Mag*cos(DeltaAngle),0]]
+	;	Q=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
+	;		[Mag*sin(DeltaAngle),0]]
+	;endif
+
 	;only three points (shift to 0th fiducial use averaged mag and tilt)
-	if (Transf_Meth eq 2) and (fid0_cnt eq 3) and ((fid_tot_cnt eq 12) or (fid_tot_cnt eq 18)) then begin
+	if (Transf_Meth eq 2) then begin
 		print,'testing 3-fiducial (shift to 0th fiducial use averaged mag and tilt) transformation'
 		D_DatFid1=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)			;distance between first dat fiducial pair
 		D_TargFid1=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between first target fiducial pair
@@ -1739,7 +1738,6 @@ endelse
     Xerror=X1-Xi
     Yerror=Y1-Yi
 	Transform_Error=sqrt(Xerror*Xerror+Yerror*Yerror)*nm_per_pixel
-
 	if (total(DatZ) ne 0) and (total(TargZ) ne 0) and Align_Z then begin		; if checked, and Z data exists do Z-alignement
 		Zo=DatZ[anc_ind]
 		Zi=TargZ[anc_ind]

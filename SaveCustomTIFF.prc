@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/14/2017 14:00.28
+; Generated on:	07/18/2017 17:06.35
 VERSION 1
 END
 
@@ -100,12 +100,12 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnAddScaleBarButton_cust_TIFF"
   END
-  WID_BUTTON_Generate3D PUSHBUTTON 81 640 193 30
+  WID_BUTTON_Generate3D PUSHBUTTON 81 670 193 30
   VALUE "Generate 3D Volume"
   ALIGNCENTER
   ONACTIVATE "On_Generate3D"
   END
-  WID_SLIDER_Z_slice SLIDER 16 690 350 55
+  WID_SLIDER_Z_slice SLIDER 16 710 350 55
   CAPTION "Z slice #"
   VALUE = 50
   MAXIMUM = 100
@@ -129,20 +129,20 @@ BEGIN
   EDITABLE
   ONINSERTCHAR "DoInsert_Cust_TIFF_ZScale_Param"
   END
-  WID_TEXT_Zsubvolume TEXT 281 590 70 30
+  WID_TEXT_XY_subvolume TEXT 281 590 70 30
   NUMITEMS = 2
   ITEM "100.0"
   ITEM ""
   EDITABLE
   WRAP
   ALLEVENTS
-  ONINSERTCHAR "Change_Subvolume"
-  ONINSERTSTRING "Change_Subvolume"
+  ONINSERTCHAR "Change_XY_Subvolume"
+  ONINSERTSTRING "Change_XY_Subvolume"
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_LABEL_subvolume_txt LABEL 21 600 250 15
-  VALUE "Gaussian Cloud Radius (subvolume) (nm)"
+  WID_LABEL_XY_subvolume_txt LABEL 21 600 250 15
+  VALUE "XY Gauss. Cloud Radius (subvol) (nm)"
   ALIGNLEFT
   END
   WID_BUTTON_Save_Separate_PNGs PUSHBUTTON 51 860 280 30
@@ -191,8 +191,23 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "Save_Volume_TIFF_separate_files_Monochrome"
   END
-  WID_LABEL_dont_generate_Volume LABEL 70 1000 250 20
-  VALUE "Do NOT generate volume with this"
+  WID_LABEL_dont_generate_Volume LABEL 10 1000 365 20
+  VALUE "David, do NOT press "Generate 3D Volume" with this"
   ALIGNLEFT
+  END
+  WID_LABEL_Z_subvolume_txt LABEL 20 635 250 15
+  VALUE "Z Gauss. Cloud Radius (subvol) (nm)"
+  ALIGNLEFT
+  END
+  WID_TEXT_Z_subvolume TEXT 280 630 70 30
+  NUMITEMS = 1
+  ITEM "100.0"
+  EDITABLE
+  WRAP
+  ALLEVENTS
+  ONINSERTCHAR "Change_Z_Subvolume"
+  ONINSERTSTRING "Change_Z_Subvolume"
+  WIDTH = 20
+  HEIGHT = 2
   END
 END
