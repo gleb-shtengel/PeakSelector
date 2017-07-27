@@ -15,7 +15,7 @@ end
 ;
 pro Initialize_Z_operations_Astig, wWidget
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -81,8 +81,7 @@ end
 pro OnButton_Press_use_multiple_GS, Event
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 	use_multiple_GS_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs_DH')
-	if use_multiple_GS_DH_id gt 0 then use_multiple_GS_DH = widget_info(use_multiple_GS_DH_id,/button_set) else use_multiple_GS_DH=0
-	if use_multiple_GS_DH and Event.select then widget_control, use_multiple_GS_DH_id, set_button=0
+	if use_multiple_GS_DH_id gt 0 then if Event.select then widget_control, use_multiple_GS_DH_id, set_button=0
 end
 ;
 ;-----------------------------------------------------------------
@@ -90,15 +89,14 @@ end
 pro OnButton_Press_use_multiple_GS_DH, Event
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 	use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
-	if use_multiple_GS_id gt 0 then use_multiple_GS = widget_info(use_multiple_GS_id,/button_set) else use_multiple_GS = 0
-	if use_multiple_GS and Event.select then widget_control, use_multiple_GS_id, set_button=0
+	if use_multiple_GS_id gt 0 then if Event.select then widget_control, use_multiple_GS_id, set_button=0
 end
 ;
 ;-----------------------------------------------------------------
 ;
 Pro ExtractEllipticityCalib_Astig, Event		; perform z-calibration on filtered data set
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
@@ -123,6 +121,10 @@ Gr_Size = min(where(RowNames eq '24 Group Size'))
 Frame_Number = min(where(RowNames eq 'Frame Number'))
 Nph_ind = min(where(RowNames eq '6 N Photons'))                            ; CGroupParametersGP[6,*] - Number of Photons in the Peak
 sz=size(CGroupParams)
+
+!p.multi=[0,0,0,0,0]
+!p.background=0
+!P.NOERASE=0
 
 use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
 if use_multiple_GS_id gt 0 then use_multiple_GS = widget_info(use_multiple_GS_id,/button_set) else use_multiple_GS=0
@@ -156,6 +158,8 @@ indecis=where((GSAnchorPnts[0,*] gt 0.001),ip_cnt)
 
 ParamLimits0 = ParamLimits
 filter0=filter
+nmperframe_in_medium = nmperframe * z_media_multiplier
+print,'nm per frame in medium = ',nmperframe_in_medium
 
 for jp=0,(ip_cnt-1) do begin
 	filter=filter0
@@ -175,7 +179,7 @@ for jp=0,(ip_cnt-1) do begin
 		ellipticity=transpose(CGroupParams[Ell_ind,subsetindex])
 		center_fr = total(CGroupParams[Frame_Number,subsetindex] * CGroupParams[Nph_ind,subsetindex])/total(CGroupParams[Nph_ind,subsetindex])
 		print,'Center Frame: ',center_fr
-		zz=transpose(CGroupParams[Frame_Number,subsetindex] - center_fr)*nmperframe * nd_oil/nd_water
+		zz=transpose(CGroupParams[Frame_Number,subsetindex] - center_fr) * nmperframe_in_medium
 		plot, zz, ellipticity, xtitle='Z position (nm)', ytitle='Ellipticity', ystyle=1, psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
 	endif else begin
 		col=(250-jp*50)>50
@@ -183,22 +187,13 @@ for jp=0,(ip_cnt-1) do begin
 		ellipticity = [ellipticity, ellipticity_add]
 		center_fr = total(CGroupParams[Frame_Number,subsetindex] * CGroupParams[Nph_ind,subsetindex])/total(CGroupParams[Nph_ind,subsetindex])
 		print,'Center Frame: ',center_fr
-		zz_add = transpose(CGroupParams[Frame_Number,subsetindex] - center_fr)*nmperframe * nd_oil/nd_water
+		zz_add = transpose(CGroupParams[Frame_Number,subsetindex] - center_fr) * nmperframe_in_medium
 		zz= [zz, zz_add]
 		oplot, zz_add, ellipticity_add, psym=6, col=col
 	endelse
 
 endfor
 
-;FilterIt
-;subsetindex=where(filter eq 1,cnt)
-;print, 'subset has ',cnt,' points'
-;if cnt le 0 then return
-;
-;
-;NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[Frame_Number,*])+1))	: long64(max(CGroupParams[Frame_Number,*])+1)
-;ellipticity=transpose(CGroupParams[Ell_ind,subsetindex])
-;zz=(CGroupParams[Frame_Number,subsetindex]-NFrames/2.)*nmperframe * nd_oil/nd_water
 
 zzmin=round(min(zz))
 zzmax=round(max(zz))
@@ -233,7 +228,7 @@ end
 ;
 pro OnExtractZCoord_Astig, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
@@ -317,7 +312,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnSaveEllipticityCal_Astig, Event
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 BKGRND= 'Black'
 WFileWidID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_WindFilename_Astig')
@@ -332,10 +327,12 @@ end
 ;
 pro On_Convert_Frame_to_Z, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+
+;z_media_multiplier depends on objective NA and media index. This is ratio which determines by how much the focal plane of the (air) objective shifts in the media for a unit shift of the objective along the axis.
 
 WIDID_TEXT_ZCalStep = Widget_Info(Event.top, find_by_uname='WID_TEXT_ZCalStep_Astig')
 widget_control,WIDID_TEXT_ZCalStep,GET_VALUE = nmperframe_txt
@@ -343,7 +340,9 @@ nmperframe = float(nmperframe_txt[0])
 
 FrNum_ind = min(where(RowNames eq 'Frame Number'))                        ; CGroupParametersGP[9,*] - frame number
 Z_ind=min(where(RowNames eq 'Z Position'))
-CGroupParams[Z_ind,*] = CGroupParams[FrNum_ind,*] * nmperframe * nd_oil / nd_water
+nmperframe_in_medium = nmperframe * z_media_multiplier
+;Fr_Max = max(CGroupParams[FrNum_ind,*])
+CGroupParams[Z_ind,*] = (CGroupParams[FrNum_ind,*]) * nmperframe_in_medium
 
 if bridge_exists then begin
 	print,'Reloading the Bridge Array'
@@ -717,7 +716,7 @@ end
 ;
 pro OnAddOffset_Astig, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 COMMON managed,	ids, $		; IDs of widgets being managed
@@ -771,7 +770,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnPickCalFile_Astig, Event
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 wfilename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav'],title='Select *WND.sav file to open')
 if wfilename ne '' then begin
@@ -792,7 +791,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnPickGuideStarAncFile_Astig, Event
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, names, modalList
 GS_anc_fname = Dialog_Pickfile(/read,get_path=fpath,filter=['*.anc'],title='Select *.anc file to open')

@@ -89,7 +89,7 @@ end
 pro ExtractSubset_XY_Interp, Event, deviation, BKGRND	;Pulls out subset of data from param limits and fits x,y vs frames
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
 if n_elements(CGroupParams) lt 1 then begin

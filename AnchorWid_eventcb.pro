@@ -14,11 +14,42 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+PRO AFFINE_SOLVE_GS, DatFid, TargFid, P, Q
+;
+;    Created: G.Shtengel. July 2017
+;
+;    uses linear regression to find affine transformation coefficoents such that
+;		DatFid = [X, Y]
+;		TargFid = [X', Y']
+;
+;		| X'|		| a11 a12 tx |	 |X|
+;		| Y'|	= 	| a21 a22 ty | * |Y|
+;		| 1 |		|  0   0  1	 |	 |1|
+;
+;  In IDL notation, the output is given by vectors P and Q, such that
+;	X' = P00 + P01*X + P10*Y
+;   Y' = Q00 + Q01*X + Q10*Y
+;
+;	so	P00=tx   P01=a11  P10=a12, and P11=0
+;		Q00=ty   Q01=a21  Q10=a22, and Q11=0
+;
+
+	X0=reform(DatFid[0,*])
+	Y0=reform(DatFid[1,*])
+	X1=reform(TargFid[0,*])
+	Y1=reform(TargFid[1,*])
+
+	XpX=[matrix_multiply(X0,X1)]
+
+end
+;
+;-----------------------------------------------------------------
+;
 pro DoDataFidtoTargetFid, LabelToTransform,LabelTarget,Event		;Map data with data fiducials onto target fiducials Modify CGroupparam-xy & Record Coeff
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -91,10 +122,10 @@ if  (fid0_cnt eq 1) or (Transf_Meth eq 3)  then begin
 print,'calculating single fiducial shift transformation'
 	dX = mean(Xi - Xo)
 	dY = mean(Yi - Yo)
-	CGroupParams[X_ind,indecis] = CGroupParams[X_ind,indecis] + dX
-	CGroupParams[Y_ind,indecis] = CGroupParams[Y_ind,indecis] + dY
-	CGroupParams[GrX_ind,indecis] = CGroupParams[GrX_ind,indecis] + dX
-	CGroupParams[GrY_ind,indecis] = CGroupParams[GrY_ind,indecis] + dY
+	CGroupParams[X_ind,indecis] = (CGroupParams[X_ind,indecis] + dX)>0
+	CGroupParams[Y_ind,indecis] = (CGroupParams[Y_ind,indecis] + dY)>0
+	CGroupParams[GrX_ind,indecis] = (CGroupParams[GrX_ind,indecis] + dX)>0
+	CGroupParams[GrY_ind,indecis] = (CGroupParams[GrY_ind,indecis] + dY)>0
 	FiducialCoeff[LabelToTransform-1].P=[[-1*dX,0],[1,0]]
 	FiducialCoeff[LabelToTransform-1].Q=[[-1*dY,1],[0,0]]
 endif
@@ -111,12 +142,12 @@ print,'calculating 2-fiducial shift mag and tilt transformation'
 	DeltaAngle=AngleTargFid-AngleDatFid
 	X=CGroupParams[X_ind,indecis]
 	Y=CGroupParams[Y_ind,indecis]
-	CGroupParams[X_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)>0;)<511
-	CGroupParams[Y_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)>0;)<511
+	CGroupParams[X_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)>0
+	CGroupParams[Y_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)>0
 	X=CGroupParams[GrX_ind,indecis]
 	Y=CGroupParams[GrY_ind,indecis]
-	CGroupParams[GrX_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)>0;)<511
-	CGroupParams[GrY_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)>0;)<511
+	CGroupParams[GrX_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)>0
+	CGroupParams[GrY_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)>0
 
 	Pi=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
 		[Mag*cos(DeltaAngle),0]]
@@ -133,38 +164,56 @@ endif
 
 
 ;only three points (shift to 0th fiducial use averaged mag and tilt)
-if (fid0_cnt eq 3) and (Transf_Meth eq 2) then begin
-print,'calculating 3-fiducial (shift to 0th fiducial use averaged mag and tilt) transformation'
-	D_DatFid1=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)			;distance between first dat fiducial pair
-	D_TargFid1=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between first target fiducial pair
-	D_DatFid2=sqrt((XDat0-DatFid[0,2])^2	+ (YDat0-DatFid[1,2])^2)			;distance between second dat fiducial pair
-	D_TargFid2=sqrt((XTarg0-TargFid[0,2])^2 + (YTarg0-TargFid[1,2])^2)			;distance between second target fiducial pair
-	Mag=0.5*(D_TargFid1/D_DatFid1+D_TargFid2/D_DatFid2)							;mag is averaged ratio of target dist to dat distance
-	AngleDatFid1=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for first dat fiducial vector
-	AngleTargFid1=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))			;angle for first target fiducial vector
-	AngleDatFid2=atan((DatFid[1,2]-YDat0), (DatFid[0,2]-XDat0))					;angle for first dat fiducial vector
-	AngleTargFid2=atan((TargFid[1,2]-YTarg0), (TargFid[0,2]-XTarg0))			;angle for first target fiducial vector
-	DeltaAngle=0.5*(AngleTargFid1-AngleDatFid1 + AngleTargFid2-AngleDatFid2)	;delta angle is averaged delta of dat to target vectors
+if Transf_Meth eq 2 then begin
+	;print,'calculating 3-fiducial (shift to 0th fiducial use averaged mag and tilt) transformation'
+	;D_DatFid1=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)			;distance between first dat fiducial pair
+	;D_TargFid1=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between first target fiducial pair
+	;D_DatFid2=sqrt((XDat0-DatFid[0,2])^2	+ (YDat0-DatFid[1,2])^2)			;distance between second dat fiducial pair
+	;D_TargFid2=sqrt((XTarg0-TargFid[0,2])^2 + (YTarg0-TargFid[1,2])^2)			;distance between second target fiducial pair
+	;Mag=0.5*(D_TargFid1/D_DatFid1+D_TargFid2/D_DatFid2)							;mag is averaged ratio of target dist to dat distance
+	;AngleDatFid1=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for first dat fiducial vector
+	;AngleTargFid1=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))			;angle for first target fiducial vector
+	;AngleDatFid2=atan((DatFid[1,2]-YDat0), (DatFid[0,2]-XDat0))					;angle for first dat fiducial vector
+	;AngleTargFid2=atan((TargFid[1,2]-YTarg0), (TargFid[0,2]-XTarg0))			;angle for first target fiducial vector
+	;DeltaAngle=0.5*(AngleTargFid1-AngleDatFid1 + AngleTargFid2-AngleDatFid2)	;delta angle is averaged delta of dat to target vectors
+	;X=CGroupParams[X_ind,indecis]
+	;Y=CGroupParams[Y_ind,indecis]
+	;CGroupParams[X_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)
+	;CGroupParams[Y_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)
+	;X=CGroupParams[GrX_ind,indecis]
+	;Y=CGroupParams[GrY_ind,indecis]
+	;CGroupParams[GrX_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)
+	;CGroupParams[GrY_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)
+
+	;Pi=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
+	;	[Mag*cos(DeltaAngle),0]]
+	;Qi=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
+	;	[Mag*sin(DeltaAngle),0]]
+
+	;PQi=[[Pi[0,1],Qi[0,1]],[Pi[1,0],Qi[1,0]]]
+	;ABi=[Pi[0,0],Qi[0,0]]
+	;PQ=INVERT(PQi)
+	;AB=PQ#ABi
+	;FiducialCoeff[LabelToTransform-1].P=[[-AB[0],PQ[0,1]],[PQ[0,0],0]]
+	;FiducialCoeff[LabelToTransform-1].Q=[[-AB[1],PQ[1,1]],[PQ[1,0],0]]
+
+	print,'Calculating affine transformation'
+	xin = transpose(DatFid[*,anc_ind])
+	xpin = transpose(TargFid[*,anc_ind])
+	AFFINE_SOLVE, xin, xpin, P, Q, xb, mx, my, sx, theta, xc, yc, verbose=0
 	X=CGroupParams[X_ind,indecis]
 	Y=CGroupParams[Y_ind,indecis]
-	CGroupParams[X_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)>0;)<511
-	CGroupParams[Y_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)>0;)<511
+	CGroupParams[X_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0
+	CGroupParams[Y_ind,indecis]= (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)>0
 	X=CGroupParams[GrX_ind,indecis]
 	Y=CGroupParams[GrY_ind,indecis]
-	CGroupParams[GrX_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)>0;)<511
-	CGroupParams[GrY_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)>0;)<511
+	CGroupParams[GrX_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0
+	CGroupParams[GrY_ind,indecis]= (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)>0
 
-	Pi=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
-		[Mag*cos(DeltaAngle),0]]
-	Qi=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
-		[Mag*sin(DeltaAngle),0]]
-
-	PQi=[[Pi[0,1],Qi[0,1]],[Pi[1,0],Qi[1,0]]]
-	ABi=[Pi[0,0],Qi[0,0]]
-	PQ=INVERT(PQi)
-	AB=PQ#ABi
-	FiducialCoeff[LabelToTransform-1].P=[[-AB[0],PQ[0,1]],[PQ[0,0],0]]
-	FiducialCoeff[LabelToTransform-1].Q=[[-AB[1],PQ[1,1]],[PQ[1,0],0]]
+	; transformation for actual data is inverse of that for the fiducials, see the difference betweem POLY_2D and POLYWRAP
+	AFFINE_SOLVE, xpin, xin, P, Q, xb, mx, my, sx, theta, xc, yc, verbose=0
+	FiducialCoeff[LabelToTransform-1].P=P
+	FiducialCoeff[LabelToTransform-1].Q=Q
 endif
 
 
@@ -182,8 +231,8 @@ if  (fid0_cnt ge 3) and (Transf_Meth eq 1) then begin
 			Y1 = Y1+Ky[yj,xj]*(X^xj)*(Y^yj)
 		endfor
 	endfor
-	CGroupParams[X_ind,indecis]= X1>0.0
-	CGroupParams[Y_ind,indecis]= Y1>0.0
+	CGroupParams[X_ind,indecis]= X1>0
+	CGroupParams[Y_ind,indecis]= Y1>0
 	X=CGroupParams[GrX_ind,indecis]
 	X1=X*0.0
 	Y=CGroupParams[GrY_ind,indecis]
@@ -194,8 +243,8 @@ if  (fid0_cnt ge 3) and (Transf_Meth eq 1) then begin
 			Y1 = Y1+Ky[yj,xj]*(X^xj)*(Y^yj)
 		endfor
 	endfor
-	CGroupParams[GrX_ind,indecis]= X1>0.0
-	CGroupParams[GrY_ind,indecis]= Y1>0.0
+	CGroupParams[GrX_ind,indecis]= X1>0
+	CGroupParams[GrY_ind,indecis]= Y1>0
 	polywarp,Xo,Yo,Xi,Yi,PW_deg,FP,FQ				;Xi=sum(kxij#Xo^jYo^i)   Yi=sum(kyij#Xo^jYo^i)
 	; transformation for actual data is inverse of that for the fiducials, see the difference betweem POLY_2D and POLYWRAP
 	if ((size(FP))[0] eq (size(FiducialCoeff[LabelToTransform-1].P))[0]) and ((size(FP))[1] eq (size(FiducialCoeff[LabelToTransform-1].P))[1])then begin
@@ -217,17 +266,17 @@ if  (fid0_cnt ge 3) and (Transf_Meth eq 0) then begin
 
 	X=CGroupParams[X_ind,indecis]
 	Y=CGroupParams[Y_ind,indecis]
-	CGroupParams[X_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0;)<511
-	CGroupParams[Y_ind,indecis]= (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)>0;)<511
+	CGroupParams[X_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0
+	CGroupParams[Y_ind,indecis]= (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)>0
 	X=CGroupParams[GrX_ind,indecis]
 	Y=CGroupParams[GrY_ind,indecis]
-	CGroupParams[GrX_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0;)<511
-	CGroupParams[GrY_ind,indecis]= (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)>0;)<511
+	CGroupParams[GrX_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0
+	CGroupParams[GrY_ind,indecis]= (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)>0
 
 	Zi=XYo
 	Zo=XYi
 	Complex_Linear_Regression, Zi, Zo, P,Q, Mag		; transformation for actual data is inverse of that for the fiducials
-												; see the difference betweem POLY_2D and POLYWRAP
+													; see the difference betweem POLY_2D and POLYWRAP
 	FiducialCoeff[LabelToTransform-1].P=P
 	FiducialCoeff[LabelToTransform-1].Q=Q
 endif
@@ -236,13 +285,17 @@ print,'Q=',FiducialCoeff[LabelToTransform-1].Q
 
 
 ; if checked, and Z data exists do Z-alignement
-Align_Z_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z')
-Align_Z=widget_info(Align_Z_button_id,/button_set)
+Align_Z_TipTilt_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_TipTilt')
+Align_Z_TipTilt=widget_info(Align_Z_TipTilt_button_id,/button_set)
+Align_Z_Shift_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_Shift')
+Align_Z_Shift=widget_info(Align_Z_Shift_button_id,/button_set)
+Align_Z = Align_Z_TipTilt or Align_Z_Shift
+
 if (total(DatZ) ne 0) and Align_Z then begin
 	Zo=DatZ[anc_ind]
 	Zi=TargZ[anc_ind]
 	dZi=Zi-Zo
-	if (fid0_cnt ge 3) and (Transf_Meth ne 3) then begin
+	if (fid0_cnt ge 3) and Align_Z_TipTilt then begin
 		A=[[total(Xi*Xi),total(Xi*Yi),total(Xi)],[total(Xi*Yi),total(Yi*Yi),total(Yi)],[total(Xi),total(Yi),n_elements(Xi)]]
 		B=[total(Xi*dZi),total(Yi*dZi),total(dZi)]
 		LUDC, A, INDEX
@@ -281,18 +334,6 @@ if LTT le 1 then begin
 				Y1 = Y1+Ky[yj,xj]*(X^xj)*(Y^yj)
 			endfor
 		endfor
-		xsz =max(X1)
-		ysz =max(Y1)
-		if Use_XYlimits then begin
-			xsz = XYlimits[1,0]
-			ysz = XYlimits[1,1]
-		endif
-		xydsz=[xsz,ysz]
-		transf_scl=sqrt(FP[1,0]^2+FP[0,1]^2)
-		if ~LeaveOrigTotalRaw and (long(xsz)*long(ysz) ne 0) then begin
-			TotalRawData=poly_2D(temporary(TotalRawData),FP,FQ,1,xsz,ysz,MISSING=0)
-			if (n_elements(DIC) gt 10) then DIC=poly_2D(temporary(DIC),FP,FQ,1,xsz,ysz,MISSING=0)
-		endif
 	endif	else begin
 		PQi=[[FiducialCoeff[LabelToTransform-1].P[0,1],FiducialCoeff[LabelToTransform-1].Q[0,1]],$
 				[FiducialCoeff[LabelToTransform-1].P[1,0],FiducialCoeff[LabelToTransform-1].Q[1,0]]]
@@ -305,33 +346,38 @@ if LTT le 1 then begin
 		Y=[0,y0,0,y0]
 		X1 = (P[0,0]+P[0,1]*X+P[1,0]*Y)
 		Y1 = (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)
-		xsz =max(X1)
-		ysz =max(Y1)
-		if Use_XYlimits then begin
-			xsz = XYlimits[1,0]
-			ysz = XYlimits[1,1]
-		endif
-		xydsz=[xsz,ysz]
-		transf_scl=sqrt(	FiducialCoeff[LabelToTransform-1].P[1,0]^2+	FiducialCoeff[LabelToTransform-1].P[0,1]^2)
-		if ~LeaveOrigTotalRaw and (long(xsz)*long(ysz) ne 0) then begin
-			TotalRawData=poly_2D(temporary(TotalRawData),FiducialCoeff[LabelToTransform-1].P,FiducialCoeff[LabelToTransform-1].Q,1,xsz,ysz,MISSING=0)
-			if (n_elements(DIC) gt 10) then DIC=poly_2D(temporary(DIC),FiducialCoeff[LabelToTransform-1].P,FiducialCoeff[LabelToTransform-1].Q,1,xsz,ysz,MISSING=0)
-		endif
 	endelse
 
+	xsz = max(X1)
+	ysz = max(Y1)
 	if Use_XYlimits then begin
-		ParamLimits[X_ind,0] = XYlimits[0,0]
-		ParamLimits[X_ind,1] = XYlimits[1,0]
-		ParamLimits[X_ind,2] = (ParamLimits[X_ind,0]+ParamLimits[X_ind,1])/2.0
-		ParamLimits[X_ind,3] = (ParamLimits[X_ind,1]-ParamLimits[X_ind,0])
-		ParamLimits[Y_ind,0] = XYlimits[0,1]
-		ParamLimits[Y_ind,1] = XYlimits[1,1]
-		ParamLimits[Y_ind,2] = (ParamLimits[Y_ind,0]+ParamLimits[Y_ind,1])/2.0
-		ParamLimits[Y_ind,4] = (ParamLimits[Y_ind,1]-ParamLimits[Y_ind,0])
-		ParamLimits[GrX_ind,*] = ParamLimits[X_ind,*]
-		ParamLimits[GrY_ind,*] = ParamLimits[Y_ind,*]
+		xsz = XYlimits[1,0]
+		ysz = XYlimits[1,1]
+	endif
+	print,'new XY image bounds are: ', X1, Y1, ',  setting window as:', xsz, ysz
+	xydsz=[xsz,ysz]
+
+	transf_scl=sqrt(FiducialCoeff[LabelToTransform-1].P[1,0]^2+	FiducialCoeff[LabelToTransform-1].P[0,1]^2)
+	if ~LeaveOrigTotalRaw and (long(xsz)*long(ysz) ne 0) then begin
+		TotalRawData=poly_2D(temporary(TotalRawData),FiducialCoeff[LabelToTransform-1].P,FiducialCoeff[LabelToTransform-1].Q,1,xsz,ysz,MISSING=0)
+		if (n_elements(DIC) gt 10) then DIC=poly_2D(temporary(DIC),FiducialCoeff[LabelToTransform-1].P,FiducialCoeff[LabelToTransform-1].Q,1,xsz,ysz,MISSING=0)
 	endif
 
+	ParamLimits[X_ind,0] = XYlimits[0,0]
+	ParamLimits[X_ind,1] = xsz
+	ParamLimits[X_ind,2] = (ParamLimits[X_ind,0]+ParamLimits[X_ind,1])/2.0
+	ParamLimits[X_ind,3] = (ParamLimits[X_ind,1]-ParamLimits[X_ind,0])
+	ParamLimits[Y_ind,0] = XYlimits[0,1]
+	ParamLimits[Y_ind,1] = ysz
+	ParamLimits[Y_ind,2] = (ParamLimits[Y_ind,0]+ParamLimits[Y_ind,1])/2.0
+	ParamLimits[Y_ind,3] = (ParamLimits[Y_ind,1]-ParamLimits[Y_ind,0])
+	ParamLimits[Z_ind,0] = min(CGroupParams[Z_ind,*])
+	ParamLimits[Z_ind,1] = max(CGroupParams[Z_ind,*])
+	ParamLimits[Z_ind,2] = (ParamLimits[Z_ind,0]+ParamLimits[Z_ind,1])/2.0
+	ParamLimits[Z_ind,3] = (ParamLimits[Z_ind,1]-ParamLimits[Z_ind,0])
+	ParamLimits[GrX_ind,*] = ParamLimits[X_ind,*]
+	ParamLimits[GrY_ind,*] = ParamLimits[Y_ind,*]
+	ParamLimits[GrZ_ind,*] = ParamLimits[Z_ind,*]
 
 ; if selected, adjust scales for Gaussian widths and localization sigmas
 	if Adj_Scl then begin
@@ -347,12 +393,10 @@ if LTT le 1 then begin
 		ParamLimits[GrX_ind,*] = ParamLimits[X_ind,*]
 		ParamLimits[Y_ind,0:2] = [0,ysz,ysz/2.0]
 		ParamLimits[GrY_ind,*] = ParamLimits[Y_ind,*]
-
-		wtable = Widget_Info(TopID, find_by_uname='WID_TABLE_0')
-		widget_control,wtable,set_value=transpose(ParamLimits[0:(CGrpSize-1),0:3]), use_table_select=[0,0,3,(CGrpSize-1)]
-		widget_control, wtable, /editable,/sensitive
 	endif
-
+	wtable = Widget_Info(TopID, find_by_uname='WID_TABLE_0')
+	widget_control,wtable,set_value=transpose(ParamLimits[0:(CGrpSize-1),0:3]), use_table_select=[0,0,3,(CGrpSize-1)]
+	widget_control, wtable, /editable,/sensitive
 endif
 
 
@@ -951,6 +995,20 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro OnPushButton_AlignZ_TipTilt, Event
+	Align_Z_Shift_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_Shift')
+	if Align_Z_Shift_button_id gt 0 then if Event.select then widget_control, Align_Z_Shift_button_id, set_button=0
+end
+;
+;-----------------------------------------------------------------
+;
+pro OnPushButton_AlignZ_Shift, Event
+	Align_Z_TipTilt_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_TipTilt')
+	if Align_Z_TipTilt_button_id gt 0 then if Event.select then widget_control, Align_Z_TipTilt_button_id, set_button=0
+end
+;
+;-----------------------------------------------------------------
+;
 pro OnPickANCFile, Event
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 AnchorFile = Dialog_Pickfile(/read,get_path=fpath,filter=['*.anc'],title='Select *.anc file to open')
@@ -1011,8 +1069,11 @@ if AnchorFile eq '' then return
 openw,1,AnchorFile,width=512
 printf,1,AnchorPnts
 close,1
-Align_Z_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z')
-Align_Z=widget_info(Align_Z_button_id,/button_set)
+Align_Z_TipTilt_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_TipTilt')
+Align_Z_TipTilt=widget_info(Align_Z_TipTilt_button_id,/button_set)
+Align_Z_Shift_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_Shift')
+Align_Z_Shift=widget_info(Align_Z_Shift_button_id,/button_set)
+Align_Z = Align_Z_TipTilt or Align_Z_Shift
 if Align_Z then begin
 	openw,1,(AnchorFile+'z'),width=512
 	printf,1,ZPnts
@@ -1146,7 +1207,7 @@ end
 pro OnButton_AutodetectRedFiducials, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
@@ -1240,7 +1301,7 @@ end
 pro OnButton_AutodetectMatchingFiducials, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
@@ -1313,7 +1374,7 @@ end
 pro OnButton_RefindFiducials, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
@@ -1618,10 +1679,14 @@ pro TestFiducialTransformation_Single, Event, LabelToTransform, LabelTarget, Tra
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))				; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
 TopID=ids[min(where(names eq 'WID_BASE_AnchorPts'))]
 
 CATCH, Error_status
@@ -1631,8 +1696,11 @@ IF Error_status NE 0 THEN BEGIN
 	return
 ENDIF
 
-Align_Z_button_id=widget_info(TopID,FIND_BY_UNAME='WID_BUTTON_Align_Z')
-Align_Z=widget_info(Align_Z_button_id,/button_set)
+Align_Z_TipTilt_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_TipTilt')
+Align_Z_TipTilt=widget_info(Align_Z_TipTilt_button_id,/button_set)
+Align_Z_Shift_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_Shift')
+Align_Z_Shift=widget_info(Align_Z_Shift_button_id,/button_set)
+Align_Z = Align_Z_TipTilt or Align_Z_Shift
 
 DatFid=AnchorPnts[(2*(LabelToTransform-1)):(2*LabelToTransform-1),*]
 DatZ=ZPnts[(LabelToTransform-1),*]
@@ -1700,23 +1768,28 @@ endif else begin
 	;endif
 
 	;only three points (shift to 0th fiducial use averaged mag and tilt)
-	if (Transf_Meth eq 2) then begin
-		print,'testing 3-fiducial (shift to 0th fiducial use averaged mag and tilt) transformation'
-		D_DatFid1=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)			;distance between first dat fiducial pair
-		D_TargFid1=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between first target fiducial pair
-		D_DatFid2=sqrt((XDat0-DatFid[0,2])^2	+ (YDat0-DatFid[1,2])^2)			;distance between second dat fiducial pair
-		D_TargFid2=sqrt((XTarg0-TargFid[0,2])^2 + (YTarg0-TargFid[1,2])^2)			;distance between second target fiducial pair
-		Mag=0.5*(D_TargFid1/D_DatFid1+D_TargFid2/D_DatFid2)							;mag is averaged ratio of target dist to dat distance
-		AngleDatFid1=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for first dat fiducial vector
-		AngleTargFid1=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))			;angle for first target fiducial vector
-		AngleDatFid2=atan((DatFid[1,2]-YDat0), (DatFid[0,2]-XDat0))					;angle for first dat fiducial vector
-		AngleTargFid2=atan((TargFid[1,2]-YTarg0), (TargFid[0,2]-XTarg0))			;angle for first target fiducial vector
-		DeltaAngle=0.5*(AngleTargFid1-AngleDatFid1 + AngleTargFid2-AngleDatFid2)	;delta angle is averaged delta of dat to target vectors
-		P=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
-			[Mag*cos(DeltaAngle),0]]
-		Q=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
-			[Mag*sin(DeltaAngle),0]]
+	if (Transf_Meth eq 2) and (fid0_cnt ge 3) then begin
+;		print,'testing 3-fiducial (shift to 0th fiducial use averaged mag and tilt) transformation'
+;		D_DatFid1=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)			;distance between first dat fiducial pair
+;		D_TargFid1=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between first target fiducial pair
+;		D_DatFid2=sqrt((XDat0-DatFid[0,2])^2	+ (YDat0-DatFid[1,2])^2)			;distance between second dat fiducial pair
+;		D_TargFid2=sqrt((XTarg0-TargFid[0,2])^2 + (YTarg0-TargFid[1,2])^2)			;distance between second target fiducial pair
+;		Mag=0.5*(D_TargFid1/D_DatFid1+D_TargFid2/D_DatFid2)							;mag is averaged ratio of target dist to dat distance
+;		AngleDatFid1=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for first dat fiducial vector
+;		AngleTargFid1=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))			;angle for first target fiducial vector
+;		AngleDatFid2=atan((DatFid[1,2]-YDat0), (DatFid[0,2]-XDat0))					;angle for first dat fiducial vector
+;		AngleTargFid2=atan((TargFid[1,2]-YTarg0), (TargFid[0,2]-XTarg0))			;angle for first target fiducial vector
+;		DeltaAngle=0.5*(AngleTargFid1-AngleDatFid1 + AngleTargFid2-AngleDatFid2)	;delta angle is averaged delta of dat to target vectors
+;		P=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
+;			[Mag*cos(DeltaAngle),0]]
+;		Q=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
+;			[Mag*sin(DeltaAngle),0]]
+		print,'Testing affine transformation'
+		xin = transpose(DatFid[*,anc_ind])
+		xpin = transpose(TargFid[*,anc_ind])
+		AFFINE_SOLVE, xin, xpin, P, Q, xb, mx, my, sx, theta, xc, yc, verbose=0
 	endif
+
 	;only four points (shift mag and tilt,skew,diffxymag)
 	if  (Transf_Meth eq 1) and (fid0_cnt ge 3) then begin
 		print,	'testing polywarp transformation'
@@ -1742,13 +1815,19 @@ endelse
 		Zo=DatZ[anc_ind]
 		Zi=TargZ[anc_ind]
 		dZi=Zi-Zo
-		A=[[total(Xi*Xi),total(Xi*Yi),total(Xi)],[total(Xi*Yi),total(Yi*Yi),total(Yi)],[total(Xi),total(Yi),n_elements(Xi)]]
-		B=[total(Xi*dZi),total(Yi*dZi),total(dZi)]
-		LUDC, A, INDEX
-		Plane_coeff = LUSOL(A, INDEX, B)
-		WR=wind_range[LabelToTransform-1]
-		Zdelta = Xo*Plane_coeff[0] + Yo*Plane_coeff[1] + Plane_coeff[2]
-		Z1 = (Zo + Zdelta + 4.0 * WR) mod WR
+		if (fid0_cnt ge 3) and Align_Z_TipTilt then begin
+			A=[[total(Xi*Xi),total(Xi*Yi),total(Xi)],[total(Xi*Yi),total(Yi*Yi),total(Yi)],[total(Xi),total(Yi),n_elements(Xi)]]
+			B=[total(Xi*dZi),total(Yi*dZi),total(dZi)]
+			LUDC, A, INDEX
+			Plane_coeff = LUSOL(A, INDEX, B)
+			Zdelta = Xo*Plane_coeff[0] + Yo*Plane_coeff[1] + Plane_coeff[2]
+		endif else begin
+			Zdelta = mean(dZi)
+		endelse
+		if UnwGrZ_ind gt 0 then begin
+			WR=wind_range[LabelToTransform-1]
+			Z1 = (Zo + Zdelta + 4.0 * WR) mod WR
+		endif else Z1 = Zo + Zdelta
 		Transform_Error = sqrt(Transform_Error*Transform_Error + (Z1-Zi)*(Z1-Zi))
 	endif
 
@@ -1852,4 +1931,3 @@ common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel
 	WID_SLIDER_POLYWARP_Degree_id=widget_info(event.top,FIND_BY_UNAME='WID_SLIDER_POLYWARP_Degree')
 	widget_control,WID_SLIDER_POLYWARP_Degree_id,get_value=PW_deg
 end
-;-----------------------------------------------------------------

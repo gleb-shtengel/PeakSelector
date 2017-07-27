@@ -1,8 +1,6 @@
 ;==================================================
 
-PRO AFFINE_SOLVE, xin, xpin, $
-            mx, my, sx, theta, xc, yc,$
-            VERBOSE=blab
+PRO AFFINE_SOLVE, xin, xpin, P, Q, xb, mx, my, sx, theta, xc, yc, VERBOSE=blab
 
 ;==================================================
 ;+
@@ -21,14 +19,14 @@ PRO AFFINE_SOLVE, xin, xpin, $
 ;       where, in homogeneous coordinates,
 ;
 ;              X  = TRANSPOSE[x, y, 1]: test image vector
-;              T+ = [[1,0,x0],[0,1,y0],[0,0,1]]: translatation of (0,0) back to (x0,y0) 
+;              T+ = [[1,0,x0],[0,1,y0],[0,0,1]]: translatation of (0,0) back to (x0,y0)
 ;              M  = [[mx,0,0],[0,my,0],[0,0,1]]:scale
 ;              S  = [[1,sx,0],[0,1,0],[0,0,1]]: horizontal shear
 ;              R  = [[cos(t),-sin(t),0],[sin(t),cos(t),0],[0,0,1]]:
 ;                   rotate clockwise by angle t about origin.
 ;              T- = [[1,0,-x0],[0,1,-y0],[0,0,1]]:center of rotation to (0,0)
 ;              X' = TRANSPOSE[x',y',1]: reference image vector
-;	
+;
 ; CATEGORY:
 ;	Z3 - Image processing, geometric transforms, image registration.
 ;
@@ -36,15 +34,15 @@ PRO AFFINE_SOLVE, xin, xpin, $
 ;	AFFINE_SOLVE, xin,xrefin,sx,sy,s,theta,x0,y0
 ;
 ; INPUTS:
-;	XIN:    2xN dimensional array of points taken from image1 
+;	XIN:    2xN dimensional array of points taken from image1
 ;               which correspond to the same points in the reference image.
 ;               Xi = XIN(0,*)
-;		Yi = XIN(1,*)
-;               N is the number of points. 
+;				Yi = XIN(1,*)
+;               N is the number of points.
 ;
 ;	XPIN:   2xN dimensional array of points from the "reference image"
-;               which correspond to points in the image. 
-;               
+;               which correspond to points in the image.
+;
 ; KEYWORDS:
 ;       VERBOSE: If set, print the transformation elements to the screen.
 ;
@@ -53,7 +51,7 @@ PRO AFFINE_SOLVE, xin, xpin, $
 ;
 ;       SX:      Horizontal shearing factor.
 ;
-;       THETA:  Rotation angle in degrees. 
+;       THETA:  Rotation angle in degrees.
 ;
 ;       XC,YC:  Center of rotation vector elements OR translation
 ;               vector elements.
@@ -71,24 +69,24 @@ PRO AFFINE_SOLVE, xin, xpin, $
 ;       be measured to within 1-pixel for greatest accuracy.
 ;
 ;       Off-center rotation and translation require a two-stage approach
-;       for image registration. i.e. in the first stage, apply the parameters 
+;       for image registration. i.e. in the first stage, apply the parameters
 ;       given by this routine to the test image. A second set of points
-;       is then selected from the image and the reference image, and 
+;       is then selected from the image and the reference image, and
 ;       a second run of this program should output a final translation
 ;       to be applied to the test image to bring it in registration with
 ;       the reference image. This is tested for and the user is alerted.
 ;
 ; PROCEDURE:
-;	Using least squares estimation, determine the elements 
+;	Using least squares estimation, determine the elements
 ;       of the general affine transformation (rotation and/or scaling
-;       and/or translation and/or shearing) of an image onto a reference 
-;       image. 
+;       and/or translation and/or shearing) of an image onto a reference
+;       image.
 ;
 ;	See:	Image Processing for Scientific Applications
 ;               Bernd J\"ahne
 ;		CRC Press, 1997, Chapter 8.
 ;
-;       Use AFFINE.PRO (or ROT.PRO if no shear is found) to apply the 
+;       Use AFFINE.PRO (or ROT.PRO if no shear is found) to apply the
 ;       transformation to the test image after computing them with this routine.
 ;
 ; MODIFICATION HISTORY:
@@ -102,7 +100,7 @@ PRO AFFINE_SOLVE, xin, xpin, $
 ON_ERROR,2
 
 x = xin
-xp = xpin  
+xp = xpin
 
 n1 = (SIZE(x))(1)
 n2 = (SIZE(xp))(1)
@@ -128,13 +126,16 @@ b = TRANSPOSE(DBLARR(2*n1))
 b(INDGEN(n1)*2) = xp
 b(INDGEN(n1)*2+1) = yp
 xb = INVERT(AT##A,/DOUBLE)##AT##REFORM(b)
+P = [[xb[2], xb[1]], [xb[0], 0]]
+Q = [[xb[5], xb[4]], [xb[3], 0]]
+;print,'affine: P,Q:', P,Q
 
 ;Solve for transformation elements:
 theta = -ATAN(xb(3),xb(4))
 mx = xb(3)*(xb(1)*xb(3)-xb(0)*xb(4))/SIN(theta)/(xb(3)^2+xb(4)^2)
 my = -xb(3)/SIN(theta)
 sx = (xb(0)*xb(3)+xb(1)*xb(4))/(xb(0)*xb(4)-xb(1)*xb(3))
-;Translation solution: 
+;Translation solution:
 det = xb(0)*xb(4)-xb(1)*xb(3)
 denom = (xb(0)+xb(4)) - det - 1.
 xc = -(xb(2) - xb(2)*xb(4)+xb(1)*xb(5))/denom
@@ -145,7 +146,7 @@ if theta lt 5e-03 then begin  ;no rotation - use simple translation solve:
     trans=1
     xc = xb(2)
     yc = xb(5)
-end 
+end
 
 ;Return the transformation FROM x TO xp:
 ; ie. rotate image by theta degrees counterclockwise to get to reference image
@@ -164,12 +165,12 @@ if KEYWORD_SET(blab) then begin
     PRINT,'Relative to the reference image, the test image is:'
 
     if not trans then begin
-        PRINT,'     Rotated ',stheta,' degrees ',dir 
+        PRINT,'     Rotated ',stheta,' degrees ',dir
         PRINT,'     with the center of rotation at'
         PRINT,'           xc = ',sxc
         PRINT,'           yc = ',syc
     end else begin
-        PRINT,'     Rotated ',stheta,' degrees ',dir 
+        PRINT,'     Rotated ',stheta,' degrees ',dir
         PRINT,'     Translated by'
         PRINT,'           dx = ',sxc
         PRINT,'           dy = ',syc

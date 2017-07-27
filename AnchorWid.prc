@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/05/2017 12:46.40
+; Generated on:	07/20/2017 10:15.15
 VERSION 1
 END
 
@@ -152,8 +152,8 @@ BEGIN
   NUMITEMS = 4
   ITEM "Linear Regression"
   ITEM "POLYWARP"
-  ITEM "Pivot and Average (3 pts only)"
-  ITEM "Shift"
+  ITEM "Affine"
+  ITEM "X-Y Shift Only"
   ONSELECT "Set_Transf_Method"
   END
   WID_LABEL_2 LABEL 19 4 193 18
@@ -168,14 +168,15 @@ BEGIN
   VALUE "(when there are at least 3 fiducials)"
   ALIGNLEFT
   END
-  WID_BASE_6 BASE 563 335 0 0
+  WID_BASE_Align_Z_Tilt BASE 490 335 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
   BEGIN
-    WID_BUTTON_Align_Z PUSHBUTTON -1 -1 0 0
-    VALUE "Align Z"
+    WID_BUTTON_Align_Z_TipTilt PUSHBUTTON -1 -1 0 0
+    VALUE "Align Z (tip/tilt)"
     ALIGNLEFT
+    ONACTIVATE "OnPushButton_AlignZ_TipTilt"
     END
   END
   WID_Anchors_Z_Table TABLE 481 365 276 510
@@ -209,7 +210,7 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "SetFiducialOutlineSize"
   END
-  WID_TEXT_FidOutlineSize TEXT 478 304 70 35
+  WID_TEXT_FidOutlineSize TEXT 470 300 70 35
   EDITABLE
   WRAP
   WIDTH = 20
@@ -408,7 +409,7 @@ BEGIN
     ONACTIVATE "Set_LeaveOrigTotRaw"
     END
   END
-  WID_BUTTON_DisplayFiducials_with_overalys PUSHBUTTON 646 307 100 35
+  WID_BUTTON_DisplayFiducials_with_overalys PUSHBUTTON 580 305 100 30
   VALUE "Disp Fid+Over"
   ALIGNCENTER
   ONACTIVATE "Display_RGB_fiducials_with_overlays"
@@ -422,5 +423,16 @@ BEGIN
   VALUE "Copy R->G"
   ALIGNCENTER
   ONACTIVATE "OnButton_Copy_Red_to_Green"
+  END
+  WID_BASE_Align_Z_Shift BASE 615 335 0 0
+  COLUMNS = 1
+  NONEXCLUSIVE
+  CAPTION "IDL"
+  BEGIN
+    WID_BUTTON_Align_Z_Shift PUSHBUTTON -1 -1 0 0
+    VALUE "Align Z (shift only)"
+    ALIGNLEFT
+    ONACTIVATE "OnPushButton_AlignZ_Shift"
+    END
   END
 END

@@ -23,6 +23,9 @@ common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d,
 
 use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY')
 use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
+use_multiple_GS_XY_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY_DH')
+use_multiple_GS_XY_DH = widget_info(use_multiple_GS_XY_DH_id,/button_set)
+use_multiple_GS = use_multiple_GS or use_multiple_GS_XY_DH
 WID_TEXT_XY_GuideStarAncFilename_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_XY_GuideStarAncFilename')
 widget_control,WID_TEXT_XY_GuideStarAncFilename_ID,GET_VALUE = GS_anc_fname
 GS_anc_file_info=FILE_INFO(GS_anc_fname)
@@ -48,6 +51,10 @@ GrY_ind = min(where(RowNames eq 'Group Y Position'))                    ; CGroup
 
 use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY')
 use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
+use_multiple_GS_XY_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY_DH')
+use_multiple_GS_XY_DH = widget_info(use_multiple_GS_XY_DH_id,/button_set)
+use_multiple_GS = use_multiple_GS or use_multiple_GS_XY_DH
+
 WID_TEXT_XY_GuideStarAncFilename_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_XY_GuideStarAncFilename')
 widget_control,WID_TEXT_XY_GuideStarAncFilename_ID,GET_VALUE = GS_anc_fname
 GS_anc_file_info=FILE_INFO(GS_anc_fname)
@@ -94,7 +101,7 @@ end
 pro ExtractSubset, Event, xdrift, ydrift, use_multiple_GS	;Pulls out subset of data from param limits and fits x,y vs frames
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -120,6 +127,8 @@ widget_control,WidSmWidthID,get_value=SmWidth
 WidDListDispFitMethodID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_XY_Fit_Method')
 FitMethod = widget_info(WidDListDispFitMethodID,/DropList_Select)
 
+use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY')
+use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
 use_multiple_GS_XY_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY_DH')
 use_multiple_GS_XY_DH = widget_info(use_multiple_GS_XY_DH_id,/button_set)
 
@@ -340,7 +349,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnPick_XYGuideStarAncFile, Event
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, names, modalList
 GS_anc_fname = Dialog_Pickfile(/read,get_path=fpath,filter=['*.anc'],title='Select *.anc file to open')
@@ -389,7 +398,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Initialize_XY_GuideStar, wWidget
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -404,4 +413,18 @@ widget_control,WID_TEXT_XY_GuideStar_RadiusID,SET_VALUE = GS_radius_txt
 WID_TEXT_XY_GuideStarAncFilename_ID = Widget_Info(wWidget, find_by_uname='WID_TEXT_XY_GuideStarAncFilename')
 widget_control,WID_TEXT_XY_GuideStarAncFilename_ID,SET_VALUE = GS_anc_fname
 
+end
+;
+;-----------------------------------------------------------------
+;
+pro OnButtonPress_UseMultipleGuideStars_XY, Event
+	use_multiple_GS_XY_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY_DH')
+	if use_multiple_GS_XY_DH_id gt 0 then if Event.select then widget_control, use_multiple_GS_XY_DH_id, set_button=0
+end
+;
+;-----------------------------------------------------------------
+;
+pro OnButtonPress_UseMultipleGuideStars_XY_DH, Event
+	use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY')
+	if use_multiple_GS_id gt 0 then if Event.select then widget_control, use_multiple_GS_id, set_button=0
 end

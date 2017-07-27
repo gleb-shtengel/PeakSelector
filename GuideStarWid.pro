@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/06/2017 13:38.34
+; Generated on:	07/19/2017 15:30.53
 ; 
 pro WID_BASE_GuideStar_event, Event
 
@@ -33,9 +33,17 @@ pro WID_BASE_GuideStar_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnPick_XYGuideStarAncFile, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnButtonPress_UseMultipleGuideStars_XY, Event
+    end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Write_GuideStarRadius'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Write_XY_GudeStarRadius, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_UseMultipleGuideStars_XY_DH'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnButtonPress_UseMultipleGuideStars_XY_DH, Event
     end
     else:
   endcase

@@ -227,7 +227,7 @@ end
 
 ;------------------------------------------------------------------------------------
 pro ShowIt, image, mag=mg,wait=wtime		;Display image w scalebar
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 sz=size(image)
 tv,bytscl(image[*,0:(sz[2]-1) < 1190])
 TVscales,sz[1],sz[2],mg,nm_per_pixel

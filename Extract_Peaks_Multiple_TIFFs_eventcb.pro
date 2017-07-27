@@ -1,4 +1,3 @@
-
 ;
 ; IDL Event Callback Procedures
 ; Extract_Peaks_Multiple_TIFFs_eventcb
@@ -84,7 +83,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro On_Select_Directory, Event
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 fpath = Dialog_Pickfile(/read,/DIRECTORY)
 WID_TXT_mTIFFS_Directory_ID = Widget_Info(Event.Top, find_by_uname='WID_TXT_mTIFFS_Directory')
@@ -104,7 +103,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnPickWINDFile_mTIFFS, Event
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 wfilename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav'],title='Select *WND.sav file to open')
 CATCH, Error_status
@@ -580,7 +579,7 @@ end
 pro Reassemble_PKS_Files, Event, SumFilename, npks_det
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset

@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/06/2017 08:22.11
+; Generated on:	07/20/2017 10:45.05
 ; 
 pro WID_BASE_AnchorPts_event, Event
 
@@ -80,6 +80,10 @@ pro WID_BASE_AnchorPts_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_DROPLIST_TRANSFORM_METHOD'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_DROPLIST' )then $
         Set_Transf_Method, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Align_Z_TipTilt'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnPushButton_AlignZ_TipTilt, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_Anchors_Z_Table'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TABLE_CH' )then $
@@ -176,6 +180,10 @@ pro WID_BASE_AnchorPts_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Copy_Red_to_Green'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnButton_Copy_Red_to_Green, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Align_Z_Shift'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnPushButton_AlignZ_Shift, Event
     end
     else:
   endcase
@@ -320,7 +328,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_DROPLIST_TRANSFORM_METHOD = Widget_Droplist(WID_BASE_AnchorPts,  $
       UNAME='WID_DROPLIST_TRANSFORM_METHOD' ,XOFFSET=208 ,YOFFSET=8  $
       ,SCR_XSIZE=226 ,SCR_YSIZE=26 ,VALUE=[ 'Linear Regression',  $
-      'POLYWARP', 'Pivot and Average (3 pts only)', 'Shift' ])
+      'POLYWARP', 'Affine', 'X-Y Shift Only' ])
 
   
   WID_LABEL_2 = Widget_Label(WID_BASE_AnchorPts, UNAME='WID_LABEL_2'  $
@@ -338,13 +346,14 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       ,/ALIGN_LEFT ,VALUE='(when there are at least 3 fiducials)')
 
   
-  WID_BASE_6 = Widget_Base(WID_BASE_AnchorPts, UNAME='WID_BASE_6'  $
-      ,XOFFSET=563 ,YOFFSET=335 ,TITLE='IDL' ,COLUMN=1  $
-      ,/NONEXCLUSIVE)
+  WID_BASE_Align_Z_Tilt = Widget_Base(WID_BASE_AnchorPts,  $
+      UNAME='WID_BASE_Align_Z_Tilt' ,XOFFSET=490 ,YOFFSET=335  $
+      ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
 
   
-  WID_BUTTON_Align_Z = Widget_Button(WID_BASE_6,  $
-      UNAME='WID_BUTTON_Align_Z' ,/ALIGN_LEFT ,VALUE='Align Z')
+  WID_BUTTON_Align_Z_TipTilt = Widget_Button(WID_BASE_Align_Z_Tilt,  $
+      UNAME='WID_BUTTON_Align_Z_TipTilt' ,/ALIGN_LEFT ,VALUE='Align Z'+ $
+      ' (tip/tilt)')
 
   
   WID_Anchors_Z_Table = Widget_Table(WID_BASE_AnchorPts,  $
@@ -378,7 +387,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_TEXT_FidOutlineSize = Widget_Text(WID_BASE_AnchorPts,  $
-      UNAME='WID_TEXT_FidOutlineSize' ,XOFFSET=478 ,YOFFSET=304  $
+      UNAME='WID_TEXT_FidOutlineSize' ,XOFFSET=470 ,YOFFSET=300  $
       ,SCR_XSIZE=70 ,SCR_YSIZE=35 ,/EDITABLE ,/WRAP ,XSIZE=20  $
       ,YSIZE=2)
 
@@ -549,8 +558,8 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_DisplayFiducials_with_overalys =  $
       Widget_Button(WID_BASE_AnchorPts,  $
-      UNAME='WID_BUTTON_DisplayFiducials_with_overalys' ,XOFFSET=646  $
-      ,YOFFSET=307 ,SCR_XSIZE=100 ,SCR_YSIZE=35 ,/ALIGN_CENTER  $
+      UNAME='WID_BUTTON_DisplayFiducials_with_overalys' ,XOFFSET=580  $
+      ,YOFFSET=305 ,SCR_XSIZE=100 ,SCR_YSIZE=30 ,/ALIGN_CENTER  $
       ,VALUE='Disp Fid+Over')
 
   
@@ -562,6 +571,16 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_BUTTON_Copy_Red_to_Green = Widget_Button(WID_BASE_AnchorPts,  $
       UNAME='WID_BUTTON_Copy_Red_to_Green' ,XOFFSET=16 ,YOFFSET=122  $
       ,SCR_XSIZE=80 ,SCR_YSIZE=25 ,/ALIGN_CENTER ,VALUE='Copy R->G')
+
+  
+  WID_BASE_Align_Z_Shift = Widget_Base(WID_BASE_AnchorPts,  $
+      UNAME='WID_BASE_Align_Z_Shift' ,XOFFSET=615 ,YOFFSET=335  $
+      ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+
+  
+  WID_BUTTON_Align_Z_Shift = Widget_Button(WID_BASE_Align_Z_Shift,  $
+      UNAME='WID_BUTTON_Align_Z_Shift' ,/ALIGN_LEFT ,VALUE='Align Z'+ $
+      ' (shift only)')
 
   Widget_Control, /REALIZE, WID_BASE_AnchorPts
 
