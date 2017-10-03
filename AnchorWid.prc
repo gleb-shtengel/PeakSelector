@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/20/2017 10:15.15
+; Generated on:	07/29/2017 04:56.56
 VERSION 1
 END
 
@@ -168,7 +168,7 @@ BEGIN
   VALUE "(when there are at least 3 fiducials)"
   ALIGNLEFT
   END
-  WID_BASE_Align_Z_Tilt BASE 490 335 0 0
+  WID_BASE_Align_Z_Tilt BASE 480 335 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"

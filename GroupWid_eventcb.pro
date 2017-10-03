@@ -36,6 +36,7 @@ GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))				; CGroupParametersGP
 GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[23,*] - total Photons in the group
 Gr_size_ind = min(where(RowNames eq '24 Group Size'))					; CGroupParametersGP[24,*] - total peaks in the group
 GrInd_ind = min(where(RowNames eq 'Frame Index in Grp'))				; CGroupParametersGP[25,*] - Frame Index in the Group
+SigZ_ind = min(where(RowNames eq 'Sigma Z'))                            ; CGroupParametersGP[35,*] - Sigma Z
 GrAmpL1_ind = min(where(RowNames eq 'Group A1'))						; CGroupParametersGP[37,*] - Group L1 Amplitude
 GrAmpL2_ind = min(where(RowNames eq 'Group A2'))						; CGroupParametersGP[38,*] - Group L2 Amplitude
 GrAmpL3_ind = min(where(RowNames eq 'Group A3'))						; CGroupParametersGP[39,*] - Group L3 Amplitude
@@ -69,8 +70,8 @@ case GroupEngine of
 		wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Group_Gap')
 		widget_control,wGrpGapID,get_value=grouping_gap
 
-		wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Grouping_Radius')
-		widget_control,wGrpGapID,get_value=grouping_radius100
+		wGrpRadID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Grouping_Radius')
+		widget_control,wGrpRadID,get_value=grouping_radius100
 		grouping_radius=FLOAT(grouping_radius100)/100	; in CCD pixel units
 		spacer = grouping_gap+2
 		maxgrsize = 10						; not absolute max group size: max group size for arrayed processing (groups with elements>maxgroupsize are later analyzed separately)
@@ -79,7 +80,6 @@ case GroupEngine of
 		if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR')	else	idl_pwd=pref_get('IDL_WDE_START_DIR')
 		cd,current=curr_pwd
 
-		cd,current=curr_pwd
 		td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
 		temp_dir=curr_pwd + sep + td
 		FILE_MKDIR,temp_dir

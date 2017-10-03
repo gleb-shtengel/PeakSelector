@@ -1120,7 +1120,7 @@ return
 end
 ;-----------------------------------------------------------------
 pro TVscales2,wxsz,wysz,mgw,nm_per_pixel			;Draws pixel based scale bars and boxes
-;common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+;common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 
 box4=replicate(255,4,4)
 box8=replicate(255,8,8)
@@ -1142,7 +1142,7 @@ end
 
 ;-----------------------------------------------------------------
 pro ShowColorScaleBarLabel,Event,xydsz,mgw,min_mid_max,label	;Draws color scale bar of rendered image in probablility per nm^2
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -1439,7 +1439,7 @@ end
 pro SaveASCIIPeakFiltered_XYconverted, Event		;Save the presently loaded & modified peak parameters into an ascii file
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 
 if n_elements(CGroupParams) le 2 then begin
 	z=dialog_message('Please load a data file')
@@ -1503,7 +1503,7 @@ end
 pro SaveASCIIGroupFiltered_XYconverted, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 
 if n_elements(CGroupParams) le 2 then begin
 	z=dialog_message('Please load a data file')
@@ -1536,7 +1536,7 @@ end
 pro SavetheCommon, Event			;Save the presently loaded & modified parameters into an idl .sav file
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset
@@ -1579,7 +1579,7 @@ end
 pro ImportZeissTXt, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset
@@ -1628,7 +1628,7 @@ end
 pro RecalltheCommon, Event			;Recall fitted parameters from either an ascii file or an idl .sav file
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset
@@ -1825,7 +1825,7 @@ end
 pro AddNextLabelData, Event			;Append more fit parameters from a idl .sav file but assign new label number/color
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Offset, PkWidth_offset
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -1856,6 +1856,7 @@ n_frames_c1=((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max
 
 P1=ParamLimits
 C1=CGroupParams
+delvar, CGroupParams
 C1sz=size(C1)
 WR1=wind_range
 C1[LabelSet_ind,*]=C1[LabelSet_ind,*] > 1
@@ -1916,7 +1917,7 @@ endelse
 
 
 CGroupParams[LabelSet_ind,*]=NLabels+1						;write in next label index
-CGroupParams=[[C1],[CgroupParams]]					;append data of next label (fluorescent label)
+CGroupParams=transpose([transpose(temporary(C1)),transpose(temporary(CgroupParams))])					;append data of next label (fluorescent label)
 sz=size(CGroupParams)
 
 WidFrameNumber = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_RawFrameNumber')
@@ -1937,7 +1938,7 @@ end
 ;
 pro MergeLabelsConsecutively, Event			; Merges Multipole Label Sets into a Single Set, the frames are incremented consequtively
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
@@ -2350,7 +2351,7 @@ common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, Trans
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -2547,7 +2548,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Set_nm_per_pixel_scale, Event
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 Result = DIALOG(/FLOAT,VALUE=nm_per_pixel,TITLE='Set Lateral Scale','Enter a new value for nm/pixel scale')
 if (size(Result))[1] eq 4 then nm_per_pixel=Result
 end
@@ -2610,7 +2611,7 @@ end
 pro Adjust_Top_Slider_for_Max_2D_Probability
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, names, modalList
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 if n_elements(CGroupParams) le 2 then begin
@@ -2649,10 +2650,164 @@ end
 ;
 pro Recalculate_XpkwYpkw, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+	Par12_ind = min(where(RowNames eq '12 X PkW * Y PkW'))					; CGroupParametersGP[12,*] - (Peak X Gaussian Width-const)*(Peak X Gaussian Width-const)
 	Recalc_XPkWYPkW_product,Group_Leader=Event.top
-	ReloadParamlists, Event, [12]
+	ReloadParamlists, Event, [Par12_ind]
 end
+;
+;-----------------------------------------------------------------
+;
+pro Reprocess_Palm_Set, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common Offset, PkWidth_offset
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
+Xwid_ind = min(where(RowNames eq 'X Peak Width'))                        ; CGroupParametersGP[4,*] - Peak X Gaussian Width
+Ywid_ind = min(where(RowNames eq 'Y Peak Width'))                        ; CGroupParametersGP[5,*] - Peak Y Gaussian Width
+FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
+Par12_ind = min(where(RowNames eq '12 X PkW * Y PkW'))                    ; CGroupParametersGP[12,*] - (Peak X Gaussian Width-const)*(Peak X Gaussian Width-const)
+SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
+Gr_ind = min(where(RowNames eq '18 Grouped Index'))						; CGroupParametersGP[18,*] - group #
+GrX_ind = min(where(RowNames eq 'Group X Position'))					; CGroupParametersGP[19,*] - average x - position in the group
+GrY_ind = min(where(RowNames eq 'Group Y Position'))					; CGroupParametersGP[20,*] - average y - position in the group
+GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))				; CGroupParametersGP[21,*] - new x - position sigma
+GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))				; CGroupParametersGP[22,*] - new y - position sigma
+GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[23,*] - total Photons in the group
+Gr_size_ind = min(where(RowNames eq '24 Group Size'))					; CGroupParametersGP[24,*] - total peaks in the group
+GrInd_ind = min(where(RowNames eq 'Frame Index in Grp'))				; CGroupParametersGP[25,*] - Frame Index in the Group
+SigZ_ind = min(where(RowNames eq 'Sigma Z'))                            ; CGroupParametersGP[35,*] - Sigma Z
+GrAmpL1_ind = min(where(RowNames eq 'Group A1'))						; CGroupParametersGP[37,*] - Group L1 Amplitude
+GrAmpL2_ind = min(where(RowNames eq 'Group A2'))						; CGroupParametersGP[38,*] - Group L2 Amplitude
+GrAmpL3_ind = min(where(RowNames eq 'Group A3'))						; CGroupParametersGP[39,*] - Group L3 Amplitude
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+GrSigZ_ind = min(where(RowNames eq 'Group Sigma Z'))					; CGroupParametersGP[41,*] - Group Sigma Z
+GrCoh_ind = min(where(RowNames eq '42 Group Coherence'))				; CGroupParametersGP[42,*] - Group Coherence
+Gr_Ell_ind = min(where(RowNames eq 'XY Group Ellipticity'))				; CGroupParametersGP[46,*] - Group Ellipticity
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))				; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))		; CGroupParametersGP[48,*] - Group Z Position Error
+
+
+
+	PkWidth_offset = 1.5
+	Par12_limit = 0.05
+	SigZ_max = 1000
+
+	; step 1: recalculate XpkwYpkw
+
+	print,'step 1: recalculate XpkwYpkw with offset:',PkWidth_offset
+	CGroupParams[Par12_ind,*]=((CGroupParams[Xwid_ind,*]-PkWidth_offset) > 0.0)*((CGroupParams[Ywid_ind,*]-PkWidth_offset)>0.0)
+
+	; step 2: purge Zsigma<750 and XpkwYpkw<0.05
+	print,'step 2: purge Zsigma <',SigZ_max,',   and XpkwYpkw <',Par12_limit
+	pk_indecis=where(filter and (CGroupParams[SigZ_ind,*] le SigZ_max) and ((CGroupParams[Par12_ind,*] le Par12_limit)),cnt)
+	if cnt lt 1 then begin
+		z=dialog_message('Filter returned no valid peaks')
+		return      ; if data not loaded return
+	endif
+	CGroupParams = temporary(CGroupParams[*,pk_indecis])
+
+	; step 3: group: cluster
+	print,'step 3: regroup'
+		CGroupParams[Gr_ind,*]=0
+		interrupt_load = 0
+		increment = 2500
+		grouping_gap = 10
+		grouping_radius100 = 50
+
+		framefirst=long(ParamLimits[FrNum_ind,0])
+		framelast=long(ParamLimits[FrNum_ind,1])
+		nloops=long(ceil((framelast-framefirst+1.0)/increment))
+		grouping_radius=FLOAT(grouping_radius100)/100	; in CCD pixel units
+		spacer = grouping_gap+2
+		maxgrsize = 10						; not absolute max group size: max group size for arrayed processing (groups with elements>maxgroupsize are later analyzed separately)
+		disp_increment = 100				; frame interval for progress display
+		GroupDisplay = 0					; 0 for cluster, 1 for local
+		if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR')	else	idl_pwd=pref_get('IDL_WDE_START_DIR')
+		cd,current=curr_pwd
+
+		td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
+		temp_dir=curr_pwd + sep + td
+		FILE_MKDIR,temp_dir
+
+		save, curr_pwd,idl_pwd, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
+		spawn,'sh '+idl_pwd+'/group_initialize_jobs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir			;Spawn grouping workers in cluster
+
+		oStatusBar = obj_new('PALM_StatusBar', $
+        	COLOR=[0,0,255], $
+        	TEXT_COLOR=[255,255,255], $
+        	CANCEL_BUTTON_PRESENT = 1, $
+       	 	TITLE='Starting grouped data processing...', $
+      		TOP_LEVEL_BASE=tlb)
+		fraction_complete_last=0.0D
+		pr_bar_inc=0.01D
+
+		nlps = 0L
+
+		while (nlps lt nloops) and (interrupt_load eq 0) do begin
+			framestart=	framefirst + (nlps)*increment						;first frame in batch
+			framestop=(framefirst + (nlps+1L)*increment-1)<framelast
+			GoodPeaks=where((CGroupParams[FrNum_ind,*] ge framestart) and (CGroupParams[FrNum_ind,*] le framestop),OKpkcnt)
+			GPmin = GoodPeaks[0]
+			GPmax = GoodPeaks[n_elements(GoodPeaks)-1]
+			fname_nlps=temp_dir+'/temp'+strtrim(Nlps,2)+'.sav'
+			CGroupParamsGP = CGroupParams[*,GPmin:GPmax]	; faster
+			save, curr_pwd,idl_pwd, CGroupParamsGP, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius,maxgrsize,disp_increment,GroupDisplay,RowNames, filename=fname_nlps		;save variables for cluster cpu access
+			wait,0.1
+			fraction_complete=FLOAT(nlps)/FLOAT((nloops-1.0))
+			if	(fraction_complete-fraction_complete_last) gt pr_bar_inc then begin
+				fraction_complete_last=fraction_complete
+				oStatusBar -> UpdateStatus, fraction_complete
+			endif
+			spawn,'sh '+idl_pwd+'/group_start_single_job.sh '+strtrim(nlps,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir			;Spawn grouping workers in cluster
+			nlps++
+			interrupt_load = oStatusBar -> CheckCancel()
+		endwhile
+
+		obj_destroy, oStatusBar
+
+		if interrupt_load eq 1 then print,'Grouping aborted, cleaning up...'
+
+		if interrupt_load eq 0 then begin
+			GroupPeaksCluster_ReadBack, interrupt_load
+		endif
+		print,'removing temp directory'
+		CATCH, Error_status
+		file_delete,td + sep + 'temp.sav'
+		file_delete,td
+		IF Error_status NE 0 THEN BEGIN
+		    PRINT, 'Error index: ', Error_status
+			PRINT, 'Error message: ', !ERROR_STATE.MSG
+			CATCH,/CANCEL
+		ENDIF
+		CATCH,/CANCEL
+		if interrupt_load eq 1 then print,'Finished cleaning up...'
+		cd,curr_pwd
+
+ReloadParamlists, Event
+
+if bridge_exists then begin
+	print,'Reloading the Bridge Array'
+	CATCH, Error_status
+	CGroupParams_bridge = SHMVAR(shmName_data)
+	CGroupParams_bridge = CGroupParams
+	IF Error_status NE 0 THEN BEGIN
+		PRINT, 'Bridge Refresh Error: Drift Correction:',!ERROR_STATE.MSG
+		PRINT, 'System Error Message:',!ERROR_STATE.SYS_MSG
+		bridge_exists = 0
+		SHMUnmap, shmName_data
+		SHMUnmap, shmName_filter
+		for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
+		CATCH,/CANCEL
+	ENDIF
+	CATCH,/CANCEL
+	print,'Finished Reloading the Bridge Array'
+endif
+
+end
 ;
 ;-----------------------------------------------------------------
 ;
@@ -2828,7 +2983,7 @@ pro InsertChar, Event				;Udate paramlimits table and show histogram of edited p
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common PreviousStep, PrevParamLimits, PrevGRP
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
@@ -3489,7 +3644,7 @@ pro DrawCenters, Event, GRP			;Does the display work for On(Peak/Group)CentersBu
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -3592,7 +3747,7 @@ end
 ;
 pro OnTotalRawDataButton, Event		;Display raw data for present xpixel, ypixel range
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -3679,7 +3834,7 @@ end
 ;
 pro Replace_TotalRaw_with_Rendered, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -4371,7 +4526,7 @@ common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -4612,7 +4767,7 @@ end
 pro RenderWithoutAutoscale, Event, wxsz, wysz, WARN_on_NOGROUPS			;Render the display according to function filter & accum settings (maybe slow)
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common Zdisplay, Z_scale_multiplier, vbar_top
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
@@ -4814,7 +4969,7 @@ end
 ;-----------------------------------------------------------------
 pro OnAddScaleBarButton, Event		;Get scaling and display micron bar
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 COMMON managed,	ids, $		; IDs of widgets being managed
@@ -4842,7 +4997,7 @@ end
 ;-----------------------------------------------------------------
 pro OnAddScaleBarButton2, Event		;Get scaling and display pix box scales
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 COMMON managed,	ids, $		; IDs of widgets being managed
@@ -4870,7 +5025,7 @@ end
 pro OnAddColorBarButton, Event		;Get color scaling of image and display density in nm^2
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
@@ -5097,7 +5252,7 @@ pro OnAddSigmaFilterButton, Event			;Write file name at top
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common managed, ids, names, modalList
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
 COMMON managed,	ids, $		; IDs of widgets being managed
@@ -5203,7 +5358,7 @@ end
 pro OnRawFrameNumber, Event			;Displays a frame (selected by WID_SLIDER_RawFrameNumber) of Raw Data
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 if n_elements(CGroupParams) le 2 then begin
           z=dialog_message('Please load a data file')
@@ -5523,7 +5678,7 @@ end
 ;
 pro Initialization_PeakSelector_Main, wWidget, _EXTRA=_VWBExtra_	; initialises menue tables, droplists, IDL starting directory, material and other parameters
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
@@ -5574,7 +5729,7 @@ end
 ;
 pro Initialization_PeakSelector, wWidget, _EXTRA=_VWBExtra_	; initialises menue tables, droplists, IDL starting directory, material and other parameters
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
@@ -5608,6 +5763,7 @@ if !VERSION.OS_family eq 'unix' then	ConfigureEnvironment			;loads dlms for Cuda
 CGroupParams=[0]
 TotalRawData=[0]
 DIC=[0]
+z_media_multiplier=1.00			; depends on objective NA and media index. This is ratio which determines by how much the focal plane of the (air) objective shifts in the media for a unit shift of the objective along the axis.
 lambda_vac=590.0
 nd_water=1.33
 nd_oil=1.515
@@ -5741,7 +5897,7 @@ end
 ;
 pro Initialize_Common_parameters, ini_file
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
@@ -6767,7 +6923,7 @@ end
 pro OnSwapXZ, Event				 ;swap group z and group x and 4x mag on z
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common Zdisplay, Z_scale_multiplier, vbar_top
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
@@ -6882,7 +7038,7 @@ end
 pro OnSwapYZ, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common Zdisplay, Z_scale_multiplier, vbar_top
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
@@ -7107,7 +7263,7 @@ pro OnAnalyze2, Dist_Results, FilterItem, Event	 ;Analyze the distribution of th
 ; FilterItem=0 - Analyze peak distribution, FilterItem=1 - Analyze group Distribution
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -7661,3 +7817,4 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 end
 ;
 ;-----------------------------------------------------------------
+;

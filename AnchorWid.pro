@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/20/2017 10:45.05
+; Generated on:	07/29/2017 04:57.04
 ; 
 pro WID_BASE_AnchorPts_event, Event
 
@@ -347,7 +347,7 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BASE_Align_Z_Tilt = Widget_Base(WID_BASE_AnchorPts,  $
-      UNAME='WID_BASE_Align_Z_Tilt' ,XOFFSET=490 ,YOFFSET=335  $
+      UNAME='WID_BASE_Align_Z_Tilt' ,XOFFSET=480 ,YOFFSET=335  $
       ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
 
   

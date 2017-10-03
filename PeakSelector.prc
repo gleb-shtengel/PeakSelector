@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/06/2017 16:25.01
+; Generated on:	07/31/2017 16:13.51
 VERSION 1
 END
 
@@ -298,6 +298,10 @@ BEGIN
       W_MENU_64 PUSHBUTTON 0 0 0 0
       VALUE "Recalculate CGroupParams[12,*]"
       ONACTIVATE "Recalculate_XpkwYpkw"
+      END
+      W_MENU_Reprocess_Palm_Set PUSHBUTTON 0 0 0 0
+      VALUE "Reprocess Palm Set"
+      ONACTIVATE "Reprocess_Palm_Set"
       END
       W_MENU_ApplyFilterSelectively PUSHBUTTON 0 0 0 0
       VALUE "Apply Filter Only to Selected Label"

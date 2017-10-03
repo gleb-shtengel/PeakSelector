@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/14/2017 12:19.23
+; Generated on:	07/31/2017 16:13.55
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -228,6 +228,10 @@ pro WID_BASE_0_PeakSelector_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_64'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Recalculate_XpkwYpkw, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Reprocess_Palm_Set'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Reprocess_Palm_Set, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_ApplyFilterSelectively'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -791,6 +795,10 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   W_MENU_64 = Widget_Button(W_MENU_11, UNAME='W_MENU_64'  $
       ,VALUE='Recalculate CGroupParams[12,*]')
+
+  
+  W_MENU_Reprocess_Palm_Set = Widget_Button(W_MENU_11,  $
+      UNAME='W_MENU_Reprocess_Palm_Set' ,VALUE='Reprocess Palm Set')
 
   
   W_MENU_ApplyFilterSelectively = Widget_Button(W_MENU_11,  $

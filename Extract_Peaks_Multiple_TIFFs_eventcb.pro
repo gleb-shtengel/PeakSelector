@@ -160,8 +160,17 @@ sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 WID_TXT_mTIFFS_Directory_ID = Widget_Info(Event.Top, find_by_uname='WID_TXT_mTIFFS_Directory')
 widget_control,WID_TXT_mTIFFS_Directory_ID,GET_VALUE = fpath
 
+WID_TXT_mTIFFS_FileMask_ID = Widget_Info(Event.Top, find_by_uname='WID_TXT_mTIFFS_FileMask')
+widget_control,WID_TXT_mTIFFS_FileMask_ID,GET_VALUE = fmask
+
+WID_TXT_mTIFFS_GlobINI_File_ID = Widget_Info(Event.Top, find_by_uname='WID_TXT_mTIFFS_GlobINI_File')
+widget_control, WID_TXT_mTIFFS_GlobINI_File_ID, GET_VALUE = GlobINI_FileName
+
 WID_BUTTON_Include_Subdirectories_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Include_Subdirectories_mTIFFs')
 include_subdir = Widget_Info(WID_BUTTON_Include_Subdirectories_ID, /BUTTON_SET)
+
+WID_BUTTON_Excl_PKS_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Excl_PKS')
+Excl_PKS = Widget_Info(WID_BUTTON_Excl_PKS_ID, /BUTTON_SET)
 
 CATCH, Error_status
 IF Error_status NE 0 THEN BEGIN
@@ -173,36 +182,8 @@ IF Error_status NE 0 THEN BEGIN
 ENDIF
 
 fmask = "*.tif"
-WID_TXT_mTIFFS_FileMask_ID = Widget_Info(Event.Top, find_by_uname='WID_TXT_mTIFFS_FileMask')
-widget_control,WID_TXT_mTIFFS_FileMask_ID,GET_VALUE = fmask
 
 widget_control,/hourglass
-if include_subdir then RawFilenames = FILE_SEARCH(fpath, fmask) else RawFilenames = FILE_SEARCH(fpath + sep + fmask )
-
-; This is to allow for restart if the Peakselector crashed first time but some *.pks files already esist
-WID_BUTTON_Excl_PKS_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Excl_PKS')
-Excl_PKS = Widget_Info(WID_BUTTON_Excl_PKS_ID, /BUTTON_SET)
-if Excl_PKS then begin
-	for i=0,(n_elements(RawFilenames)-1) do begin
-		pks_f = file_info( addextension(RawFilenames[i],'_IDL.pks'))
-		if ~pks_f.exists then begin
-			if n_elements(RawFiles_new) eq 0 then RawFiles_new = RawFilenames[i] else RawFiles_new = [RawFiles_new, RawFilenames[i]]
-		endif
-	endfor
-	RawFilenames = RawFiles_new
-endif
-
-CATCH, /CANCEL
-
-WID_LIST_Extract_mTIFFS_ID = Widget_Info(Event.Top, find_by_uname='WID_LIST_Extract_mTIFFS')
-widget_control,WID_LIST_Extract_mTIFFS_ID,SET_VALUE = RawFilenames
-
-nfiles_text = string(n_elements(RawFilenames))+' files (total)'
-WID_LABEL_nfiles_mTIFFs_ID = Widget_Info(Event.Top, find_by_uname='WID_LABEL_nfiles_mTIFFs')
-widget_control,WID_LABEL_nfiles_mTIFFs_ID,SET_VALUE=nfiles_text
-
-WID_TXT_mTIFFS_GlobINI_File_ID = Widget_Info(Event.Top, find_by_uname='WID_TXT_mTIFFS_GlobINI_File')
-widget_control, WID_TXT_mTIFFS_GlobINI_File_ID, GET_VALUE = GlobINI_FileName
 
 if UseGlobIni_mTIFFs then begin
     GlobINI_FileInfo=FILE_INFO(GlobINI_FileName)
@@ -226,14 +207,37 @@ if UseGlobIni_mTIFFs then begin
 	ENDWHILE
 	FREE_LUN, lun
 	RawFilenames = Files
+endif else begin
+	if include_subdir then RawFilenames = FILE_SEARCH(fpath, fmask) else RawFilenames = FILE_SEARCH(fpath + sep + fmask )
+endelse
 
-	WID_LIST_Extract_mTIFFS_ID = Widget_Info(Event.Top, find_by_uname='WID_LIST_Extract_mTIFFS')
-	widget_control,WID_LIST_Extract_mTIFFS_ID,SET_VALUE = RawFilenames
+; This is to allow for restart if the Peakselector crashed first time but some *.pks files already esist
 
+MLRawFilenames = RawFilenames	; complete set of RawFileNames (including those for which the .pks had already been created
+if Excl_PKS then begin
+	for i=0,(n_elements(RawFilenames)-1) do begin
+		pks_f = file_info(addextension(RawFilenames[i],'_IDL.pks'))
+		if ~pks_f.exists then begin
+			if n_elements(RawFiles_new) eq 0 then RawFiles_new = RawFilenames[i] else RawFiles_new = [RawFiles_new, RawFilenames[i]]
+		endif
+	endfor
+	RawFilenames = RawFiles_new
+endif
+
+CATCH, /CANCEL
+
+WID_LIST_Extract_mTIFFS_ID = Widget_Info(Event.Top, find_by_uname='WID_LIST_Extract_mTIFFS')
+widget_control,WID_LIST_Extract_mTIFFS_ID,SET_VALUE = RawFilenames
+
+if UseGlobIni_mTIFFs then begin
 	nfiles_text = string(n_elements(RawFilenames))+' files (Glob)'
 	WID_LABEL_nfiles_Glob_mTIFFs_ID = Widget_Info(Event.Top, find_by_uname='WID_LABEL_nfiles_Glob_mTIFFs')
 	widget_control,WID_LABEL_nfiles_Glob_mTIFFs_ID,SET_VALUE=nfiles_text
-endif
+endif else begin
+	nfiles_text = string(n_elements(RawFilenames))+' files (total)'
+	WID_LABEL_nfiles_mTIFFs_ID = Widget_Info(Event.Top, find_by_uname='WID_LABEL_nfiles_mTIFFs')
+	widget_control,WID_LABEL_nfiles_mTIFFs_ID,SET_VALUE=nfiles_text
+endelse
 
 end
 ;
@@ -587,6 +591,9 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 
+WID_BUTTON_Excl_PKS_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Excl_PKS')
+Excl_PKS = Widget_Info(WID_BUTTON_Excl_PKS_ID, /BUTTON_SET)
+
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
 X_ind = min(where(RowNames eq 'X Position'))							; CGroupParametersGP[2,*] - Peak X  Position
@@ -636,17 +643,11 @@ Gr_Ell_ind = min(where(RowNames eq 'XY Group Ellipticity'))				; CGroupParameter
 UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))				; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
 UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))		; CGroupParametersGP[48,*] - Group Z Position Error
 
+
+xi = 0ul
 npktot = total(ulong(npks_det), /PRESERVE_TYPE)
 print,'Total Peaks Detected: ',npktot,'    for data set: ', SumFilename
-xi = 0ul
-; This is to allow for re-assembly of all PKS (in case if restarted if the Peakselector crashed first time but some *.pks files already esisted)
-WID_BUTTON_Excl_PKS_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Excl_PKS')
-Excl_PKS = Widget_Info(WID_BUTTON_Excl_PKS_ID, /BUTTON_SET)
-if Excl_PKS then begin
-	WID_BUTTON_Include_Subdirectories_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Include_Subdirectories_mTIFFs')
-	include_subdir = Widget_Info(WID_BUTTON_Include_Subdirectories_ID, /BUTTON_SET)
-	if include_subdir then RawFilenames = FILE_SEARCH(fpath, "*.tif" ) else RawFilenames = FILE_SEARCH(fpath + sep + "*.tif" )
-endif
+
 nloops = n_elements(RawFilenames)
 
 	for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
@@ -679,7 +680,7 @@ nloops = n_elements(RawFilenames)
 					endif
 				endelse
 			endif
-			if ~Excl_PKS then file_delete, current_file
+			file_delete, current_file, /QUIET
 		endelse
 	endfor
 
@@ -736,12 +737,52 @@ TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
+WID_BUTTON_Excl_PKS_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Excl_PKS')
+Excl_PKS = Widget_Info(WID_BUTTON_Excl_PKS_ID, /BUTTON_SET)
+
 restore,(temp_dir+'/temp.sav')
 print,'sh '+idl_pwd+'/runme_mTIFFs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
 spawn,'sh '+idl_pwd+'/runme_mTIFFs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
 thefile_no_exten=pth+filen
-restore,(temp_dir+'/npks_det.sav')
-file_delete,(temp_dir+'/npks_det.sav')
+
+; We previously stored all filenames into MLRawFilenames array
+; and the filenames without corresponding .pks processed files inro RawFilenames
+; now we just need to re-assemble all MLRawFilenames.
+RawFilenames = MLRawFilenames
+nloops = n_elements(RawFilenames)
+if Excl_PKS then begin ; process was previously interrupted and npks_det data DEOS NOT exist, need to create it
+	print,'process was previously interrupted and npks_det data DEOS NOT exist, need to create it'
+	npks_det = ulonarr(nloops)
+
+	oStatusBar = obj_new('PALM_StatusBar', $	;********* Status Bar Initialization  ******************
+						COLOR=[0,0,255], $
+						TEXT_COLOR=[255,255,255],  $
+						TITLE='Re-setting npks_det...', $
+						TOP_LEVEL_BASE=tlb)
+	fraction_complete_last=0.0
+	pr_bar_inc=0.01
+
+	for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
+		;print,'Finding the peak number for the segment',(nlps+1),'   of ',nloops
+		current_file = 	AddExtension(RawFilenames[nlps],'_IDL.pks')
+		test1=file_info(current_file)
+		if ~test1.exists then begin
+			npks_det[nlps] = 0
+			print, 'file does not exist:',current_file
+		endif else begin
+			restore,filename = current_file
+			npks_det[nlps] = n_elements(Apeakparams)
+		endelse
+		fraction_complete = float(nlps+1)/float(nloops)
+		if (fraction_complete - fraction_complete_last) ge pr_bar_inc then begin ; *********** Status Bar Update **********
+ 			oStatusBar -> UpdateStatus, fraction_complete
+ 			fraction_complete_last = fraction_complete
+ 		endif
+	endfor
+	obj_destroy, oStatusBar ;********* Status Bar Close ******************
+endif else restore,(temp_dir+'/npks_det.sav')
+
+file_delete,(temp_dir+'/npks_det.sav'), /QUIET
 
 if NOT UseGlobIni_mTIFFs then begin
 ; stnadard procedure - no globs
@@ -759,7 +800,7 @@ endif else begin
 		npks_det = npks_det_tot[indices_loc]
 		Reassemble_PKS_Files, Event, SumFilename, npks_det
 	endfor
-	;RawFilenames = RawFilenames_tot
+	RawFilenames = RawFilenames_tot
 endelse
 wlabel = Widget_Info(TopID, find_by_uname='WID_LABEL_0')
 widget_control,wlabel,set_value=SumFilename
