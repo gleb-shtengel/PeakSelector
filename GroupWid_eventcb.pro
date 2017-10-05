@@ -701,22 +701,18 @@ if grcnt gt 0 then begin
 	GrStdY=GrStdX
 	GrStdZ=GrStdX
 	cnt=total(ValidPks,1)
-;	GrStdX=sqrt(total((GrPeaksX-GrMeanX)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]-1+total(GrPksStdX^2*GrNumPhotons,1)/(Groups[4,GrInd])^2)/sqrt(2)
-	GrStdX=sqrt(total((GrPeaksX-GrMeanX)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt)+total(GrPksStdX^2*GrNumPhotons,1)/(Groups[4,GrInd]*cnt))/sqrt(2)
-	GrStdXLimit=sqrt(total(GrGaussWidthX^2*GrNumPhotons,1))/Groups[4,GrInd]	;theoretical limit - mean of gauss widths of each peak devided by sqrt of photons)
-;	GrStdY=sqrt(total((GrPeaksY-GrMeanY)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]-1)+total(GrPksStdY^2*GrNumPhotons,1)/(Groups[4,GrInd])^2)/sqrt(2)
-	GrStdY=sqrt(total((GrPeaksY-GrMeanY)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt)+total(GrPksStdY^2*GrNumPhotons,1)/(Groups[4,GrInd]*cnt))/sqrt(2)
-	GrStdYLimit=sqrt(total(GrGaussWidthX^2*GrNumPhotons,1))/Groups[4,GrInd]
+	GrStdX=sqrt(total((GrPeaksX-GrMeanX)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt)+total(GrPksStdX^2*GrNumPhotons,1)/(Groups[4,GrInd]*cnt));/sqrt(2)
+	;GrStdXLimit=sqrt(total(GrGaussWidthX^2*GrNumPhotons,1))/Groups[4,GrInd]	;theoretical limit - mean of gauss widths of each peak devided by sqrt of photons)
+	GrStdY=sqrt(total((GrPeaksY-GrMeanY)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt)+total(GrPksStdY^2*GrNumPhotons,1)/(Groups[4,GrInd]*cnt));/sqrt(2)
+	;GrStdYLimit=sqrt(total(GrGaussWidthX^2*GrNumPhotons,1))/Groups[4,GrInd]
 	GrMeanZ = Mult # (total(GrPeaksZ*GrNumPhotons,1) / total(GrNumPhotons,1))
 	GrMZ = reform(GrMeanZ ,maxgrsize*GrCnt)
 	;GrStdZ=sqrt(total((GrPeaksZ-GrMeanZ)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt))/sqrt(2)
-	GrStdZ=sqrt(total((GrPeaksZ-GrMeanZ)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt)+total(GrPksStdZ^2*GrNumPhotons,1)/(Groups[4,GrInd]*cnt))/sqrt(2)
-
-	;GrSX=reform(Mult#GrStd,maxgrsize*GrCnt)
-	;GrSY=reform(Mult#GrStd,maxgrsize*GrCnt)
-	;GrStd=GrStdX>GrStdXLimit>GrStdY>GrStdYLimit
-	GrSX=reform(Mult#(GrStdX>GrStdXLimit),maxgrsize*GrCnt)
-	GrSY=reform(Mult#(GrStdY>GrStdYLimit),maxgrsize*GrCnt)
+	GrStdZ=sqrt(total((GrPeaksZ-GrMeanZ)^2*GrNumPhotons*ValidPks,1)/(Groups[4,GrInd]*cnt)+total(GrPksStdZ^2*GrNumPhotons,1)/(Groups[4,GrInd]*cnt));/sqrt(2)
+	;GrSX=reform(Mult#(GrStdX>GrStdXLimit),maxgrsize*GrCnt)
+	;GrSY=reform(Mult#(GrStdY>GrStdYLimit),maxgrsize*GrCnt)
+	GrSX=reform(Mult#GrStdX,maxgrsize*GrCnt)
+	GrSY=reform(Mult#GrStdY,maxgrsize*GrCnt)
 	GrSZ=reform(Mult#GrStdZ,maxgrsize*GrCnt)
 	if Gr_Ell_ind gt 0 then begin
 		GrGWx=total(GrGaussWidthX*GrNumPhotons,1)/Groups[4,GrInd]		; GES 03/13/09 calculate the Group Gaussian Width in X direction
@@ -799,161 +795,8 @@ print,'total new grouping time (sec)=',tstop-tstart
 return
 end
 ;
-;
-;-----------------------------------------------------------------
-; Delete everything below this line for 2D version
-;
-;
 ;-----------------------------------------------------------------
 ;
-;NEW Grouping Procedure - GS 06.18.07
-;-----------------------------------------------------------------
-;
-Pro GroupPeaksCore_understandable,CGroupParamsGP,OKpkcnt,grouping_radius,spacer,maxgrsize,disp_increment,GroupDisplay			;Group peaks based on min distance in frames to next peak, & write into param data 17-25
-
-;CGroupParametersGP[18,*] - group #
-;CGroupParametersGP[24,*] - total peaks in the group
-;CGroupParametersGP[25,*] - frame index in the group
-;CGroupParametersGP[23,*] - total Photons in the group
-;CGroupParametersGP[19,*] - average x - position in the group
-;CGroupParametersGP[20,*] - average y - position in teh group
-;CGroupParametersGP[21,*] - new x - position sigma
-;CGroupParametersGP[22,*] - new y - position sigma
-CGroupParamsGP[18,*]=-1								; initialize group ID to -1
-CGroupParamsGP[25,*]=1								; imitialize the group frame index in the group to 1
-CGroupParamsGP[24,*]=1								; initialize the group peak count to 1
-CGroupParamsGP[23,*]=CGroupParamsGP[6,*]			; initialize the group photon count to peak photon count
-CGroupParamsGP[19:20,*]=CGroupParamsGP[2:3,*]		; initialize the group position to peak position
-CGroupParamsGP[21:22,*]=CGroupParamsGP[16:17,*]		; initialize the group position sigma to peak position sigma
-uniq_frames=CGroupParamsGP[9,UNIQ(CGroupParamsGP[9,*],sort(CGroupParamsGP[9,*]))]
-uniq_frame_num=n_elements(uniq_frames)
-UnTermedGroupCount=0
-GroupNumber=0L
-Groups=dblarr(5,OKpkcnt)
-Groups[*,*]=0					;Groups[0,*] - number of elements in the group
-Groups[0,*]=1					;Groups[1,*] - Group Terminamtion Countdown
-								;Groups[2,*] - running average of x-position
-								;Groups[3,*] - running average of y-position
-								;Groups[4,*] - number of photons in the group
-tstart=systime(/seconds)
-for i=0L,uniq_frame_num-1 do begin		; cycle over all frames containing "good peaks"
-	frame_peak_ind=where(CGroupParamsGP[9,*] eq uniq_frames[i],frame_peak_number)
-	if UntermedGroupCount eq 0 then begin
-		; if there are no untermed groups, the entire list of peaks is to form new groups
-		Groups[2:3,(GroupNumber+lindgen(frame_peak_number))]=CGroupParamsGP[2:3,frame_peak_ind]
-		Groups[4,(GroupNumber+lindgen(frame_peak_number))]=CGroupParamsGP[6,frame_peak_ind]
-		CGroupParamsGP[18,frame_peak_ind]=GroupNumber+lindgen(frame_peak_number)
-		Groups[1,GroupNumber+lindgen(frame_peak_number)]=spacer
-		GroupNumber+=frame_peak_number
-	endif else begin
-		UntermedInd=where(Groups[1,*] gt 0,size1)
-		; build 2D arrays of replicas of X-Y coordinates (as COMPLEX) of Unterminated Groups and Peaks in this Frame
-		GroupXY=replicate(DCOMPLEX(1,0),frame_peak_number)#COMPLEX(Groups[2,UntermedInd],Groups[3,UntermedInd])
-		PeaksXY=replicate(DCOMPLEX(1,0),size1)#COMPLEX(CGroupParamsGP[2,frame_peak_ind],CGroupParamsGP[3,frame_peak_ind])
-		Group_Peak_dist=abs(PeaksXY-transpose(GroupXY))
-		Group_peak_dist1=transpose(min(Group_Peak_dist,DIMENSION=1)#replicate(1,size1))
-		Group_dist_Check=(Group_Peak_dist-Group_peak_dist1)			; this needed to make sure that if there are two groups close to a peak, group it with closest
-		abs_ind=where(Group_Peak_dist lt grouping_radius and Group_dist_Check eq 0, num_found); find all
-		if num_found gt 0 then begin					; assign the peaks to existing groups if within range (if any)
-			indii=ARRAY_INDICES(Group_Peak_dist,abs_ind)
-			if size(PeaksXY,/N_DIMENSIONS) eq 1 then begin
-				peak_indices=frame_peak_ind
-				Matched_Group_Indecis=UntermedInd[indii]
-			endif else begin
-				peak_indices=frame_peak_ind[indii[1,*]]
-				Matched_Group_Indecis=UntermedInd[indii[0,*]]
-			endelse
-			Groups[0,Matched_Group_Indecis]+=1			; increment number of elements in the group
-			grcnt=Groups[0,Matched_Group_Indecis]			; new number of elements in this group
-			Groups[1,Matched_Group_Indecis]=spacer		; reset countdown
-			CGroupParamsGP[18,peak_indices]=Matched_Group_Indecis
-			CGroupParamsGP[25,peak_indices]=grcnt			; frame index in the group
-					; update running averages ofx- and y- positions in the group to account for a new group member
-			; Old running average update without weighted averaging
-			;Groups[2,Matched_Group_Indecis]=(Groups[2,Matched_Group_Indecis]*(grcnt-1)+CGroupParamsGP[2,peak_indices])/grcnt
-			;Groups[3,Matched_Group_Indecis]=(Groups[3,Matched_Group_Indecis]*(grcnt-1)+CGroupParamsGP[3,peak_indices])/grcnt
-			;
-			; new weighted running position averaging
-			Groups[2,Matched_Group_Indecis]=(Groups[2,Matched_Group_Indecis]*Groups[4,Matched_Group_Indecis]+CGroupParamsGP[2,peak_indices]*CGroupParamsGP[6,peak_indices])/(Groups[4,Matched_Group_Indecis]+CGroupParamsGP[6,peak_indices])
-			Groups[3,Matched_Group_Indecis]=(Groups[3,Matched_Group_Indecis]*Groups[4,Matched_Group_Indecis]+CGroupParamsGP[3,peak_indices]*CGroupParamsGP[6,peak_indices])/(Groups[4,Matched_Group_Indecis]+CGroupParamsGP[6,peak_indices])
-			Groups[4,Matched_Group_Indecis]+=CGroupParamsGP[6,peak_indices]
-		endif
-		if num_found lt frame_peak_number then begin	; start new groups for all "unidentified" remaining peaks (if any)
-			remaining_ind=where(min(Group_Peak_dist,DIMENSION=1) gt grouping_radius,num_remaining); find remaining peaks
-			peak_indices=frame_peak_ind[remaining_ind]
-			Groups[2:3,(GroupNumber+lindgen(num_remaining))]=CGroupParamsGP[2:3,peak_indices]
-			Groups[4,(GroupNumber+lindgen(num_remaining))]=CGroupParamsGP[6,peak_indices]
-			CGroupParamsGP[18,peak_indices]=GroupNumber+lindgen(num_remaining)
-			Groups[1,GroupNumber+lindgen(num_remaining)]=spacer
-			GroupNumber+=num_remaining					; increment the number of groups
-		endif
-	endelse
-	Groups[1,*]-=1
-	Groups[1,*]>=0
-	UnTermedGroupCount=total(Groups[1,*])
-	if (i mod 1000 eq 1) then begin
-		workingFrame=uniq_frames[i]
-		if GroupDisplay le 0 then print,'Analyzing CGroupParams at ' + string(workingFrame)+' of  '+string(max(CGroupParamsGP[9,*])) + '  Frames'
-		if GroupDisplay ge 1 then xyouts,0.01,0.02,'Analyzing CGroupParams at ' + string(workingFrame-disp_increment)+' of  '+string(max(CGroupParamsGP[9,*])) + '  Frames',/normal,col=0
-		if GroupDisplay ge 1 then xyouts,0.01,0.02,'Analyzing CGroupParams at ' + string(workingFrame)+' of  '+string(max(CGroupParamsGP[9,*])) + '  Frames',/normal
-		wait,0.01
-	endif
-endfor
-tint=systime(/seconds)
-if GroupDisplay le 0 then print,'total group sorting time (sec)=',tint-tstart
-if GroupDisplay ge 1 then xyouts,0.01,0.02,'Analyzing CGroupParams at ' + string(workingFrame)+' of  '+string(max(CGroupParamsGP[9,*])) + '  Frames',/normal,col=0
-
-IndToBeTermed=where((Groups[0,*] gt 1),NumToBeTermed)	; all groups with more then 1 elements to be analyzed
-if NumToBeTermed ge 1 then begin
-	for ii=0L,NumToBeTermed-1 do begin
-		ThisGroup=where(CGroupParamsGP[18,*] eq IndToBeTermed[ii],cnt)
-		CGroupParamsGP[24,ThisGroup]=cnt						; total peaks forming group
-		Ntot= total(CGroupParamsGP[6,ThisGroup])		; Total number of photons in the group
-		CGroupParamsGP[23,ThisGroup]=Ntot				; Total peaks forming group
-
-;	******* Old group parameter recalculation with no weighted averaging of group position and sigma
-;		mean_variancex = moment(CGroupParamsGP[2,ThisGroup],maxmoment=2)
-;		mean_variancey = moment(CGroupParamsGP[3,ThisGroup],maxmoment=2)
-;		CGroupParamsGP[19,ThisGroup]=mean_variancex[0]		;averaged x position
-;		CGroupParamsGP[20,ThisGroup]=mean_variancey[0]		;averaged y position)
-;		CGroupParamsGP[21,ThisGroup]=$
-;			sqrt(mean_variancex[1]+total((CGroupParamsGP[16,ThisGroup])^2)/cnt^2)/sqrt(2)		;new x sigma
-;		CGroupParamsGP[22,ThisGroup]=$
-;			sqrt(mean_variancey[1]+total((CGroupParamsGP[17,ThisGroup])^2)/cnt^2)/sqrt(2)		;new y sigma
-
-;  ******* New Group parameter recalculation with weighted averaging of group position and sigmas. Worst sigma is assigned to both sigma x and sigma y
-		CGroupParamsGP[19,ThisGroup]=Groups[2,IndToBeTermed[ii]]		;averaged x position
-		CGroupParamsGP[20,ThisGroup]=Groups[3,IndToBeTermed[ii]]		;averaged y position)
-;		CGroupParamsGP[21,ThisGroup]=$
-;			sqrt(total((CGroupParamsGP[2,ThisGroup]-CGroupParamsGP[19,ThisGroup])^2*CGroupParamsGP[6,ThisGroup])/(CGroupParamsGP[23,ThisGroup]-1) $
-;			+ total(CGroupParamsGP[16,ThisGroup]^2*CGroupParamsGP[6,ThisGroup]/CGroupParamsGP[23,ThisGroup]^2))/sqrt(2)		;new x sigma
-;		CGroupParamsGP[22,ThisGroup]=$
-;			sqrt(total((CGroupParamsGP[3,ThisGroup]-CGroupParamsGP[20,ThisGroup])^2*CGroupParamsGP[6,ThisGroup])/(CGroupParamsGP[23,ThisGroup]-1) $
-;			+ total(CGroupParamsGP[17,ThisGroup]^2*CGroupParamsGP[6,ThisGroup]/CGroupParamsGP[23,ThisGroup]^2))/sqrt(2)		;new y sigma
-		Wgt= CGroupParamsGP[6,ThisGroup]/(Ntot*cnt)		;Nphot in ith frame/(Nphot total in group * N peaks in Group)
-		CGroupParamsGP[21,ThisGroup]=$
-			sqrt( total( ((CGroupParamsGP[2,ThisGroup]-CGroupParamsGP[19,ThisGroup])^2 + CGroupParamsGP[16,ThisGroup]^2)*Wgt ) )/sqrt(2)		;new x sigma
-		CGroupParamsGP[22,ThisGroup]=$
-			sqrt( total( ((CGroupParamsGP[3,ThisGroup]-CGroupParamsGP[20,ThisGroup])^2 + CGroupParamsGP[17,ThisGroup]^2)*Wgt ) )/sqrt(2)		;new y sigma
-		GrStdXLimit=sqrt(total(CGroupParamsGP[4,ThisGroup]^2*CGroupParamsGP[6,ThisGroup])/CGroupParamsGP[23,ThisGroup]^2)
-		GrStdYLimit=sqrt(total(CGroupParamsGP[5,ThisGroup]^2*CGroupParamsGP[6,ThisGroup])/CGroupParamsGP[23,ThisGroup]^2)
-		CGroupParamsGP[21,ThisGroup]=CGroupParamsGP[21,ThisGroup]>CGroupParamsGP[22,ThisGroup]>GrStdXLimit>GrStdYLimit
-		CGroupParamsGP[22,ThisGroup]=CGroupParamsGP[21,ThisGroup]
-
-		if (ii mod 1000 eq 1) then begin
-			xx=ii
-			if GroupDisplay ge 1 then xyouts,0.01,0.02,'Calculating CGroupParams for Group' + string(xx-1000)+' of  '+string(NumToBeTermed) + '  Groups (with more then 1 peak)',/normal,col=0
-			if GroupDisplay ge 1 then xyouts,0.01,0.02,'Calculating CGroupParams for Group' + string(xx)+' of  '+string(NumToBeTermed) + '  Groups (with more then 1 peak)',/normal
-			wait,0.01
-		endif
-	endfor
-	if GroupDisplay ge 1 then xyouts,0.01,0.02,'Calculating CGroupParams for Group' + string(xx)+' of  '+string(NumToBeTermed) + '  Groups (with more then 1 peak)',/normal,col=0
-endif
-
-tstop=systime(/seconds)
-if GroupDisplay le 0 then print,'total new grouping time (sec)=',tstop-tstart
-return
-end
 ;
 ; Empty stub procedure used for autoloading.
 ;

@@ -214,12 +214,16 @@ end
 ;
 pro Showframes, data,xsz,ysz,mg, Nframes,scl		;Time movie of data
 
-for i =0, (Nframes-1) do begin
-	tv,Congrid(data[*,*,i],round(mg*xsz),round(mg*ysz),1,/interp)*scl < 255
-	xyouts,40,40,string(i),/device,charthick=((i mod 4) eq 1)+1
-	wait,0.05
-endfor
-tv,Congrid(data[*,*,(Nframes/2-1)],round(mg*xsz),round(mg*ysz),1,/interp)*scl < 255
+if Nframes gt 1 then begin
+	for i =0, (Nframes-1) do begin
+		tv,Congrid(data[*,*,i],round(mg*xsz),round(mg*ysz),1,/interp)*scl < 255
+		xyouts,40,40,string(i),/device,charthick=((i mod 4) eq 1)+1
+		wait,0.05
+		tv,Congrid(data[*,*,(Nframes/2-1)],round(mg*xsz),round(mg*ysz),1,/interp)*scl < 255
+	endfor
+endif else begin
+	tv,Congrid(data,round(mg*xsz),round(mg*ysz),/interp)*scl < 255
+endelse
 print,'Done with Real space display'
 wait,1.0
 return
@@ -251,7 +255,6 @@ gausscenter=gausscenter-mean(gausscenter)
 criteria=(convol(criteriaclip,gausscenter) > 0)
 newcriteria=criteria
 maxpeakcriter=max(criteria)
-
 rad=(d+3)
 dia=2*rad+1
 arr=indgen(dia*dia,/L64)
@@ -467,11 +470,7 @@ if DisplaySet eq 2 then begin			;1 then begin
 	scl=1.0
 	xpos_tv = Disp_corner ? (1024-clipsize[1]) : 0
 	ypos_tv = Disp_corner ? (1024-clipsize[2]) : 0
-	;tempclip=300.0/max(tempclip)*temporary(tempclip)
-	;tempclip[PeakX-d:PeakX+d,PeakY-d]=255								;draw underline under peak
-	;tv,scl*tempclip<255,xpos_tv,ypos_tv											;show it
 	if n_elements(criteria) gt 1 then tvscl,criteria,512,0
-	;scl=3.0
 	ofs=(min(tempclip) - 50) > 0
 	tempclip=tempclip-ofs
 	tempclip=300.0/max(tempclip)*temporary(tempclip)
@@ -499,14 +498,181 @@ if DisplaySet eq 2 then begin			;1 then begin
 	xpos=(findgen(dd*gscl)/gscl-peakparams.A[4]-0.5)#replicate(1,dd*gscl)
 	ypos=replicate(1.,dd*gscl)#(findgen(dd*gscl)/gscl-peakparams.A[5]-0.5)
 	gausscenter=peakparams.A[1]*exp(-((xpos/newsigx)^2+(ypos/newsigy)^2)/2.)
-	tvscl,gausscenter<255,xtvpeak,0
+	;tvscl,gausscenter<255,xtvpeak,0
 	minclp=min(clip[PeakX-d:PeakX+d,PeakY-d:PeakY+d])
 	tv,50+scl*rebin(clip[PeakX-d:PeakX+d,PeakY-d:PeakY+d]-minclp,dd*gscl,dd*gscl,/sample)<255,xtvpeak,ytvpeak+2*dd*gscl		;tv slected residual after peak removal
 	xyouts,xtvpeak+dd*gscl/2,ytvpeak,string(fitOKq),/device,align=0.75
 endif
 return
 end
+;
 ;------------------------------------------------------------------------------------
+;
+Pro FindnWackaPeak_AstigZ, clip, d, peakparams, fita, result, thisfitcond, aa, DisplaySet, peakx, peaky, criteria, Dispxy, Disp_corner		;Find,fit,remove target peak & return fit parameters
+;peakparams = {twinkle_z,frameindex:0l,peakindex:0l,fitOK:0,peakx:0.0,peaky:0.0,A:fltarr(4 or 5),sigma:fltarr(4 or 5),chisq:0.0,Nphot:0l}
+;DisplaySet=0				;set to -1 - no display while fitting(fastest)   0 - min display   1 - some display	2 - full display
+; Disp_corner=0 means lower left, Disp_corner=1 means upper right
+mod4clip = fix(clip *0)				;create array for changed pixels modified by >= 4 photons
+tempclip=clip
+clipsize=size(clip)
+peakx=(peakx<(clipsize[1]-d-1))>d
+peaky=(peaky<(clipsize[2]-d-1))>d
+region=clip[peakx-d:peakx+d,peaky-d:peaky+d]							;define 2d+1 region around peak
+dd=2*d+1
+A=peakparams.A
+A[0]=(region[0,0]+region[0,2*d]+region[2*d,0]+region[2*d,2*d])/4.		;set A[0] to averaged value of base
+A[1]=max(region[d-1:d+1,d-1:d+1]-A[0]) > 1								;set A[1] to peak amplitude
+peakparams.A=A
+
+; we only use fit model 0 now, fit_model 1 and 2 are just placeholders.
+;---------------- fit_model=0
+;		F(x,y,z) = a0 + a1*EXP(-U/2)
+;		where: U= (xp/WidX(z))^2 + (yp/WidY(z))^2
+;			xp = (x-a2)   and   yp = (y-a3)and
+;       	WidX(z) = b0+b1*z+ ... +bN*z^N
+;			WidY(z) = c0+c1*z+ ... +cN*z^N
+;			z=a4
+;   The vector A = [a0, a1, a2, a3, a3, a4]
+;
+;---------------- fit_model=1
+;		F(x,y,z) = a0 + a1*EXP(-U/2)
+;		where: U= (xp/WidX(z)^2 + (yp/WidY(z))^2
+;			xp = (x-a2)   and   yp = (y-a3)and
+;       	WidX(z) = (ellipt(z)*sum(z) + sum(z))/2
+;			WidY(z) = (sum(z) - ellipt(z)*sum(z))/2
+;			ellipt(z) =  b0+b1*z+ ... +bN*z^N
+;			sum(z) = c0+c1*z+ ... +cN*z^N
+;			z=a4
+;   The vector A = [a0, a1, a2, a3, a3, a4]
+;
+;---------------- fit_model=2
+;		F(x,y,z) = a0 + a1*EXP(-U/2)
+;		where: U= (xp/a5*WidX(z))^2 + (yp/a5*WidY(z))^2
+;			xp = (x-a2)   and   yp = (y-a3)and
+;       	WidX(z) = b0+b1*z+ ... +bN*z^N
+;			WidY(z) = c0+c1*z+ ... +cN*z^N
+;			z=a4
+;   The vector A = [a0, a1, a2, a3, a3, a4, a5]
+;
+fit_model = thisfitcond.SigmaSym - 2
+; again, we only use fit_model=0 now
+if fit_model eq 1  then begin
+	b = reform(aa[2,*])
+	c = reform(aa[3,*])
+endif else begin
+	b = reform(aa[0,*])
+	c = reform(aa[1,*])
+endelse
+
+;do 2D fit with z-extraction
+result = Gauss_2D_Constrained_MPFit_GS(region, A, b, c, fit_model, $
+	CHISQ = CHISQ, Sigma = sigma, FITA = fita, ITMAX = 100, STATUS = status)
+perim_var=0
+var=(region-result)*(region-result)
+if d ge 1 then 	perim_var=(total(var[0,0:(2*d)]) + total(var[(2*d),0:(2*d)]) + total(var[1:(2*d-1),0]) + total(var[1:(2*d-1),(2*d)]))/A[1]/A[1] 		; perimenter variance
+A[1]=A[1] > 0.0				;75*thisfitcond.LimBotA1
+
+; if fit_model=0
+if fit_model eq 0 then begin
+	WidX = POLY(a[4], b)
+	WidY = POLY(a[4], c)
+endif else begin
+; fit_model = 1
+	if fit_model eq 1 then begin
+		ellipticity = POLY(a[4],b)
+		sum = POLY(a[4],c)
+		WidX = (ellipticity*sum+sum)/2.0
+		WidY = (sum-ellipticity*sum)/2.0
+	endif else begin
+; fit_model = 2
+		WidX = a[5] * POLY(a[4],b)
+		WidY = a[5] * POLY(a[4],c)
+	endelse
+endelse
+peakparams.peak_widx = WidX
+peakparams.peak_widy = WidY
+fitOK = (WidX gt thisfitcond.LimBotSig) and (WidX lt thisfitcond.LimTopSig) and $
+		(WidY gt thisfitcond.LimBotSig) and (WidY lt thisfitcond.LimTopSig) and $
+		(A[1] gt thisfitcond.LimBotA1)
+fitreallybad = (A[1] lt thisfitcond.LimBotA1/2) or (A[1] gt thisfitcond.LimTopA1*2) or $
+		(WidX lt thisfitcond.LimBotSig/2) or (WidX gt thisfitcond.LimTopSig*2) or $
+		(WidY lt thisfitcond.LimBotSig/2) or (WidY gt thisfitcond.LimTopSig*2) ;or $
+		;(A[2] lt (d-2)) or (A[2] gt (d+2)) or (A[3] lt (d-2)) or (A[3] gt (d+2))
+fitOKq=(WidX le thisfitcond.LimBotSig) + 2*(WidX ge thisfitcond.LimTopSig)+4*(WidY le thisfitcond.LimBotSig)+8*(WidY ge thisfitcond.LimTopSig)+$
+	16*(chisq ge thisfitcond.LimChiSq)+32*(A[1] le thisfitcond.LimBotA1)+128*(A[1] lt thisfitcond.LimBotA1/2)+$
+	256*(A[1] gt thisfitcond.LimTopA1*2) + 512*(WidX lt thisfitcond.LimBotSig/2)+1024*(WidX gt thisfitcond.LimTopSig*2)+$
+	2048*(WidY lt thisfitcond.LimBotSig/2)+4096*(WidY gt thisfitcond.LimTopSig*2)+$
+	8192*(A[2] lt (d-2)) or (A[2] gt (d+2))or (A[3] lt (d-2)) or (A[3] gt (d+2))
+;print,'status - fitok - fitreallybad - A =  ',status,fitok,fitreallybad,A
+
+if (status ge 1) and (status le 4) and (fitreallybad eq 0) then begin						;if status eq 1 i.e. a good fit then subtract out the fitted gaussian
+	result=result-A[0]*replicate(1,2*d+1,2*d+1)
+	;clip[peakx-d:peakx+d,peaky-d:peaky+d] = clip[peakx-d:peakx+d,peaky-d:peaky+d] - result
+	dxx=round(((((WidX*4)>5.0)<15.0)<PeakX)<(clipsize[1]-PeakX-1))
+	dyy=round(((((WidY*4)>5.0)<15.0)<PeakY)<(clipsize[2]-PeakY-1))							;if the peak is very asymetric - subtract a properly wider area
+	xarr=exp(-0.5*((indgen(2*dxx+1)-dxx+d-A[2])/WidX)^2)
+	yarr=exp(-0.5*((indgen(2*dyy+1)-dyy+d-A[3])/WidY)^2)
+	full_result=A[1]*xarr#yarr
+	clip[PeakX-dxx:PeakX+dxx,PeakY-dyy:PeakY+dyy]=temporary(clip[PeakX-dxx:PeakX+dxx,PeakY-dyy:PeakY+dyy])-full_result
+	if fitOK eq 0 then fitOK = 3										;if fitOK eq 0 but not really bad then report as suspicious ie fitOK = 3
+endif
+		;fitOK = 0 status = 1 (diverge) or 2 (no converge) or fitreallybad = 1 (true) and refit failed if more than 4 variables fitted
+		;fitOK = 1 status = 0 (converge) and fitreallybad = 0 (false) and (initial)fitOK = 1 (sigma & amplitude within bounds) ---report good fit values
+		;fitOK = 2 status = 0 (converge) and fitreallybad = 0 (false) and (initial)fitOK = 0 (sigma or amplitude out of bounds) ---second fit iteration worked
+		;fitOK = 3 status = 0 (converge) and (fitOK = 0) and fitreallybad = 0 (false) ---- report fit values but indicate as suspicious
+		;so a peak with fitOK = 1 is best,		 = 2 is OK,		 = 3 is suspect,		 = 0 is bad
+		;fitOK ge 4 then like above (fitOK mod 4) but fit used previously modified (>=4) pixel
+peakparams.fitOK=fitOK										;assign data to structure
+peakparams.peakx=peakx+A[2]-d+0.5
+peakparams.peaky=peaky+A[3]-d+0.5
+peakparams.A=A
+peakparams.sigma=sigma
+peakparams.chisq=chisq
+peakparams.Nphot=total(result) > 0
+
+newsigx = sigma[2]
+newsigy = sigma[3]
+
+;----------------------									;display find and wack prpgress
+if DisplaySet eq 2 then begin			;1 then begin
+	scl=2.0
+	xpos_tv = Disp_corner ? (1024-clipsize[1]) : 0
+	ypos_tv = Disp_corner ? (1024-clipsize[2]) : 0
+	if n_elements(criteria) gt 1 then tv,((criteria/max(criteria))*600)<255,512,0
+	ofs=(min(tempclip) - 50) > 0
+	tempclip=tempclip-ofs>0
+	tempclip=300.0/max(tempclip)*temporary(tempclip)
+	tempclip[PeakX-d:PeakX+d,PeakY-d]=255								;draw underline under peak
+	tv,scl*tempclip<255,xpos_tv,ypos_tv										;show it
+	waittime=0.05
+	wait,waittime
+	if (peakparams.peakindex mod 10) eq 1 then print,$
+			'frame#, peak#, fitOKq,   A0,        A1,    posx,      posy,    posz,    sigx,     sigy,    sigz'
+	print,peakparams.frameindex,peakparams.peakindex, fitOKq, A[0:1], peakx+A[2]-d+0.5, peaky+A[3]-d+0.5, A[4], sigma[2:4], format='(3i8,8f10.4)'
+	gscl=4.
+								;Show peaks one by one
+	xtvpeak=(dd*gscl*dispxy[0] mod (fix(1024.0/dd/gscl)*dd*gscl))
+	ytvpeak=512+(3*dispxy[1])*dd*gscl
+	scl_r = 300.0/(max(region)-min(region))
+	tv,50+scl_r*rebin(region-min(region),dd*gscl,dd*gscl,/sample)<255,xtvpeak,ytvpeak				;tv slected peak region
+	tv,50+scl_r*rebin(result-min(result),dd*gscl,dd*gscl,/sample)<255,xtvpeak,ytvpeak+dd*gscl		;tv resulting fit
+	plots,gscl*(A[2]+0.5)+xtvpeak,gscl*(A[3]+0.5)+ytvpeak,psym=1,/device,col=0					;mark the center of data peak with plus
+	plots,gscl*(A[2]+0.5)+xtvpeak,gscl*(A[3]+0.5)+ytvpeak,psym=3,/device						;mark center of data peak, put dot in middle
+	plots,gscl*(A[2]+0.5)+xtvpeak,gscl*(A[3]+0.5)+ytvpeak+dd*gscl,psym=1,/device,col=0			;mark center of peak fit
+	plots,gscl*(A[2]+0.5)+xtvpeak,gscl*(A[3]+0.5)+ytvpeak+dd*gscl,psym=3,/device				;mark center of peak fit
+	xpos=(findgen(dd*gscl)/gscl-peakparams.A[2]-0.5)#replicate(1,dd*gscl)
+	ypos=replicate(1.,dd*gscl)#(findgen(dd*gscl)/gscl-peakparams.A[3]-0.5)
+	gausscenter=peakparams.A[1]*exp(-((xpos/newsigx)^2+(ypos/newsigy)^2)/2.)
+	;tvscl,gausscenter<255,xtvpeak,0
+	minclp=min(clip[PeakX-d:PeakX+d,PeakY-d:PeakY+d])
+	tv,50+scl_r*rebin(clip[PeakX-d:PeakX+d,PeakY-d:PeakY+d]-minclp,dd*gscl,dd*gscl,/sample)<255,xtvpeak,ytvpeak+2*dd*gscl		;tv slected residual after peak removal
+	xyouts,xtvpeak+dd*gscl/2,ytvpeak,string(fitOKq),/device,align=0.75
+endif
+return
+end
+;
+;------------------------------------------------------------------------------------
+;
 pro Showpeakparams, Apeakparams,Frameindx		;Create 3x3 matrix of plots of peak fitting params of a frame
 thisframe=where(Apeakparams.frameindex eq Frameindx,Npeaks)
 if thisframe[0] eq -1 then print, 'No Frames of that index'
@@ -659,6 +825,135 @@ if (DisplayType ne -1) then begin
 	xyouts,0.05,0.02,trash,/normal,col=0
 endif
 return,Apeakparams
+end
+;
+;------------------------------------------------------------------------------------
+;
+Function ParamsofShortStackofFrames_AstigmaticZ, data, DisplayType, thisfitcond, aa, framefirst
+; Similar to ParamsofShortStackofFrames, but Z is also extracted using known dependencies of Astigmatic gaussian widts on Z
+;DisplayType set to 0 - min display while fitting 1 - some display, 2 - full display,  3 - Cluster, 4 - GPU
+;
+xsz=thisfitcond.xsz													;number of x pixels
+ysz=thisfitcond.ysz													;number of y pixels
+Thresholdcriteria = thisfitcond.Thresholdcriteria					;threshold for smallest extracted and fitted peak
+szdata=size(data)
+dsz=xsz>ysz
+mgw=(dsz le 1024) ? 1024/dsz	:	1024./dsz
+if szdata[0] eq 2 then Nframes=1 else Nframes=szdata[3]
+if Nframes gt 1 then totdat=total(data[*,*,0:Nframes-1],3)/Nframes else totdat=data
+d = thisfitcond.MaskSize							;d=5.			half size of region of a selected peak
+																;setup twinkle structure with all the fitted peak information
+Gauss_sigma=thisfitcond.GaussSig
+MaxBlckSize=thisfitcond.MaxBlck+thisfitcond.MaskSize*2
+Tiling = ((xsz ge MaxBlckSize) or  (ysz ge MaxBlckSize))			; check if every frame needs to be split into tiles and processed separately
+if Tiling then totdat_copy=totdat
+peakparams = {twinkle_z, frameindex:0l, peakindex:0l, fitOK:1, peakx:0.0, peaky:0.0, peak_widx:0.0, peak_widy:0.0, A:fltarr(6), sigma:fltarr(6), chisq:0.0, Nphot:0l}
+peakparams.A=[0.0,1.0,d,d,0.,1.0]
+;	a(0) = A0 = constant term.
+;	a(1) = A1 = scale factor.
+;	a(2) = h = center X location.
+;	a(3) = k = center Y location.
+;	a(4) = Z location.
+;	a(5) = sigma-multiplier
+Peakparamsinitial=peakparams
+Apeakparams=peakparams
+trash=''
+if (DisplayType eq 0) or (DisplayType eq 2) then begin
+	trash=string(framefirst)+'#'
+	xyouts,0.85,0.92,trash,/normal		;0.85,0.92
+	xyouts,0.05,0.02,trash,/normal		;0.85,0.92
+endif
+for frameindx=0,Nframes-1 do begin
+	if (DisplayType eq -1) and (0 eq (frameindx mod 10)) then print,'Frameindex=',frameindx
+	if Nframes gt 1 then clip=reform(data[*,*,frameindx]) else clip=data
+	if (DisplayType ge 1) and ((frameindx mod 200) eq 0) then DisplaySet=2 else DisplaySet=DisplayType
+
+	If (DisplaySet gt 1) or (DisplaySet ge 1)*((frameindx mod 20) eq 1) then begin
+		xyouts,0.85,0.92,trash,/normal,col=0
+		xyouts,0.05,0.02,trash,/normal,col=0
+		trash=string(frameindx+framefirst)+'#'
+		if mgw ge 1 then		newframe=(rebin(clip,xsz*mgw,ysz*mgw,/sample)*600.0/max(clip))<255	$
+			else newframe=(congrid(clip,round(xsz*mgw),round(ysz*mgw))*600.0/max(clip))<255
+		tv,newframe							;intensity scaling Range = scl* # electrons
+		xyouts,0.85,0.92,trash,/normal		;0.85,0.92
+		xyouts,0.05,0.02,trash,/normal		;0.85,0.92
+	endif
+	mxcnt=thisfitcond.maxcnt1
+
+	ntiles=1
+
+	if Tiling then SplitClip, clip, totdat_copy, clip_tiles, totdat_tiles, tile_boundaries, new_xsz, new_ysz, Nx, Ny, Ntiles, thisfitcond
+	if Tiling then Prior_peaks=-1
+
+	for tileID=0,ntiles-1 do begin
+		mxcnt=thisfitcond.maxcnt1
+		if Tiling then begin
+			Apeakparams0=Apeakparams
+			clip = 	reform(clip_tiles[tileID,*,*])
+			totdat = reform(totdat_tiles[tileID,*,*])
+		endif
+		; in case of no tiling - old processing
+		; stop
+		FindPeaks, clip, totdat, d, Gauss_sigma, Thresholdcriteria, mxcnt, peakxa, peakya, maxpeakcriteria, criteria
+		NP=n_elements(peakxa)
+		if NP ge 1 then begin
+			A1peakparams=replicate(peakparams,NP)
+			for k=0, NP-1  do begin								;Fit the first NP peaks
+				peakparams=peakparamsinitial
+				peakparams.frameindex=frameindx+framefirst
+				peakparams.peakindex=k
+				peakx=peakxa[k]
+				peaky=peakya[k]
+				fita = [1,1,1,1,1,1]
+				Dispxy=[k,0]					;index of chosen frame
+				FindnWackaPeak_AstigZ, clip, d, peakparams, fita, result, thisfitcond, aa, DisplaySet, peakx, peaky, criteria, Dispxy, 0		;Find, fit, and remove the peak with biggest criteria
+				A1peakparams[k]=peakparams
+			endfor
+			if ((frameindx eq 0) or Tiling) then Apeakparams=A1peakparams else Apeakparams=[Apeakparams,A1peakparams]
+			if thisfitcond.maxcnt2 gt 0 then begin
+				mxcnt=thisfitcond.maxcnt2
+				FindPeaks, clip, totdat, d, Gauss_sigma, thresholdcriteria, mxcnt, peakxa, peakya, maxpeakcriteria, criteria
+				NP2=n_elements(peakxa) < thisfitcond.maxcnt2
+				if NP2 ge 1 then begin								;If there are more peak then fit them too.
+					A2peakparams=replicate(peakparams,NP2)
+					for k=0, NP2-1  do begin
+						peakparams=peakparamsinitial
+						peakparams.frameindex=frameindx+framefirst
+						peakparams.peakindex=k+NP
+						peakx=peakxa[k]
+						peaky=peakya[k]
+						fita = [1,1,1,1,1,1]
+						Dispxy=[k,0]					;index of chosen frame
+						FindnWackaPeak_AstigZ, clip, d, peakparams, fita, result, thisfitcond, aa, DisplaySet, peakx, peaky, criteria, Dispxy, 0		;Find, fit, and remove the peak with biggest criteria
+						A2peakparams[k]=peakparams
+					endfor
+					Apeakparams=[Apeakparams,A2peakparams]
+				endif
+			endif
+		;	if (DisplaySet gt 1) or ((DisplaySet eq 1) and ((frameindx mod 200) eq 0)) then begin
+		;		Showpeakparams_AstigZ, Apeakparams,frameindx+framefirst
+		;		wait,2*(DisplaySet eq 3)
+		;		tv,bytarr(1024,512)
+		;	endif
+		endif
+		if Tiling then AddTilePeaks,Apeakparams0,Apeakparams,tile_boundaries, TileID, new_xsz, new_ysz, Nx, Ny, Ntiles, Prior_peaks, thisfitcond
+	endfor
+endfor
+if (DisplayType ne -1) then begin
+	xyouts,0.85,0.92,trash,/normal,col=0
+	xyouts,0.05,0.02,trash,/normal,col=0
+endif
+; filter out junk
+; peakparams = {twinkle_z, frameindex:0l, peakindex:0l, fitOK:1, peakx:0.0, peaky:0.0, peak_widx:0.0, peak_widy:0.0, A:fltarr(6), sigma:fltarr(6), chisq:0.0, Nphot:0l}
+filter_a = where((Apeakparams.A[0] ge -100.0) and $
+				(Apeakparams.Peakx ge 0) and $
+				(Apeakparams.Peakx le thisfitcond.xsz) and $
+				(Apeakparams.Peaky ge 0) and $
+				(Apeakparams.Peaky le thisfitcond.ysz) and $
+				(Apeakparams.A[4] ge -2000.0) and $
+				(Apeakparams.A[4] le 2000.0) and  $
+				(Apeakparams.sigma[4] le 2000.0))
+return, Apeakparams[filter_a]
 end
 ;
 ;------------------------------------------------------------------------------------
@@ -1170,8 +1465,12 @@ dsz=xsz>ysz
 mg=((wxsz<wysz))/dsz
 
 if Nframes gt 1 then totdat=float(total(data[*,*,0L:Nframes-1L],3)/Nframes) else totdat=float(data)
-if thisfitcond.LocalizationMethod eq 0 then Apeakparams = ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+if thisfitcond.LocalizationMethod eq 0 then begin
+	if thisfitcond.SigmaSym le 1 then Apeakparams = ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+	if thisfitcond.SigmaSym ge 2 then Apeakparams = ParamsofShortStackofFrames_AstigmaticZ(data,DisplayType,thisfitcond,aa,framefirst)
+endif
 if thisfitcond.LocalizationMethod eq 1 then Apeakparams = ParamsofShortStackofFrames_SparseSampling(data,DisplayType,thisfitcond,framefirst)
+
 print,'ReadRawWorker: Finished ParamsofShortStackofFrames'
 mg=2
 loc=fltarr(xsz*mg,ysz*mg)
@@ -1347,6 +1646,7 @@ common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, Trans
 										;use SigmaSym as a flag to indicate xsigma and ysigma are not independent and locked together in the fit
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -1373,6 +1673,8 @@ SigNphY_ind = min(where(RowNames eq 'Sigma Y Pos rtNph'))				; CGroupParametersG
 SigX_ind = min(where(RowNames eq 'Sigma X Pos Full'))					; CGroupParametersGP[16,*] - x - sigma
 SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
 Ell_ind = min(where(RowNames eq 'XY Ellipticity'))						; CGroupParametersGP[43,*] - XY Ellipticity
+Z_ind = min(where(RowNames eq 'Z Position'))                            ; CGroupParametersGP[34,*] - Peak Z Position
+SigZ_ind = min(where(RowNames eq 'Sigma Z'))                            ; CGroupParametersGP[35,*] - Sigma Z
 
 if DisplayType eq 4 and (!CPU.HW_NCPU le 1) then DisplayType=0
 
@@ -1437,7 +1739,7 @@ if DisplayType eq 3 then begin 	;set to 3 (--> -1) - Cluster
 	td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
 	temp_dir=curr_pwd + sep + td
 	FILE_MKDIR,temp_dir
-	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, increment, nloops, filename = td + sep + 'temp.sav'		;save variables for cluster cpu access
+	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, aa, increment, nloops, filename = td + sep + 'temp.sav'		;save variables for cluster cpu access
 	ReadRawLoopCluster
 	file_delete,td + sep + 'temp.sav'
 	file_delete,td
@@ -1450,7 +1752,7 @@ endif else begin
 	cd,current=curr_pwd
 	temp_dir=curr_pwd+'/temp'
 	FILE_MKDIR,temp_dir
-	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, increment, nloops, filename='temp/temp.sav'		;save variables for cluster cpu access
+	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, aa, increment, nloops, filename='temp/temp.sav'		;save variables for cluster cpu access
 	ReadRawLoop_Bridge_Top
 	file_delete,'temp/temp.sav'
 	file_delete, temp_dir
@@ -1463,8 +1765,7 @@ endif else begin
 			framelast=((thisfitcond.Frm0 + (nlps+1L)*increment-1L)<thisfitcond.Nframesmax) < thisfitcond.FrmN
 			Nframes=(framelast-framefirst+1) 								;number of frames to extract in file
 			data=ReadData(thefile_no_exten,thisfitcond,framefirst,Nframes); Reads thefile and returns data (bunch of frames) in (units of photons)
-
-			if DisplayType eq 2 then Showframes, data,xsz,ysz,mgw, Nframes,scl						;Shows time movie of data
+			;if DisplayType eq 2 then Showframes, data,xsz,ysz,mgw, Nframes,scl						;Shows time movie of data
 
 			if Nframes gt 1 then totdat=float(total(data[*,*,0:Nframes-1],3)/Nframes) else totdat=float(data)
 			if DisplayType ge 1 then begin
@@ -1475,16 +1776,19 @@ endif else begin
 
 			;Get parameters of one bunch of frames
 			if thisfitcond.LocalizationMethod eq 0 then begin
-				if DisplayType lt 4 then Apeakparams=ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
-				if DisplayType eq 4 then begin
-					print,'loaded data block',nlps+1,'
-					t0 = SYSTIME(/SECONDS)
-					Apeakparams=ParamsofLongStackofFrames(data,DisplayType,thisfitcond,framefirst)
-				endif
+				if thisfitcond.SigmaSym le 1 then begin
+					if DisplayType lt 4 then Apeakparams=ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+					if DisplayType eq 4 then begin
+						print,'loaded data block',nlps+1,'
+						t0 = SYSTIME(/SECONDS)
+						Apeakparams=ParamsofLongStackofFrames(data,DisplayType,thisfitcond,framefirst)
+					endif
+				endif else begin
+					if DisplayType lt 4 then Apeakparams=ParamsofShortStackofFrames_AstigmaticZ(data,DisplayType,thisfitcond,aa,framefirst)
+				endelse
 			endif else if thisfitcond.LocalizationMethod eq 1 then begin
-				Apeakparams=ParamsofShortStackofFrames_SparseSampling(data,DisplayType,thisfitcond,framefirst)
+					Apeakparams=ParamsofShortStackofFrames_SparseSampling(data,DisplayType,thisfitcond,framefirst)
 			endif
-
 			;Apeakparams[*].frameindex+=framefirst						;adjust frame index to include batch offset
 			; no need to adjust, it is adjusted inside the ParamsofLongStackofFrames
 
@@ -1528,20 +1832,29 @@ CGroupParams=fltarr(CGrpSize,sz[1])
 CGroupParams[Off_ind:Amp_ind,*]=ApeakParams.A[0:1]
 CGroupParams[X_ind,*]=ApeakParams.peakx
 CGroupParams[Y_ind,*]=ApeakParams.peaky
-CGroupParams[Xwid_ind:Ywid_ind,*]=ApeakParams.A[2:3]
+if Chi_ind gt 0 then CGroupParams[Chi_ind,*]=ApeakParams.ChiSq
+if thisfitcond.SigmaSym le 1 then begin
+	CGroupParams[Xwid_ind:Ywid_ind,*]=ApeakParams.A[2:3]
+	if SigNphX_ind gt 0 then CGroupParams[SigNphX_ind:SigNphY_ind,*]=ApeakParams.Sigma2[4:5]
+	if Par12_ind gt 0 then CGroupParams[Par12_ind,*]=ApeakParams.A[2]*ApeakParams.A[3]
+	if SigAmp_ind gt 0 then CGroupParams[SigAmp_ind,*]=ApeakParams.Sigma2[1]
+	if SigX_ind gt 0 then CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams.Sigma2[2:3]
+	if Ell_ind gt 0 then CGroupParams[Ell_ind,*]=(ApeakParams.A[2]-ApeakParams.A[3])/(ApeakParams.A[2]+ApeakParams.A[3])
+endif else begin
+	CGroupParams[Xwid_ind,*] = ApeakParams.peak_widx
+	CGroupParams[Ywid_ind,*] = ApeakParams.peak_widy
+	if Z_ind gt 0 then CGroupParams[Z_ind,*]=ApeakParams.A[4]
+	if SigX_ind gt 0 then CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams.Sigma[2:3]
+	if SigZ_ind gt 0 then CGroupParams[SigZ_ind,*]=ApeakParams.Sigma[4]
+	if Ell_ind gt 0 then CGroupParams[Ell_ind,*]=(ApeakParams.peak_widx-ApeakParams.peak_widy)/(ApeakParams.peak_widx+ApeakParams.peak_widy)
+	if thisfitcond.SigmaSym eq 4 then if Par12_ind gt 0 then CGroupParams[Par12_ind,*]=ApeakParams.A[5]
+endelse
 CGroupParams[Nph_ind,*]=ApeakParams.NPhot
-CGroupParams[Chi_ind,*]=ApeakParams.ChiSq
+
 CGroupParams[FitOK_ind,*]=ApeakParams.FitOK
 CGroupParams[FrNum_ind,*]=ApeakParams.FrameIndex
 if PkInd_ind gt 0 then CGroupParams[PkInd_ind,*]=ApeakParams.PeakIndex
 if PkGlInd_ind gt 0 then CGroupParams[PkGlInd_ind,*]=dindgen(sz[1])
-if Par12_ind gt 0 then CGroupParams[Par12_ind,*]=ApeakParams.A[2]*ApeakParams.A[3]
-if SigAmp_ind gt 0 then CGroupParams[SigAmp_ind,*]=ApeakParams.Sigma2[1]
-if SigNphX_ind gt 0 then CGroupParams[SigNphX_ind:SigNphY_ind,*]=ApeakParams.Sigma2[4:5]
-if SigX_ind gt 0 then CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams.Sigma2[2:3]
-if Ell_ind gt 0 then CGroupParams[Ell_ind,*]=(ApeakParams.A[2]-ApeakParams.A[3])/(ApeakParams.A[2]+ApeakParams.A[3])
-;if CGrpSize ge 32 then CGroupParams[32,*]=ApeakParams.A[6]
-
 TotalRawData = totdat
 FlipRotate=replicate({frt,present:0B,transp:0B,flip_h:0B,flip_v:0B},3)
 NFrames=thisfitcond.Nframesmax    ;   long64(max(CGroupParams[9,*]))

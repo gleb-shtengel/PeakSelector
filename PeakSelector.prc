@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/31/2017 16:13.51
+; Generated on:	10/03/2017 13:22.27
 VERSION 1
 END
 
@@ -384,6 +384,10 @@ BEGIN
       VALUE "Re-number Group Peaks"
       ONACTIVATE "Renumber_Group_Peaks"
       END
+      W_MENU_Correct_GroupSigmaXYZ PUSHBUTTON 0 0 0 0
+      VALUE "Correct GroupSigmaXYZ (*1.414)"
+      ONACTIVATE "Correct_GroupSigmaXYZ"
+      END
     END
     W_MENU_9 PUSHBUTTON 0 0 0 0
     VALUE "Display"
@@ -412,6 +416,11 @@ BEGIN
       VALUE "Extend Color Bar"
       CHECKED_MENU
       ONACTIVATE "OnColorBar_Extend"
+      END
+      W_MENU_XYZ_diamonds PUSHBUTTON 0 0 0 0
+      VALUE "XYZ Plot: Use Diamonds"
+      CHECKED_MENU
+      ONACTIVATE "On_XYZ_use_diamonds"
       END
       W_MENU_Set_nm_per_pixel_scale PUSHBUTTON 0 0 0 0
       VALUE "Set nm/pixel Scale"

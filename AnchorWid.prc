@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/29/2017 04:56.56
+; Generated on:	08/29/2017 12:50.34
 VERSION 1
 END
 
@@ -149,11 +149,12 @@ BEGIN
   ALIGNLEFT
   END
   WID_DROPLIST_TRANSFORM_METHOD DROPLIST 208 8 226 26
-  NUMITEMS = 4
+  NUMITEMS = 5
+  ITEM "X-Y Shift Only"
   ITEM "Linear Regression"
   ITEM "POLYWARP"
-  ITEM "Affine"
-  ITEM "X-Y Shift Only"
+  ITEM "2D Affine"
+  ITEM "3D Affine"
   ONSELECT "Set_Transf_Method"
   END
   WID_LABEL_2 LABEL 19 4 193 18

@@ -14,33 +14,185 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-PRO AFFINE_SOLVE_GS, DatFid, TargFid, P, Q
+pro Complex_Linear_Regression, Zi, Zo, P,Q, Mag			; GES 04.14.09, linear regression routine to claculate least sqare linear fit in complex space
+; Assuming Zi=A*Zo+B
+; Then use regression conditions:
+;  Sum(Zi)=A*Sum(Zo)+B*N,   where N is the number of elements in Zi (and Zo)
+;  Sum(Zi*c.c.(Zo))=A*Sum(Zo*c.c.(Zo))+B*Sum(c.c.(Zo))		, where c.c. is complex conjugate
+
+	b1=total(Zi)
+	b2=transpose(conj(Zo)) # Zi
+	b=[b1,b2]
+
+	a11=N_ELEMENTS(Zo)
+	a12=total(Zo)
+	a21=conj(a12)
+	a22=transpose(conj(Zo)) # Zo
+	a=[[a11,a12],[a21,a22]]
+
+	Compl_Regr = LU_COMPLEX(a,b)		; Compl_Regr[1] - rotation and zoom,  Compl_Regr[0] - shift, real part for X, imaginary for Y
+
+	P=DBLARR(2,2);
+	Q=P
+
+	P[0,0] = REAL_PART(Compl_Regr[0])
+	P[0,1] = REAL_PART(Compl_Regr[1])
+	P[1,0] = -1 * IMAGINARY(Compl_Regr[1])
+
+	Q[0,0] = IMAGINARY(Compl_Regr[0])
+	Q[0,1] = -1 * P[1,0]
+	Q[1,0] = P[0,1]
+
+	Mag=abs(Compl_Regr[1])
+end
 ;
-;    Created: G.Shtengel. July 2017
+;-----------------------------------------------------------------
+;
+PRO AFFINE_SOLVE_GS, Data, Target, R, c, P, Q, Err_mean
+;
+;    Created: G.Shtengel. Aug 2017
+;
+; NAME:
+;	AFFINE_SOLVE_GS
+;
+; PURPOSE:
+;	Calculate the parameters of a general affine image
+;       transformation given a set of points from two images:
+;       one of the images is assumed to be the reference image,
+;       the other is assumed to be an image translated, rotated,
+;       scaled, and possibly sheared relative to the reference image.
+;
 ;
 ;    uses linear regression to find affine transformation coefficoents such that
-;		DatFid = [X, Y]
-;		TargFid = [X', Y']
+;		Data = [X, Y]
+;		Target = [X', Y']
 ;
-;		| X'|		| a11 a12 tx |	 |X|
-;		| Y'|	= 	| a21 a22 ty | * |Y|
+;		Target = R * Data + C
+;
+;------------ 2D case----------------------------------
+;		| X'|		| R00 R10 Cx |	 |X|
+;		| Y'|	= 	| R01 R11 Cy | * |Y|
 ;		| 1 |		|  0   0  1	 |	 |1|
 ;
-;  In IDL notation, the output is given by vectors P and Q, such that
-;	X' = P00 + P01*X + P10*Y
-;   Y' = Q00 + Q01*X + Q10*Y
+;  		In IDL notation, the output is given by vectors P and Q, such that
+;		X' = P[0,0] + P[0,1]*X + P[1,0]*Y
+;   	Y' = Q[0,0] + Q[0,1]*X + Q[1,0]*Y
 ;
-;	so	P00=tx   P01=a11  P10=a12, and P11=0
-;		Q00=ty   Q01=a21  Q10=a22, and Q11=0
+;		P00=Cx   P01=R00  P10=R10, and P11=0
+;		Q00=Cy   Q01=R01  Q10=R11, and Q11=0
+;-------------------------------------------------------
 ;
+; CALLING SEQUENCE:
+;	AFFINE_SOLVE_GS, Data, Target, R, c, P, Q, Err_mean, VERBOSE=blab
+;
+; INPUTS:
+;	Data:    nxM dimensional array of points taken from image1
+;               which correspond to the same points in the reference image.
+;               M is the number of points.
+;
+;	Target:   nxM dimensional array of points from the "reference image"
+;               which correspond to points in the image.
+;
+; KEYWORDS:
+;       VERBOSE: If set, print the transformation elements to the screen.
+;
+; OUTPUTS:
+;       R - rotation, scaling and shear
+;		c - shift
+;
+;	P and Q are corresponding coefficients that can be later used for transforming the set of points using polywarp
 
-	X0=reform(DatFid[0,*])
-	Y0=reform(DatFid[1,*])
-	X1=reform(TargFid[0,*])
-	Y1=reform(TargFid[1,*])
+; COMMON BLOCKS:
+;	None.
+;
+; SIDE EFFECTS:
+;	None.
+;
+; RESTRICTIONS:
+;	M, the number of matched points in the transformed and reference
+;       images should be large (greater than 20), should be taken from
+;       widely spaced locations in the image field-of-view, and should
+;       be measured to within 1-pixel for greatest accuracy.
+;
+;       Off-center rotation and translation require a two-stage approach
+;       for image registration. i.e. in the first stage, apply the parameters
+;       given by this routine to the test image. A second set of points
+;       is then selected from the image and the reference image, and
+;       a second run of this program should output a final translation
+;       to be applied to the test image to bring it in registration with
+;       the reference image. This is tested for and the user is alerted.
+;
+; PROCEDURE:
+;	Using least squares estimation, determine the elements
+;       of the general affine transformation (rotation and/or scaling
+;       and/or translation and/or shearing) of an image onto a reference
+;       image.
+;
+;	See:	Image Processing for Scientific Applications
+;               Bernd J"ahne, 	CRC Press, 1997, Chapter 8.
+;
+;	See: "Affine registration", Moo K.Chung, October 7, 2012
+;
+ON_ERROR,2
 
-	XpX=[matrix_multiply(X0,X1)]
+n1 = (SIZE(Data))(1)
+n2 = (SIZE(Target))(1)
 
+if n2 ne n1 then begin
+    MESSAGE,'Number of points must be the same in both input arrays'
+    RETURN
+end
+
+ones=dblarr(n1)+1.0
+Dp=[[Data],[ones]]
+Tp=[[Target],[ones]]
+Rc = matrix_multiply(INVERT(matrix_multiply(Dp,Dp,/ATRANSPOSE),/DOUBLE),matrix_multiply(Tp,Dp,/ATRANSPOSE),/BTRANSPOSE)
+
+dim=(size(Rc))[1]-1
+R = Rc[0:(dim-1),0:(dim-1)]
+c = Rc[dim,0:(dim-1)]
+
+if dim eq 2 then begin
+	P = dblarr(2,2)
+	Q=P
+	P[0,0] = c[0]
+	Q[0,0] = c[1]
+	P[0,1] = R[0,0]
+	P[1,0] = R[1,0]
+	Q[0,1] = R[0,1]
+	Q[1,0] = R[1,1]
+endif
+
+Err_mean = 0.0
+
+verbose=0
+if VERBOSE then begin
+	print,'Rotation/scaling matrix: ', R
+	print,'Shift matrix: ', c
+	print, 'Average Registration Error: ', Err_mean
+endif
+RETURN
+
+END
+;
+;-----------------------------------------------------------------
+;
+pro AFFINE_Transform_GS, Data, Output, R, c
+ PURPOSE:
+;	Transform the given set of points according to affine transformation coefficients
+;	works in 2D and 3D case
+;
+;		Output = R * Data + C
+;
+n1 = (SIZE(Data))[1]
+n2 = (SIZE(Data))[2]
+ones=dblarr(n1)+1.0
+Dp=[[Data],[ones]]
+pad=dblarr(n2+1)
+pad[n2]=1.0
+Rc=[[R,c],[pad]]
+Output_padded = matrix_multiply(Dp,Rc)
+Output = Output_padded[0:(n1-1),0:(n2-1)]
 end
 ;
 ;-----------------------------------------------------------------
@@ -48,7 +200,7 @@ end
 pro DoDataFidtoTargetFid, LabelToTransform,LabelTarget,Event		;Map data with data fiducials onto target fiducials Modify CGroupparam-xy & Record Coeff
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -117,90 +269,35 @@ if (n_fid_lbl ne 4) and (n_fid_lbl ne 6) then begin	; stop if the above is not t
 	return
 endif
 
-;only one point just shift
-if  (fid0_cnt eq 1) or (Transf_Meth eq 3)  then begin
-print,'calculating single fiducial shift transformation'
+; just shift
+if  (Transf_Meth eq 0) then begin
+	if (fid0_cnt lt 1) then begin
+		z=dialog_message('X-Y shift requires at least 1 pair of fiducials, you have only '+string(fid0_cnt))
+		return
+	endif
+	print,'calculating single fiducial shift transformation'
 	dX = mean(Xi - Xo)
 	dY = mean(Yi - Yo)
 	CGroupParams[X_ind,indecis] = (CGroupParams[X_ind,indecis] + dX)>0
 	CGroupParams[Y_ind,indecis] = (CGroupParams[Y_ind,indecis] + dY)>0
 	CGroupParams[GrX_ind,indecis] = (CGroupParams[GrX_ind,indecis] + dX)>0
 	CGroupParams[GrY_ind,indecis] = (CGroupParams[GrY_ind,indecis] + dY)>0
-	FiducialCoeff[LabelToTransform-1].P=[[-1*dX,0],[1,0]]
-	FiducialCoeff[LabelToTransform-1].Q=[[-1*dY,1],[0,0]]
+	P=[[-1*dX,0],[1,0]]
+	Q=[[-1*dY,1],[0,0]]
 endif
 
-
-;only two points (shift mag and tilt)
-if (fid0_cnt eq 2) and (Transf_Meth ne 3) then begin
-print,'calculating 2-fiducial shift mag and tilt transformation'
-	D_DatFid=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)				;distance between dat fiducials
-	D_TargFid=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between target fiducials
-	Mag=D_TargFid/D_DatFid														;mag is ratio of target dist to dat distance
-	AngleDatFid=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for dat fiducial vector
-	AngleTargFid=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))				;angle for target fiducial vector
-	DeltaAngle=AngleTargFid-AngleDatFid
-	X=CGroupParams[X_ind,indecis]
-	Y=CGroupParams[Y_ind,indecis]
-	CGroupParams[X_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)>0
-	CGroupParams[Y_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)>0
-	X=CGroupParams[GrX_ind,indecis]
-	Y=CGroupParams[GrY_ind,indecis]
-	CGroupParams[GrX_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)>0
-	CGroupParams[GrY_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)>0
-
-	Pi=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
-		[Mag*cos(DeltaAngle),0]]
-	Qi=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
-		[Mag*sin(DeltaAngle),0]]
-
-	PQi=[[Pi[0,1],Qi[0,1]],[Pi[1,0],Qi[1,0]]]
-	ABi=[Pi[0,0],Qi[0,0]]
-	PQ=INVERT(PQi)
-	AB=PQ#ABi
-	FiducialCoeff[LabelToTransform-1].P=[[-AB[0],PQ[0,1]],[PQ[0,0],0]]
-	FiducialCoeff[LabelToTransform-1].Q=[[-AB[1],PQ[1,1]],[PQ[1,0],0]]
-endif
-
-
-;only three points (shift to 0th fiducial use averaged mag and tilt)
-if Transf_Meth eq 2 then begin
-	;print,'calculating 3-fiducial (shift to 0th fiducial use averaged mag and tilt) transformation'
-	;D_DatFid1=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)			;distance between first dat fiducial pair
-	;D_TargFid1=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between first target fiducial pair
-	;D_DatFid2=sqrt((XDat0-DatFid[0,2])^2	+ (YDat0-DatFid[1,2])^2)			;distance between second dat fiducial pair
-	;D_TargFid2=sqrt((XTarg0-TargFid[0,2])^2 + (YTarg0-TargFid[1,2])^2)			;distance between second target fiducial pair
-	;Mag=0.5*(D_TargFid1/D_DatFid1+D_TargFid2/D_DatFid2)							;mag is averaged ratio of target dist to dat distance
-	;AngleDatFid1=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for first dat fiducial vector
-	;AngleTargFid1=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))			;angle for first target fiducial vector
-	;AngleDatFid2=atan((DatFid[1,2]-YDat0), (DatFid[0,2]-XDat0))					;angle for first dat fiducial vector
-	;AngleTargFid2=atan((TargFid[1,2]-YTarg0), (TargFid[0,2]-XTarg0))			;angle for first target fiducial vector
-	;DeltaAngle=0.5*(AngleTargFid1-AngleDatFid1 + AngleTargFid2-AngleDatFid2)	;delta angle is averaged delta of dat to target vectors
-	;X=CGroupParams[X_ind,indecis]
-	;Y=CGroupParams[Y_ind,indecis]
-	;CGroupParams[X_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)
-	;CGroupParams[Y_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)
-	;X=CGroupParams[GrX_ind,indecis]
-	;Y=CGroupParams[GrY_ind,indecis]
-	;CGroupParams[GrX_ind,indecis]=(Mag*(cos(DeltaAngle)*(X-XDat0)-sin(DeltaAngle)*(Y-YDat0))+XTarg0)
-	;CGroupParams[GrY_ind,indecis]=(Mag*(cos(DeltaAngle)*(Y-YDat0)+sin(DeltaAngle)*(X-XDat0))+YTarg0)
-
-	;Pi=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
-	;	[Mag*cos(DeltaAngle),0]]
-	;Qi=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
-	;	[Mag*sin(DeltaAngle),0]]
-
-	;PQi=[[Pi[0,1],Qi[0,1]],[Pi[1,0],Qi[1,0]]]
-	;ABi=[Pi[0,0],Qi[0,0]]
-	;PQ=INVERT(PQi)
-	;AB=PQ#ABi
-	;FiducialCoeff[LabelToTransform-1].P=[[-AB[0],PQ[0,1]],[PQ[0,0],0]]
-	;FiducialCoeff[LabelToTransform-1].Q=[[-AB[1],PQ[1,1]],[PQ[1,0],0]]
-
-	print,'Calculating affine transformation'
-	xin = transpose(DatFid[*,anc_ind])
-	xpin = transpose(TargFid[*,anc_ind])
-	AFFINE_SOLVE, xin, xpin, P, Q, xb, mx, my, sx, theta, xc, yc, verbose=0
+; linear regression for complex linear Fit:   Zi=M*Zo+N
+if  (Transf_Meth eq 1)  then begin
+	if (fid0_cnt lt 3) then begin
+		z=dialog_message('linear regression requires at least 3 pars of fiducials, you have only '+string(fid0_cnt))
+		return
+	endif
+	XYo=complex(Xo,Yo)
+	XYi=complex(Xi,Yi)
+	print,'calculating ',n_elements(Xo),'   fiducial linear regression transformation'
+	Zi=XYi
+	Zo=XYo
+	Complex_Linear_Regression, Zi, Zo, P,Q, Mag
 	X=CGroupParams[X_ind,indecis]
 	Y=CGroupParams[Y_ind,indecis]
 	CGroupParams[X_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0
@@ -209,16 +306,17 @@ if Transf_Meth eq 2 then begin
 	Y=CGroupParams[GrY_ind,indecis]
 	CGroupParams[GrX_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0
 	CGroupParams[GrY_ind,indecis]= (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)>0
+	Zi=XYo
+	Zo=XYi
+	Complex_Linear_Regression, Zi, Zo, P,Q, Mag		; transformation for actual data is inverse of that for the fiducials
+endif												; see the difference betweem POLY_2D and POLYWRAP
 
-	; transformation for actual data is inverse of that for the fiducials, see the difference betweem POLY_2D and POLYWRAP
-	AFFINE_SOLVE, xpin, xin, P, Q, xb, mx, my, sx, theta, xc, yc, verbose=0
-	FiducialCoeff[LabelToTransform-1].P=P
-	FiducialCoeff[LabelToTransform-1].Q=Q
-endif
-
-
-;only four points (shift mag and tilt,skew,diffxymag)
-if  (fid0_cnt ge 3) and (Transf_Meth eq 1) then begin
+; POLYWARP
+if  (Transf_Meth eq 2) then begin
+	if (fid0_cnt lt 3) then begin
+		z=dialog_message('POLYWARP requires at least 3 pars of fiducials, you have only '+string(fid0_cnt))
+		return
+	endif
 	print,'calculating ',n_elements(Xo),'   polywarp transformation'
 	polywarp,Xi,Yi,Xo,Yo,PW_deg,Kx,Ky				;Xi=sum(kxij#Xo^jYo^i)   Yi=sum(kyij#Xo^jYo^i)
 	X=CGroupParams[X_ind,indecis]
@@ -248,22 +346,22 @@ if  (fid0_cnt ge 3) and (Transf_Meth eq 1) then begin
 	polywarp,Xo,Yo,Xi,Yi,PW_deg,FP,FQ				;Xi=sum(kxij#Xo^jYo^i)   Yi=sum(kyij#Xo^jYo^i)
 	; transformation for actual data is inverse of that for the fiducials, see the difference betweem POLY_2D and POLYWRAP
 	if ((size(FP))[0] eq (size(FiducialCoeff[LabelToTransform-1].P))[0]) and ((size(FP))[1] eq (size(FiducialCoeff[LabelToTransform-1].P))[1])then begin
-		FiducialCoeff[LabelToTransform-1].P=FP
-		FiducialCoeff[LabelToTransform-1].Q=FQ
+		P=FP
+		Q=FQ
 	endif
 endif
 
-
-; Perform linear regression for complex linear Fit:   Zi=M*Zo+N
-if  (fid0_cnt ge 3) and (Transf_Meth eq 0) then begin
-	XYo=complex(Xo,Yo)
-	XYi=complex(Xi,Yi)
-	print,'calculating ',n_elements(Xo),'   fiducial linear regression transformation'
-
-	Zi=XYi
-	Zo=XYo
-	Complex_Linear_Regression, Zi, Zo, P,Q, Mag
-
+; Affine 2D
+if Transf_Meth eq 3 then begin
+	if (fid0_cnt lt 3) then begin
+		z=dialog_message('Affine 2D transformation requires at least 3 pars of fiducials, you have only '+string(fid0_cnt))
+		return
+	endif
+	print,'Calculating 2D affine transformation'
+	xin = transpose(DatFid[*,anc_ind])
+	xpin = transpose(TargFid[*,anc_ind])
+	;AFFINE_SOLVE, xin, xpin, P, Q, xb, mx, my, sx, theta, xc, yc, verbose=0
+	AFFINE_SOLVE_GS, xin, xpin, R, c, P, Q, Err_mean
 	X=CGroupParams[X_ind,indecis]
 	Y=CGroupParams[Y_ind,indecis]
 	CGroupParams[X_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0
@@ -272,24 +370,52 @@ if  (fid0_cnt ge 3) and (Transf_Meth eq 0) then begin
 	Y=CGroupParams[GrY_ind,indecis]
 	CGroupParams[GrX_ind,indecis]= (P[0,0]+P[0,1]*X+P[1,0]*Y)>0
 	CGroupParams[GrY_ind,indecis]= (Q[0,0]+Q[0,1]*X+Q[1,0]*Y)>0
-
-	Zi=XYo
-	Zo=XYi
-	Complex_Linear_Regression, Zi, Zo, P,Q, Mag		; transformation for actual data is inverse of that for the fiducials
-													; see the difference betweem POLY_2D and POLYWRAP
-	FiducialCoeff[LabelToTransform-1].P=P
-	FiducialCoeff[LabelToTransform-1].Q=Q
+	;AFFINE_SOLVE, xpin, xin, P, Q, xb, mx, my, sx, theta, xc, yc, verbose=0
+	AFFINE_SOLVE_GS, xpin, xin, R, c, P, Q, Err_mean
 endif
+
+; Affine 3D
+if Transf_Meth eq 4 then begin
+	if (fid0_cnt lt 4) then begin
+		z=dialog_message('Affine 3D transformation requires at least 4 pars of fiducials, you have only '+string(fid0_cnt))
+		return
+	endif
+	if (total(DatZ) eq 0) then begin
+		z=dialog_message('Affine 3D transformation requires Z-fiducuials, none entered')
+		return
+	endif
+	print,'Calculating 3D affine transformation'
+	xin = [[transpose(DatFid[*,anc_ind])],[DatZ[anc_ind]]]
+	xpin = [[transpose(TargFid[*,anc_ind])],[TargZ[anc_ind]]]
+	AFFINE_SOLVE_GS, xin, xpin, R, c, P, Q, Err_mean
+	In_arr = transpose([CGroupParams[X_ind,indecis],CGroupParams[Y_ind,indecis],CGroupParams[Z_ind,indecis]])
+	AFFINE_Transform_GS, In_arr, Out_arr, R, c
+	CGroupParams[X_ind,indecis] = Out_arr[*,0]
+	CGroupParams[Y_ind,indecis] = Out_arr[*,1]
+	CGroupParams[Z_ind,indecis] = Out_arr[*,2]
+	In_arr = transpose([CGroupParams[GrX_ind,indecis],CGroupParams[GrY_ind,indecis],CGroupParams[GrZ_ind,indecis]])
+	AFFINE_Transform_GS, In_arr, Out_arr, R, c
+	CGroupParams[GrX_ind,indecis] = Out_arr[*,0]
+	CGroupParams[GrY_ind,indecis] = Out_arr[*,1]
+	CGroupParams[GrZ_ind,indecis] = Out_arr[*,2]
+
+	; placeholder - save 2D transformations
+	xin = transpose(DatFid[*,anc_ind])
+	xpin = transpose(TargFid[*,anc_ind])
+	AFFINE_SOLVE_GS, xpin, xin, R, c, P, Q, Err_mean
+endif
+
+FiducialCoeff[LabelToTransform-1].P=P
+FiducialCoeff[LabelToTransform-1].Q=Q
 print,'P=',FiducialCoeff[LabelToTransform-1].P
 print,'Q=',FiducialCoeff[LabelToTransform-1].Q
 
-
-; if checked, and Z data exists do Z-alignement
+; if checked (and NOT 3D affine), and Z data exists do Z-alignement
 Align_Z_TipTilt_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_TipTilt')
 Align_Z_TipTilt=widget_info(Align_Z_TipTilt_button_id,/button_set)
 Align_Z_Shift_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_Shift')
 Align_Z_Shift=widget_info(Align_Z_Shift_button_id,/button_set)
-Align_Z = Align_Z_TipTilt or Align_Z_Shift
+Align_Z = (Align_Z_TipTilt or Align_Z_Shift) and (Transf_Meth ne 4)
 
 if (total(DatZ) ne 0) and Align_Z then begin
 	Zo=DatZ[anc_ind]
@@ -318,7 +444,6 @@ if (total(DatZ) ne 0) and Align_Z then begin
 		CGroupParams[GrZ_ind,indecis] = CGroupParams[GrZ_ind,indecis] + ZGrdelta
 	endelse
 endif
-
 
 ; reset the image size and transform TotalRaw in the case of a singe label
 if LTT le 1 then begin
@@ -426,41 +551,6 @@ endif
 
 return
 end
-;
-;
-pro Complex_Linear_Regression, Zi, Zo, P,Q, Mag			; GES 04.14.09, linear regression routine to claculate least sqare linear fit in complex space
-; Assuming Zi=A*Zo+B
-; Then use regression conditions:
-;  Sum(Zi)=A*Sum(Zo)+B*N,   where N is the number of elements in Zi (and Zo)
-;  Sum(Zi*c.c.(Zo))=A*Sum(Zo*c.c.(Zo))+B*Sum(c.c.(Zo))		, where c.c. is complex conjugate
-
-	b1=total(Zi)
-	b2=transpose(conj(Zo)) # Zi
-	b=[b1,b2]
-
-	a11=N_ELEMENTS(Zo)
-	a12=total(Zo)
-	a21=conj(a12)
-	a22=transpose(conj(Zo)) # Zo
-	a=[[a11,a12],[a21,a22]]
-
-	Compl_Regr = LU_COMPLEX(a,b)		; Compl_Regr[1] - rotation and zoom,  Compl_Regr[0] - shift, real part for X, imaginary for Y
-
-	P=DBLARR(2,2);
-	Q=P
-
-	P[0,0] = REAL_PART(Compl_Regr[0])
-	P[0,1] = REAL_PART(Compl_Regr[1])
-	P[1,0] = -1 * IMAGINARY(Compl_Regr[1])
-
-	Q[0,0] = IMAGINARY(Compl_Regr[0])
-	Q[0,1] = -1 * P[1,0]
-	Q[1,0] = P[0,1]
-
-	Mag=abs(Compl_Regr[1])
-end
-
-;
 ;
 ;-----------------------------------------------------------------
 ;
@@ -1073,7 +1163,7 @@ Align_Z_TipTilt_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_
 Align_Z_TipTilt=widget_info(Align_Z_TipTilt_button_id,/button_set)
 Align_Z_Shift_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Align_Z_Shift')
 Align_Z_Shift=widget_info(Align_Z_Shift_button_id,/button_set)
-Align_Z = Align_Z_TipTilt or Align_Z_Shift
+Align_Z = Align_Z_TipTilt or Align_Z_Shift or (Transf_Meth eq 4)
 if Align_Z then begin
 	openw,1,(AnchorFile+'z'),width=512
 	printf,1,ZPnts
@@ -1503,11 +1593,15 @@ endif
 AnchorPnts_new=dblarr(6,AnchPnts_MaxNum)
 Anc_valid_indecis=intarr(AnchPnts_MaxNum)
 for i=0,(n_peaks-1) do begin
-	Anc_valid_indecis[i]=1
+	Anc_valid_indecis[fid[i]]=1
 	for lbl_index=1,l_max do begin
-		if (AnchorPnts[(lbl_index-1)*2,i] lt 0.0001) then  Anc_valid_indecis[i]=0
+		if (AnchorPnts[(lbl_index-1)*2,fid[i]] lt 0.0001) then  begin
+			Anc_valid_indecis[fid[i]]=0
+			print,Anc_valid_indecis[0:10]
+		endif
 	endfor
 endfor
+print,Anc_valid_indecis[0:10]
 matched_indecis=where(Anc_valid_indecis,matched_cnt)
 AnchorPnts_new[*,0:(matched_cnt-1)] = AnchorPnts[*,matched_indecis]
 AnchorPnts = AnchorPnts_new
@@ -1678,7 +1772,7 @@ end
 pro TestFiducialTransformation_Single, Event, LabelToTransform, LabelTarget, Transform_Error
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -1728,7 +1822,6 @@ if (n_fid_lbl ne 4) and (n_fid_lbl ne 6) then begin	; stop if the above is not t
 	return
 endif
 
-
 Xo=reform(DatFid[0,anc_ind])
 Yo=reform(DatFid[1,anc_ind])
 Xi=reform(TargFid[0,anc_ind])
@@ -1736,68 +1829,67 @@ Yi=reform(TargFid[1,anc_ind])
 Transform_Error=dblarr(anc_cnt)
 if (n_elements(PW_deg) eq 0) then PW_deg=1
 
-if  (Transf_Meth eq 0) and (fid0_cnt ge 3) then begin
-print,'Testing linear regression for complex linear Fit:   Zi=M*Zo+N'
-	XYo=complex(Xo,Yo)
-	XYi=complex(Xi,Yi)
-	print,'calculating ',n_elements(Xo),'   fiducial linear regression transformation'
-	Zi=XYi
-	Zo=XYo
-	Complex_Linear_Regression, Zi, Zo, P,Q, Mag
-	print,'Magnification= ', Mag
-endif else begin
-	;only one point just shift
-	if  (Transf_Meth eq 3) then begin
-		print,'testing single fiducial shift transformation'
-		P=[[mean(XTarg0)-XDat0,0],[1,0]]
-		Q=[[mean(YTarg0)-YDat0,1],[0,0]]
-	endif
-	;only two points (shift mag and tilt)
-	;if (fid0_cnt eq 2) and ((fid_tot_cnt eq 8) or (fid_tot_cnt eq 12)) then begin
-  	;	print,'testing 2-fiducial shift mag and tilt transformation'
-	;	D_DatFid=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)				;distance between dat fiducials
-	;	D_TargFid=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between target fiducials
-	;	Mag=D_TargFid/D_DatFid														;mag is ratio of target dist to dat distance
-	;	AngleDatFid=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for dat fiducial vector
-	;	AngleTargFid=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))				;angle for target fiducial vector
-	;	DeltaAngle=AngleTargFid-AngleDatFid
-	;	P=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
-	;		[Mag*cos(DeltaAngle),0]]
-	;	Q=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
-	;		[Mag*sin(DeltaAngle),0]]
-	;endif
-
-	;only three points (shift to 0th fiducial use averaged mag and tilt)
-	if (Transf_Meth eq 2) and (fid0_cnt ge 3) then begin
-;		print,'testing 3-fiducial (shift to 0th fiducial use averaged mag and tilt) transformation'
-;		D_DatFid1=sqrt((XDat0-DatFid[0,1])^2	+ (YDat0-DatFid[1,1])^2)			;distance between first dat fiducial pair
-;		D_TargFid1=sqrt((XTarg0-TargFid[0,1])^2 + (YTarg0-TargFid[1,1])^2)			;distance between first target fiducial pair
-;		D_DatFid2=sqrt((XDat0-DatFid[0,2])^2	+ (YDat0-DatFid[1,2])^2)			;distance between second dat fiducial pair
-;		D_TargFid2=sqrt((XTarg0-TargFid[0,2])^2 + (YTarg0-TargFid[1,2])^2)			;distance between second target fiducial pair
-;		Mag=0.5*(D_TargFid1/D_DatFid1+D_TargFid2/D_DatFid2)							;mag is averaged ratio of target dist to dat distance
-;		AngleDatFid1=atan((DatFid[1,1]-YDat0), (DatFid[0,1]-XDat0))					;angle for first dat fiducial vector
-;		AngleTargFid1=atan((TargFid[1,1]-YTarg0), (TargFid[0,1]-XTarg0))			;angle for first target fiducial vector
-;		AngleDatFid2=atan((DatFid[1,2]-YDat0), (DatFid[0,2]-XDat0))					;angle for first dat fiducial vector
-;		AngleTargFid2=atan((TargFid[1,2]-YTarg0), (TargFid[0,2]-XTarg0))			;angle for first target fiducial vector
-;		DeltaAngle=0.5*(AngleTargFid1-AngleDatFid1 + AngleTargFid2-AngleDatFid2)	;delta angle is averaged delta of dat to target vectors
-;		P=[[XTarg0-Mag*(XDat0*cos(DeltaAngle)-YDat0*sin(DeltaAngle)),-Mag*sin(DeltaAngle)],$
-;			[Mag*cos(DeltaAngle),0]]
-;		Q=[[YTarg0-Mag*(YDat0*cos(DeltaAngle)+XDat0*sin(DeltaAngle)),Mag*cos(DeltaAngle)],$
-;			[Mag*sin(DeltaAngle),0]]
-		print,'Testing affine transformation'
-		xin = transpose(DatFid[*,anc_ind])
-		xpin = transpose(TargFid[*,anc_ind])
-		AFFINE_SOLVE, xin, xpin, P, Q, xb, mx, my, sx, theta, xc, yc, verbose=0
+if Transf_Meth ne 4 then begin;   All but 3D affine transformation
+	;--------------------------------------------------------
+	; X-Y shift only
+	if  (Transf_Meth eq 0) then begin
+		if (fid0_cnt lt 1) then begin
+			z=dialog_message('X-Y shift requires at least 1 pair of fiducials, you have only '+string(fid0_cnt))
+				return
+		endif
+		print,'Testing X-Y shift only'
+		dX = mean(Xi - Xo)
+		dY = mean(Yi - Yo)
+		P=[[-1*dX,0],[1,0]]
+		Q=[[-1*dY,1],[0,0]]
 	endif
 
-	;only four points (shift mag and tilt,skew,diffxymag)
-	if  (Transf_Meth eq 1) and (fid0_cnt ge 3) then begin
-		print,	'testing polywarp transformation'
+	;--------------------------------------------------------
+	; linear regression for complex linear Fit:   Zi=M*Zo+N
+	if  (Transf_Meth eq 1)  then begin
+		if (fid0_cnt lt 3) then begin
+			z=dialog_message('linear regression requires at least 3 pars of fiducials, you have only '+string(fid0_cnt))
+			return
+		endif
+		print,'Testing linear regression for complex linear Fit:   Zi=M*Zo+N'
+		XYo=complex(Xo,Yo)
+		XYi=complex(Xi,Yi)
+		print,'calculating ',n_elements(Xo),'   fiducial linear regression transformation'
+		Zi=XYi
+		Zo=XYo
+		Complex_Linear_Regression, Zi, Zo, P,Q, Mag
+		print,'Magnification= ', Mag
+	endif
+
+	;--------------------------------------------------------
+	; POLYWARP
+	if  (Transf_Meth eq 2) then begin
+		if (fid0_cnt lt 3) then begin
+			z=dialog_message('POLYWARP requires at least 3 pars of fiducials, you have only '+string(fid0_cnt))
+			return
+		endif
+		print,'Testing POLYWARP transformation'
 		print,'PW_deg=',pw_deg
 		polywarp,Xi,Yi,Xo,Yo,PW_deg,P,Q				;Xi=sum(kxij#Xo^jYo^i)   Yi=sum(kyij#Xo^jYo^i)
 	endif
-endelse
-	print,P,Q
+
+	;--------------------------------------------------------
+	; Affine 2D
+	if Transf_Meth eq 3 then begin
+		if (fid0_cnt lt 3) then begin
+			z=dialog_message('Affine 2D transformation requires at least 3 pars of fiducials, you have only '+string(fid0_cnt))
+			return
+		endif
+		print,'Testing 2D affine transformation'
+		xin = transpose(DatFid[*,anc_ind])
+		xpin = transpose(TargFid[*,anc_ind])
+		AFFINE_SOLVE_GS, xin, xpin, R, c, P, Q, Err_mean
+	endif
+
+	;--------------------------------------------------------
+	; calculate registration errors now
+	print,'P: ',P
+	print,'Q: ',Q
 	X1=Xo*0.0
 	Y1=X1
 	pdeg = (size(p))[1]-1
@@ -1807,10 +1899,15 @@ endelse
 			Y1 = Y1+Q[yj,xj]*(Xo^xj)*(Yo^yj)
 		endfor
 	endfor
-
     Xerror=X1-Xi
     Yerror=Y1-Yi
+
 	Transform_Error=sqrt(Xerror*Xerror+Yerror*Yerror)*nm_per_pixel
+	transf_scl=sqrt(P[1,0]^2+P[0,1]^2)
+	Adj_Scl_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Adj_Scl')
+	Adj_Scl=widget_info(Adj_Scl_button_id,/button_set)
+	if Adj_Scl and (transf_scl gt 0.00001) then Transform_Error=Transform_Error/transf_scl
+
 	if (total(DatZ) ne 0) and (total(TargZ) ne 0) and Align_Z then begin		; if checked, and Z data exists do Z-alignement
 		Zo=DatZ[anc_ind]
 		Zi=TargZ[anc_ind]
@@ -1831,10 +1928,29 @@ endelse
 		Transform_Error = sqrt(Transform_Error*Transform_Error + (Z1-Zi)*(Z1-Zi))
 	endif
 
-transf_scl=sqrt(P[1,0]^2+P[0,1]^2)
-Adj_Scl_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Adj_Scl')
-Adj_Scl=widget_info(Adj_Scl_button_id,/button_set)
-if Adj_Scl and (transf_scl gt 0.00001) then Transform_Error=Transform_Error/transf_scl
+endif else begin; in the case of affine 3D, convert everything to NM first
+	;--------------------------------------------------------
+	; Affine 3D
+	if Transf_Meth eq 4 then begin
+		if (fid0_cnt lt 4) then begin
+			z=dialog_message('Affine 3D transformation requires at least 4 pars of fiducials, you have only '+string(fid0_cnt))
+			return
+		endif
+		if (total(DatZ) eq 0) then begin
+			z=dialog_message('Affine 3D transformation requires Z-fiducuials, none entered')
+			return
+		endif
+		print,'Calculating 3D affine transformation'
+		xin = [[transpose(DatFid[*,anc_ind])*nm_per_pixel],[DatZ[anc_ind]]]
+		xpin = [[transpose(TargFid[*,anc_ind])*nm_per_pixel],[TargZ[anc_ind]]]
+		AFFINE_SOLVE_GS, xin, xpin, R, c, P, Q, Err_mean
+		print,'R: ',R
+		print,'shift: ',c
+		AFFINE_Transform_GS, xin, Out_arr, R, c
+		Err = Out_arr - Xpin
+		Transform_error = sqrt(total(Err*Err,2))
+	endif
+endelse
 
 end
 ;

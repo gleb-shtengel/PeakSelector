@@ -1005,12 +1005,16 @@ end
 ;
 Pro ReloadPeakColumn,peak_index		; reloads the "Peak" column in the main table, according to modified 'Frame #', 'Peak Index #', "Global Peak Index #', or 'Label' values
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+PkGlInd_ind = min(where(RowNames eq 'Peak Global Index'))
+if PkGlInd_ind lt 0 then return
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
 if n_elements(CGroupParams) le 1 then return
-if (peak_index lt min(CGroupParams[11,*])) or (peak_index gt max(CGroupParams[11,*])) then begin
-	print,'cannot finddata for the peak',peak_index
+
+if (peak_index lt min(CGroupParams[PkGlInd_ind,*])) or (peak_index gt max(CGroupParams[PkGlInd_ind,*])) then begin
+	print,'cannot find data for the peak',peak_index
 	return
 endif else print,'Updating Peak Column data for peak #',peak_index
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
@@ -1208,9 +1212,9 @@ if (size(filen))[2] eq 0 then return
 if strlen(filen) eq 0 then return
 FittingInfoWid,Group_Leader=Event.top					;show fit params, set display, fit params, & launch fitting
 
-if (size(saved_pks_filename))[2] eq 0 then return
+if n_elements(saved_pks_filename) eq 0 then return
 
-if (size(CGroupParams))[0] ne 0 then begin
+if n_elements(CGroupParams) gt 0 then begin
 	ReloadParamlists, Event
 
 	wlabel = Widget_Info(Event.Top, find_by_uname='WID_LABEL_0')
@@ -1298,8 +1302,11 @@ cd,fpath
 widget_control,/hourglass
 restore,dataFile
 xydsz=[xsz,ysz]
-ind_good = where((ApeakParams.NPhot gt 500) and (ApeakParams.FitOK eq 1), sz)
+
+
+ind_good = where((ApeakParams.NPhot gt 100) and (ApeakParams.FitOK eq 1), sz)
 CGroupParams=fltarr(CGrpSize,sz)
+
 CGroupParams[Off_ind:Amp_ind,*]=ApeakParams[ind_good].A[0:1]
 CGroupParams[X_ind,*]=ApeakParams[ind_good].peakx
 CGroupParams[Y_ind,*]=ApeakParams[ind_good].peaky
@@ -1307,16 +1314,28 @@ CGroupParams[Xwid_ind:Ywid_ind,*]=ApeakParams[ind_good].A[2:3]
 CGroupParams[Nph_ind,*]=ApeakParams[ind_good].NPhot
 if Chi_ind ge 0 then CGroupParams[Chi_ind,*]=ApeakParams[ind_good].ChiSq
 if FitOK_ind ge 0 then CGroupParams[FitOK_ind,*]=ApeakParams[ind_good].FitOK
-CGroupParams[FrNum_ind,*]=ApeakParams[ind_good].FrameIndex
+if FrNum_ind ge 0 then CGroupParams[FrNum_ind,*]=ApeakParams[ind_good].FrameIndex
 if PkInd_ind ge 0 then CGroupParams[PkInd_ind,*]=ApeakParams[ind_good].PeakIndex
 if PkGlInd_ind ge 0 then CGroupParams[PkGlInd_ind,*]=dindgen(sz)
 
-if Par12_ind ge 0 then CGroupParams[Par12_ind,*]=ApeakParams[ind_good].Sigma2[0]
-if SigAmp_ind ge 0 then CGroupParams[SigAmp_ind,*]=ApeakParams[ind_good].Sigma2[1]
-if SigNphX_ind ge 0 then CGroupParams[SigNphX_ind:SigNphY_ind,*]=ApeakParams[ind_good].Sigma2[4:5]
-CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams[ind_good].Sigma2[2:3]
+if tag_names(Apeakparams[0],/structure_name) eq 'TWINKLE' then begin
+	CGroupParams[Xwid_ind:Ywid_ind,*]=ApeakParams[ind_good].A[2:3]
+	if SigNphX_ind gt 0 then CGroupParams[SigNphX_ind:SigNphY_ind,*]=ApeakParams[ind_good].Sigma2[4:5]
+	if Par12_ind gt 0 then CGroupParams[Par12_ind,*]=ApeakParams[ind_good].A[2]*ApeakParams[ind_good].A[3]
+	if SigAmp_ind gt 0 then CGroupParams[SigAmp_ind,*]=ApeakParams[ind_good].Sigma2[1]
+	if SigX_ind gt 0 then CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams[ind_good].Sigma2[2:3]
+	if Ell_ind gt 0 then CGroupParams[Ell_ind,*]=(ApeakParams[ind_good].A[2]-ApeakParams[ind_good].A[3])/(ApeakParams[ind_good].A[2]+ApeakParams[ind_good].A[3])
+endif
+if tag_names(Apeakparams[0],/structure_name) eq 'TWINKLE_Z' then begin
+	CGroupParams[Xwid_ind,*] = ApeakParams[ind_good].peak_widx
+	CGroupParams[Ywid_ind,*] = ApeakParams[ind_good].peak_widy
+	if Z_ind gt 0 then CGroupParams[Z_ind,*]=ApeakParams[ind_good].A[4]
+	if SigX_ind gt 0 then CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams[ind_good].Sigma[2:3]
+	if SigZ_ind gt 0 then CGroupParams[SigZ_ind,*]=ApeakParams[ind_good].Sigma[4]
+	if Ell_ind gt 0 then CGroupParams[Ell_ind,*]=(ApeakParams[ind_good].peak_widx-ApeakParams[ind_good].peak_widy)/(ApeakParams[ind_good].peak_widx+ApeakParams[ind_good].peak_widy)
+	if Par12_ind gt 0 then CGroupParams[Par12_ind,*]=ApeakParams[ind_good].A[5]
+endif
 
-if Ell_ind ge 0 then CGroupParams[Ell_ind,*] = (CGroupParams[Xwid_ind,*] - CGroupParams[Ywid_ind,*]) / (CGroupParams[Xwid_ind,*] + CGroupParams[Ywid_ind,*])
 wlabel = Widget_Info(Event.Top, find_by_uname='WID_LABEL_0')
 widget_control,wlabel,set_value=filename
 
@@ -1537,7 +1556,7 @@ pro SavetheCommon, Event			;Save the presently loaded & modified parameters into
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -1559,7 +1578,7 @@ if n_elements(SavFilenames) eq 0 then SavFilenames = filename
 
 save, CGroupParams, CGrpSize, ParamLimits, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames, MLRawFilenames,$
 		GuideStarDrift, FiducialCoeff, FlipRotate, thisfitcond, RowNames, $
-		lambda_vac,nd_water, nd_oil, nmperframe, wind_range, z_unwrap_coeff, cal_lookup_data, ellipticity_slopes, $
+		lambda_vac,nd_water, nd_oil, nmperframe, wind_range, aa, z_unwrap_coeff, cal_lookup_data, ellipticity_slopes, $
 		nm_per_pixel, wfilename, PkWidth_offset, Z_scale_multiplier, grouping_gap, grouping_radius100, $
 		lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames, sp_dispersion,  sp_offset, filename=filename
 
@@ -1580,7 +1599,7 @@ pro ImportZeissTXt, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset
 
@@ -1629,7 +1648,7 @@ pro RecalltheCommon, Event			;Recall fitted parameters from either an ascii file
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -1680,6 +1699,8 @@ endif
 ; if CGroupParams is NOT float type - convert it into float
 if (size(CGroupParams))[3] ne 4 then CGroupParams = float(temporary(CGroupParams))
 
+if n_elements(RowNames) le 1 then LoadRowNames
+
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
 X_ind = min(where(RowNames eq 'X Position'))							; CGroupParametersGP[2,*] - Peak X  Position
@@ -1729,7 +1750,6 @@ Gr_Ell_ind = min(where(RowNames eq 'XY Group Ellipticity'))				; CGroupParameter
 UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))				; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
 UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))		; CGroupParametersGP[48,*] - Group Z Position Error
 
-if n_elements(RowNames) le 1 then LoadRowNames
 NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[FrNum_ind,*])+1))	: long64(max(CGroupParams[FrNum_ind,*])+1)
 if (size(GuideStarDrift))[0] eq 0 then GuideStarDrift={present:0B,xdrift:dblarr(Nframes),ydrift:dblarr(Nframes),zdrift:dblarr(Nframes)}
 sz=size(CGroupParams)
@@ -1826,7 +1846,7 @@ pro AddNextLabelData, Event			;Append more fit parameters from a idl .sav file b
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Offset, PkWidth_offset
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
@@ -1856,7 +1876,6 @@ n_frames_c1=((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max
 
 P1=ParamLimits
 C1=CGroupParams
-delvar, CGroupParams
 C1sz=size(C1)
 WR1=wind_range
 C1[LabelSet_ind,*]=C1[LabelSet_ind,*] > 1
@@ -1939,7 +1958,7 @@ end
 pro MergeLabelsConsecutively, Event			; Merges Multipole Label Sets into a Single Set, the frames are incremented consequtively
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
 ;CGroupParametersGP[9,*] - frame number
@@ -2352,7 +2371,7 @@ common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common Offset, PkWidth_offset
@@ -2984,7 +3003,7 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common PreviousStep, PrevParamLimits, PrevGRP
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -3483,7 +3502,7 @@ endif else begin
 		endif
 		if lbl_cnt gt 1 then oplot,xx,histhist_multilable[lbl_i0,*], color=lbl_color[lbl_i]
 		hpv = hist_peak_val[lbl_i0]
-		if (hist_log_x eq 1) and (min(CGroupParams[event.y,hist_set]) ge 0) and ~xory and ~zhist then hpv = 10^hpv
+		if (total(hist_set) ge 0) then if (hist_log_x eq 1) and (min(CGroupParams[event.y,hist_set]) ge 0) and ~xory and ~zhist then hpv = 10^hpv
 		xyouts,0.12,0.95-0.05*lbl_i0,'Mean = '+ strtrim(mean_val[lbl_i0],2) + $
 				'       Median = '+ strtrim(median_val[lbl_i0],2) + $
 				'       Hist. Peak = '+ strtrim(hpv,2),$
@@ -3519,7 +3538,7 @@ end
 pro Estimate_Unwrap_Ghost, UnwrZ_Err_index, hist_set, ZMin, ZMax, nbns, gres, redrawhist, disp; disp=0 - no reporting, disp=1 - full reporting and plotting
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 	tk=1.5
 	Zrange=Zmax-Zmin
 	x=findgen(nbns)/nbns*Zrange+Zmin
@@ -4171,7 +4190,7 @@ allind1 = [Gr_ind, $
 		GrSigY_ind, $
 		GrNph_ind, $
 		Gr_size_ind, $
-		LabelSet_ind, $
+		;LabelSet_ind, $
 		GrAmpL1_ind, $
 		GrAmpL2_ind, $
 		GrAmpL3_ind, $
@@ -4185,13 +4204,18 @@ GroupParInd = allind1[where(allind1 ge 0)]
 FromGroup = (max(where(GroupParInd eq Xitem)) ge 0) or (max(where(GroupParInd eq Yitem)) ge 0) or (max(where(GroupParInd eq Zitem)) ge 0)
 if FromGroup then GroupFilterIt else FilterIt
 
+Wid_XYZ_diamonds = Widget_Info(Event.top, find_by_uname='W_MENU_XYZ_diamonds')
+use_diamonds = WIDGET_INFO(Wid_XYZ_diamonds,/button_set)
+sym = use_diamonds ? 4 : 3
+symsize=0
+
 ThisGroup=where(filter eq 1,cnt)
 if cnt gt 1 then begin
 	if Zitem eq LabelSet_ind then begin
 		lmin=min(CGroupParams[LabelSet_ind,ThisGroup])
 		lmax=max(CGroupParams[LabelSet_ind,ThisGroup])
 		ThisGroup_l=where(filter and (CGroupParams[LabelSet_ind,*] eq lmin))
-			plot,CGroupParams[Xitem,ThisGroup_l],CGroupParams[Yitem,ThisGroup_l],psym=3,$
+			plot,CGroupParams[Xitem,ThisGroup_l],CGroupParams[Yitem,ThisGroup_l],psym=sym, SYMSIZE=symsize, $
 			xrange=[ParamLimits[Xitem,0],ParamLimits[Xitem,1]],xstyle=1,$
 			yrange=[ParamLimits[Yitem,0],ParamLimits[Yitem,1]],ystyle=1, xtitle=RowNames[Xitem], ytitle=RowNames[Yitem],$
 			title='                                                   Color: '+RowNames[Zitem],$
@@ -4200,24 +4224,24 @@ if cnt gt 1 then begin
 			lbl_color = [200, 40, 105, 135, 235]				; [red, green, blue, purple, gray]
 			device,decompose=0
 			loadct,12
-			oplot,CGroupParams[Xitem,ThisGroup_l],CGroupParams[Yitem,ThisGroup_l],psym=3,col=lbl_color[0]
+			oplot,CGroupParams[Xitem,ThisGroup_l],CGroupParams[Yitem,ThisGroup_l], psym=sym, SYMSIZE=symsize, col=lbl_color[0]
 			for ic=lmin+1,lmax do begin
 				ThisGroup_l=where(filter and (CGroupParams[LabelSet_ind,*] eq ic))
-				oplot,CGroupParams[Xitem,ThisGroup_l],CGroupParams[Yitem,ThisGroup_l],psym=3,col=lbl_color[ic-lmin]
+				oplot,CGroupParams[Xitem,ThisGroup_l],CGroupParams[Yitem,ThisGroup_l],psym=sym, SYMSIZE=symsize, col=lbl_color[ic-lmin]
 			endfor
 			device,decompose=0
 			loadct,3
 		endif
 	endif else begin
 		if ((Xitem eq X_ind) or (Xitem eq GrX_ind)) and ((Yitem eq Y_ind) or (Yitem eq GrY_ind)) then begin
-			plot,CGroupParams[Xitem,Thisgroup],CGroupParams[Yitem,Thisgroup],psym=3,$
+			plot,CGroupParams[Xitem,Thisgroup],CGroupParams[Yitem,Thisgroup], psym=sym, SYMSIZE=symsize,$
 			xrange=[ParamLimits[Xitem,0],ParamLimits[Xitem,1]],xstyle=1,$
 			yrange=[ParamLimits[Yitem,0],ParamLimits[Yitem,1]],ystyle=1,$
 			position=[0,0,1,1], xtitle=RowNames[Xitem], ytitle=RowNames[Yitem], $
 			title='                                                   Color: '+RowNames[Zitem],$
 			thick=tk, xthick=1.0, ythick=1.0, charsize=tk, charthick=tk
 		endif else begin
-			plot,CGroupParams[Xitem,Thisgroup],CGroupParams[Yitem,Thisgroup],psym=3,$
+			plot,CGroupParams[Xitem,Thisgroup],CGroupParams[Yitem,Thisgroup], psym=sym, SYMSIZE=symsize,$
 			xrange=[ParamLimits[Xitem,0],ParamLimits[Xitem,1]],xstyle=1,$
 			yrange=[ParamLimits[Yitem,0],ParamLimits[Yitem,1]],ystyle=1, xtitle=RowNames[Xitem], ytitle=RowNames[Yitem],$
 			title='                                                   Color: '+RowNames[Zitem],$
@@ -5238,6 +5262,13 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro On_XYZ_use_diamonds, Event
+	set = WIDGET_INFO(Event.id,/button_set)
+	widget_control,Event.id,set_button=1-set
+end
+;
+;-----------------------------------------------------------------
+;
 pro OnAddLabelButton, Event			;Write file name at top
 WidLabel0 = Widget_Info(Event.Top, find_by_uname='WID_LABEL_0')
 widget_control,WidLabel0,get_value=label
@@ -5396,8 +5427,6 @@ wxsz=1024 & wysz=1024
 loc=fltarr(wxsz,wysz)
 mgw=(wxsz /(dxmx-dxmn))<(wysz /(dymx-dymn))
 rmg=FLOAT(max((size(TotalRawData))[1:2])) / (max(xydsz))		; real magnification
-;mgw=fix((wxsz<wysz)/((dxmx-dxmn)>(dymx-dymn)))
-;rmg=max((size(TotalRawData))[1:2])*1.0 / (max(xydsz))		; real magnification
 
 XI=fix(floor(rmg*dxmn))>0
 XA=fix(floor(rmg*(dxmx))) < ((size(TotalRawData))[1]-1)
@@ -5422,7 +5451,7 @@ YA=fix(floor(rmg*(dymx))) < ((size(TotalRawData))[2]-1)
 	endif
 
     reffilename=AddExtension(RawFilenames[Raw_File_Index],'.txt')
-	ReadThisFitCond, reffilename, pth, filen, ini_filename, thisfitcond
+	;ReadThisFitCond, reffilename, pth, filen, ini_filename, thisfitcond
 	clip=ReadData(RawFilenames[Raw_File_Index],thisfitcond,RawFrameNumber,1)
 	Fimage=clip[XI : XA, YI : YA]
 	fimagex=fix(float(XA-XI+1)*mgw/rmg)
@@ -5456,6 +5485,8 @@ common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, Trans
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+
 if n_elements(CGroupParams) le 2 then begin
           z=dialog_message('Please load a data file')
           return      ; if data not loaded return
@@ -5483,6 +5514,7 @@ Gr_Ell_ind=min(where(RowNames eq 'XY Group Ellipticity'))
 Gr_Size_ind = min(where(RowNames eq '24 Group Size'))
 Frame_Number_ind = min(where(RowNames eq 'Frame Number'))
 Label_ind = min(where(RowNames eq 'Label Set'))
+Wl_ind = min(where(RowNames eq 'Wavelength (nm)'))
 
 
 	WidFrameNumber = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_RawFrameNumber')
@@ -5493,6 +5525,7 @@ Label_ind = min(where(RowNames eq 'Label Set'))
 	Raw_File_Index=(widget_info(RawFileNameWidID,/DropList_Select))[0]
 	raw_files=where(RawFilenames ne '',raw_cnt)
 	raw_file_extension = thisfitcond.filetype ? '.tif' : '.dat'
+
 
 	if Raw_File_Index eq -1 then begin
 		z=dialog_message('Raw data file not found  '+RawFilenames)
@@ -5525,19 +5558,40 @@ Label_ind = min(where(RowNames eq 'Label Set'))
 	endif
 	clip=ReadData(RawFilenames[Raw_File_Index],thisfitcond,RawFrameNumber,1)
 	d=thisfitcond.MaskSize & dd=2*d+1
-	peakparams = {twinkle,frameindex:0l,peakindex:0,fitOK:0,peakx:0.0,peaky:0.0,A:fltarr(7),sigma1:fltarr(7),sigma2:fltarr(7),chisq:0.0,Nphot:0l}
-	peakparams.A=[0.0,1.0,1.2,1.2,d,d,0.]
-	PeakX=CGroupParams[2,cgrp_index[0]]
-	PeakY=CGroupParams[3,cgrp_index[0]]
-	Dispxy=[0,0]
-	DisplaySet=0
-	SigmaSym = 1*(CGroupParams[4,cgrp_index[0]] ne CGroupParams[5,cgrp_index[0]])
-	fita = [1,1,1,1,1,1]
+	SigmaSym = thisfitcond.SigmaSym
+	PeakX=CGroupParams[X_ind,cgrp_index[0]]
+	PeakY=CGroupParams[Y_ind,cgrp_index[0]]
 	clipsize=size(clip)
 	peakx=(peakx<(clipsize[1]-d-1))>d
 	peaky=(peaky<(clipsize[2]-d-1))>d
 	region=clip[peakx-d:peakx+d,peaky-d:peaky+d]
-	FindnWackaPeak, clip, d, peakparams, fita, result, thisfitcond, DisplaySet, peakx, peaky, criteria, Dispxy, 1
+	Dispxy=[0,0]
+	DisplaySet=0
+
+	if SigmaSym le 1 then begin
+		peakparams = {twinkle,frameindex:0l,peakindex:0,fitOK:0,peakx:0.0,peaky:0.0,A:fltarr(7),sigma1:fltarr(7),sigma2:fltarr(7),chisq:0.0,Nphot:0l}
+		peakparams.A=[0.0,1.0,1.2,1.2,d,d,0.]
+		fita = [1,1,1,1,1,1]
+		FindnWackaPeak, clip, d, peakparams, fita, result, thisfitcond, DisplaySet, peakx, peaky, criteria, Dispxy, 1
+		A=peakparams.a
+		cx = a[4]
+		cy = a[5]
+		widx = A[2]
+		widy = A[3]
+	endif else begin
+		peakparams = {twinkle_z, frameindex:0l, peakindex:0l, fitOK:1, peakx:0.0, peaky:0.0, peak_widx:0.0, peak_widy:0.0, A:fltarr(6), sigma:fltarr(6), chisq:0.0, Nphot:0l}
+		peakparams.A=[0.0,1.0,d,d,0.,1.0]
+		fita = [1,1,1,1,1,1]
+		FindnWackaPeak_AstigZ, clip, d, peakparams, fita, result, thisfitcond, aa, DisplaySet, peakx, peaky, criteria, Dispxy, 0		;Find, fit, and remove the peak with biggest criteria
+		A=peakparams.a
+		cx = a[2]
+		cy = a[3]
+		nb = n_elements(aa)/2
+		b = aa[0:nb-1]
+		c = aa[nb:*]
+		widx = poly(a[4],b)
+		widy = poly(a[4],c)
+	endelse
 
 	scl=250.0/(max((region-min(region)))>max((result-min(result))));
 	gscl=15.
@@ -5545,16 +5599,17 @@ Label_ind = min(where(RowNames eq 'Label Set'))
 	ytvpeak=1024-dd*gscl
 	tv,50+scl*rebin(region-min(region),dd*gscl,dd*gscl,/sample)<255,xtvpeak,ytvpeak				;tv slected peak region
 	tv,50+scl*rebin(result-min(result),dd*gscl,dd*gscl,/sample)<255,xtvpeak+dd*gscl+2,ytvpeak		;tv resulting fit
-	A=peakparams.a
-	plots,gscl*(A[4]+0.5)+xtvpeak,gscl*(A[5]+0.5)+ytvpeak,psym=1,/device,col=0	;mark the center of data peak with plus
-	plots,gscl*(A[4]+0.5)+xtvpeak,gscl*(A[5]+0.5)+ytvpeak,psym=3,/device		;mark center of data peak, put dot in middle
-	plots,gscl*(A[4]+0.5)+xtvpeak,gscl*(A[5]+0.5)+ytvpeak+dd*gscl,psym=1,/device,col=0	;mark center of peak fit
-	plots,gscl*(A[4]+0.5)+xtvpeak,gscl*(A[5]+0.5)+ytvpeak+dd*gscl,psym=3,/device		;mark center of peak fit
-	xpos=(findgen(dd*gscl)/gscl-peakparams.A[4]-0.5)#replicate(1,dd*gscl)
-	ypos=replicate(1.,dd*gscl)#(findgen(dd*gscl)/gscl-peakparams.A[5]-0.5)
+
+	plots,gscl*(cx+0.5)+xtvpeak,gscl*(cy+0.5)+ytvpeak,psym=1,/device,col=0	;mark the center of data peak with plus
+	plots,gscl*(cx+0.5)+xtvpeak,gscl*(cy+0.5)+ytvpeak,psym=3,/device		;mark center of data peak, put dot in middle
+	plots,gscl*(cx+0.5)+xtvpeak,gscl*(cy+0.5)+ytvpeak+dd*gscl,psym=1,/device,col=0	;mark center of peak fit
+	plots,gscl*(cx+0.5)+xtvpeak,gscl*(cy+0.5)+ytvpeak+dd*gscl,psym=3,/device		;mark center of peak fit
+	xpos=(findgen(dd*gscl)/gscl-cx-0.5)#replicate(1,dd*gscl)
+	ypos=replicate(1.,dd*gscl)#(findgen(dd*gscl)/gscl-cy-0.5)
 	minclp=min(clip[PeakX-d:PeakX+d,PeakY-d:PeakY+d])
 	tv,50+scl*rebin(clip[PeakX-d:PeakX+d,PeakY-d:PeakY+d]-minclp,dd*gscl,dd*gscl,/sample)<255,xtvpeak+2*dd*gscl+4,ytvpeak		;tv slected residual after peak removal
-	str1='WidX = '+strtrim(A[2],2)+'     WidY = '+strtrim(A[3],2)
+	str1='WidX = '+strtrim(widx,2)+'     WidY = '+strtrim(widy,2)
+	if SigmaSym eq 2 then str1 = str1	+'     Z = '+strtrim(A[4],2)
 	str2='Amp = '+strtrim(A[1],2)+'     Offset = '+strtrim(A[0],2)
 	xyouts,xtvpeak+dd*gscl+2,ytvpeak+(dd-1)*gscl,str2,/device
 	xyouts,xtvpeak+dd*gscl+2,ytvpeak+(dd-2)*gscl,str1,/device
@@ -5569,7 +5624,7 @@ Label_ind = min(where(RowNames eq 'Label Set'))
 	if cnt eq 1 then ReloadPeakColumn,peak_index
 
 ;	common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
-	if n_elements(lab_filenames) gt 1 then begin		; if the data had been processed for XY spectral decomposition, show the spectral decomposition results
+	if Wl_ind ge 0 then begin		; if the data had been processed for XY spectral decomposition, show the spectral decomposition results
 		SVDC, cal_spectra, Wsp, Usp, Vsp
 		N = N_ELEMENTS(Wsp)
 		WPsp = FLTARR(N, N)
@@ -5679,7 +5734,7 @@ end
 pro Initialization_PeakSelector_Main, wWidget, _EXTRA=_VWBExtra_	; initialises menue tables, droplists, IDL starting directory, material and other parameters
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
@@ -5730,7 +5785,7 @@ end
 pro Initialization_PeakSelector, wWidget, _EXTRA=_VWBExtra_	; initialises menue tables, droplists, IDL starting directory, material and other parameters
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
@@ -5898,7 +5953,7 @@ end
 pro Initialize_Common_parameters, ini_file
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
@@ -6871,7 +6926,7 @@ end
 ;
 pro Polarization_Analysis, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
 if n_elements(CGroupParams) le 2 then begin
@@ -7289,23 +7344,41 @@ Y_ind = FilterItem ? min(where(RowNames eq 'Group Y Position')) : min(where(RowN
 Z_ind = FilterItem ? min(where(RowNames eq 'Group Z Position')) : min(where(RowNames eq 'Z Position'))
 UnwZ_ind = FilterItem ? min(where(RowNames eq 'Unwrapped Group Z')) : min(where(RowNames eq 'Unwrapped Z'))
 Nph_ind = FilterItem ? min(where(RowNames eq 'Group N Photons')) : min(where(RowNames eq '6 N Photons'))
-if CGrpSize eq 49 then param = [X_ind,Y_ind,Z_ind,UnwZ_ind] else param = [X_ind,Y_ind]
+GrInd_ind = min(where(RowNames eq 'Frame Index in Grp'))                ; CGroupParametersGP[25,*] - Frame Index in the Group
+
+param = [X_ind,Y_ind]
+if Z_ind ge 0 then  param = [X_ind,Y_ind,Z_ind]
+if UnwZ_ind ge 0 then  param = [X_ind,Y_ind,Z_ind,UnwZ_ind]
 
 if finfo.exists then openu,1,sfilename,/Append else begin
 	openw,1,sfilename
-	if FilterItem then printf,1,'Gr Nph (mean)	Gr Nph (STD)	# of Groups	X (pixels)	Y (pixels)	Z (nm)	UnwZ (nm)	X-FWHM (nm)	Y-FWHM (nm)	Z-FWHM (nm)	UnwZ-FWHM (nm)'+$
-	'	X (STD) (nm)	Y (STD) (nm)	Z (STD) (nm)	UnwZ (STD) (nm)	X'+	fr_srch_str+' (nm)	Y'+fr_srch_str+' (nm)	Z'+fr_srch_str+' (nm)	UnwZ'+fr_srch_str+' (nm)'
-	if ~FilterItem then printf,1,'Nph (mean)	Nph (STD)	# of Peaks	X (pixels)	Y (pixels)	Z (nm)	UnwZ (nm)	X-FWHM (nm)	Y-FWHM (nm)	Z-FWHM (nm)	UnwZ-FWHM (nm)'+$
-	'	X (STD) (nm)	Y (STD) (nm)	Z (STD) (nm)	UnwZ (STD) (nm)	X'+	fr_srch_str+' (nm)	Y'+fr_srch_str+' (nm)	Z'+fr_srch_str+' (nm)	UnwZ'+fr_srch_str+' (nm)'
+	if 	UnwZ_ind ge 0 then begin
+		if FilterItem then printf,1,'Gr Nph (mean)	Gr Nph (STD)	# of Groups	X (pixels)	Y (pixels)	Z (nm)	UnwZ (nm)	X-FWHM (nm)	Y-FWHM (nm)	Z-FWHM (nm)	UnwZ-FWHM (nm)'+$
+		'	X (STD) (nm)	Y (STD) (nm)	Z (STD) (nm)	UnwZ (STD) (nm)	X'+	fr_srch_str+' (nm)	Y'+fr_srch_str+' (nm)	Z'+fr_srch_str+' (nm)	UnwZ'+fr_srch_str+' (nm)'
+		if ~FilterItem then printf,1,'Nph (mean)	Nph (STD)	# of Peaks	X (pixels)	Y (pixels)	Z (nm)	UnwZ (nm)	X-FWHM (nm)	Y-FWHM (nm)	Z-FWHM (nm)	UnwZ-FWHM (nm)'+$
+		'	X (STD) (nm)	Y (STD) (nm)	Z (STD) (nm)	UnwZ (STD) (nm)	X'+	fr_srch_str+' (nm)	Y'+fr_srch_str+' (nm)	Z'+fr_srch_str+' (nm)	UnwZ'+fr_srch_str+' (nm)'
+	endif else begin
+		if Z_ind ge 0 then begin
+			if FilterItem then printf,1,'Gr Nph (mean)	Gr Nph (STD)	# of Groups	X (pixels)	Y (pixels)	Z (nm)	X-FWHM (nm)	Y-FWHM (nm)	Z-FWHM (nm)'+$
+			'	X (STD) (nm)	Y (STD) (nm)	Z (STD) (nm)	X'+	fr_srch_str+' (nm)	Y'+fr_srch_str+' (nm)	Z'+fr_srch_str+' (nm)'
+			if ~FilterItem then printf,1,'Nph (mean)	Nph (STD)	# of Peaks	X (pixels)	Y (pixels)	Z (nm)	X-FWHM (nm)	Y-FWHM (nm)	Z-FWHM (nm)'+$
+			'	X (STD) (nm)	Y (STD) (nm)	Z (STD) (nm)	X'+	fr_srch_str+' (nm)	Y'+fr_srch_str+' (nm)	Z'+fr_srch_str+' (nm)'
+		endif else begin
+			if FilterItem then printf,1,'Gr Nph (mean)	Gr Nph (STD)	# of Groups	X (pixels)	Y (pixels)	X-FWHM (nm)	Y-FWHM (nm)'+$
+			'	X (STD) (nm)	Y (STD) (nm)	X'+	fr_srch_str+' (nm)	Y'+fr_srch_str+' (nm)'
+			if ~FilterItem then printf,1,'Nph (mean)	Nph (STD)	# of Peaks	X (pixels)	Y (pixels)	X-FWHM (nm)	Y-FWHM (nm)'+$
+			'	X (STD) (nm)	Y (STD) (nm)	X'+	fr_srch_str+' (nm)	Y'+fr_srch_str+' (nm)'
+		endelse
+	endelse
 endelse
 
 tk=1.5
-nbns=50
+nbns=500
 xx=fltarr(2*nbns)
 histhist=fltarr(2*nbns)
 evens=2*indgen(nbns)
 odds=evens+1
-hist_set = FilterItem ? where(filter*(CGroupParams[25,*] eq 1),cnt) : where(filter,cnt)
+hist_set = FilterItem ? where(filter*(CGroupParams[GrInd_ind,*] eq 1),cnt) : where(filter,cnt)
 
 if cnt lt 1 then return
 
@@ -7375,53 +7448,87 @@ XPos=mean(CGroupParams[X_ind,hist_set])
 YPos=mean(CGroupParams[Y_ind,hist_set])
 Xstd=stddev(CGroupParams[X_ind,hist_set])*nm_per_pixel
 Ystd=stddev(CGroupParams[Y_ind,hist_set])*nm_per_pixel
-
-
-
 Nph_mean=mean(CGroupParams[Nph_ind,hist_set])
 Nph_std=stddev(CGroupParams[Nph_ind,hist_set])
-
 X90=CR90[0]-CL90[0]
 Y90=CR90[1]-CL90[1]
 
-if CGrpSize eq 49 then begin
-	ZPos=mean(CGroupParams[Z_ind,hist_set])
-	UnwZPos=mean(CGroupParams[UnwZ_ind,hist_set])
-	Zstd=stddev(CGroupParams[Z_ind,hist_set])
-	UnwZstd=stddev(CGroupParams[UnwZ_ind,hist_set])
-	Z90=CR90[2]-CL90[2]
-	UnwZ90=CR90[3]-CL90[3]
-endif
+if Z_ind eq -1 then begin
 
-
-if CGrpSize eq 49 then begin
 	if FilterItem then begin
 		str1='Gr. Nph mean= '+strtrim(Nph_mean,2)+'   Gr. Nph STD = '+strtrim(Nph_std,2)+'     # of Groups = '+strtrim(cnt,2)
-		str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix        Z = '+strtrim(ZPos,2)+' nm        UnwZ = '+strtrim(UnwZPos,2)+' nm'
-		str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm    Z-FWHM = '+strtrim(FWHM[2],2)+' nm    UnwZ-FWHM = '+strtrim(FWHM[3],2)+' nm'
-		str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm     Z @'+fr_srch_str+'% = '+strtrim(Z90,2)+' nm     UnwZ @'+fr_srch_str+'% = '+strtrim(UnwZ90,2)+' nm'
-		str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm    Z-std = '+strtrim(Zstd,2)+' nm    UnwZ-std = '+strtrim(UnwZstd,2)+' nm'
+		str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix'
+		str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm'
+		str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm'
+		str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm'
 	endif else begin
 		str1='Nph mean= '+strtrim(Nph_mean,2)+'   Nph STD = '+strtrim(Nph_std,2)+'     # of Peaks = '+strtrim(cnt,2)
-		str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix        Z = '+strtrim(ZPos,2)+' nm        UnwZ = '+strtrim(UnwZPos,2)+' nm'
-		str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm    Z-FWHM = '+strtrim(FWHM[2],2)+' nm    UnwZ-FWHM = '+strtrim(FWHM[3],2)+' nm'
-		str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm     Z @'+fr_srch_str+'% = '+strtrim(Z90,2)+' nm     UnwZ @'+fr_srch_str+'% = '+strtrim(UnwZ90,2)+' nm'
-		str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm    Z-std = '+strtrim(Zstd,2)+' nm    UnwZ-std = '+strtrim(UnwZstd,2)+' nm'
+		str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix'
+		str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm'
+		str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm'
+		str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm'
 	endelse
+
+	printf,1,strtrim(Nph_mean,2)+'	'+strtrim(Nph_std,2)+'	'+strtrim(cnt,2)+'	'+strtrim(XPos,2)+'	'+strtrim(YPos,2)+$
+	'	'+strtrim(FWHM[0],2)+'	'+strtrim(FWHM[1],2)+'	'+strtrim(Xstd,2)+'	'+strtrim(Ystd,2)+$
+	'	'+strtrim(X90,2)+'	'+strtrim(Y90,2)
+	Dist_Results=[Nph_mean,Nph_std,cnt,XPos,YPos,FWHM,Xstd,Ystd,X90,Y90]
+
 endif else begin
-	if FilterItem then begin
-		str1='Gr. Nph mean= '+strtrim(Nph_mean,2)+'   Gr. Nph STD = '+strtrim(Nph_std,2)+'     # of Groups = '+strtrim(cnt,2)
-		str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix'
-		str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm'
-		str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm'
-		str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm'
+
+	ZPos=mean(CGroupParams[Z_ind,hist_set])
+	Zstd=stddev(CGroupParams[Z_ind,hist_set])
+	Z90=CR90[2]-CL90[2]
+
+	if UnwZ_ind eq -1 then begin
+		if FilterItem then begin
+			str1='Gr. Nph mean= '+strtrim(Nph_mean,2)+'   Gr. Nph STD = '+strtrim(Nph_std,2)+'     # of Groups = '+strtrim(cnt,2)
+			str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix        Z = '+strtrim(ZPos,2)+' nm'
+			str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm    Z-FWHM = '+strtrim(FWHM[2],2)+' nm'
+			str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm     Z @'+fr_srch_str+'% = '+strtrim(Z90,2)+' nm'
+			str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm    Z-std = '+strtrim(Zstd,2)+' nm'
+		endif else begin
+			str1='Nph mean= '+strtrim(Nph_mean,2)+'   Nph STD = '+strtrim(Nph_std,2)+'     # of Peaks = '+strtrim(cnt,2)
+			str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix        Z = '+strtrim(ZPos,2)+' nm'
+			str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm    Z-FWHM = '+strtrim(FWHM[2],2)+' nm'
+			str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm     Z @'+fr_srch_str+'% = '+strtrim(Z90,2)+' nm'
+			str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm    Z-std = '+strtrim(Zstd,2)+' nm'
+		endelse
+
+		printf,1,strtrim(Nph_mean,2)+'	'+strtrim(Nph_std,2)+ '	'+strtrim(cnt,2)+ $
+		'	'+strtrim(XPos,2)+'	'+strtrim(YPos,2)+'	'+strtrim(ZPos,2)+ $
+		'	'+strtrim(FWHM[0],2)+'	'+strtrim(FWHM[1],2)+'	'+strtrim(FWHM[2],2)+ $
+		'	'+strtrim(Xstd,2)+'	'+strtrim(Ystd,2)+'	'+strtrim(Zstd,2)+ $
+		'	'+strtrim(X90,2)+'	'+strtrim(Y90,2)+'	'+strtrim(Z90,2)
+		Dist_Results=[Nph_mean,Nph_std,cnt,XPos,YPos,ZPos,FWHM,Xstd,Ystd,Zstd,X90,Y90,Z90]
+
 	endif else begin
-		str1='Nph mean= '+strtrim(Nph_mean,2)+'   Nph STD = '+strtrim(Nph_std,2)+'     # of Peaks = '+strtrim(cnt,2)
-		str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix'
-		str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm'
-		str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm'
-		str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm'
+
+		UnwZPos=mean(CGroupParams[UnwZ_ind,hist_set])
+		UnwZstd=stddev(CGroupParams[UnwZ_ind,hist_set])
+		UnwZ90=CR90[3]-CL90[3]
+
+		if FilterItem then begin
+			str1='Gr. Nph mean= '+strtrim(Nph_mean,2)+'   Gr. Nph STD = '+strtrim(Nph_std,2)+'     # of Groups = '+strtrim(cnt,2)
+			str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix        Z = '+strtrim(ZPos,2)+' nm        UnwZ = '+strtrim(UnwZPos,2)+' nm'
+			str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm    Z-FWHM = '+strtrim(FWHM[2],2)+' nm    UnwZ-FWHM = '+strtrim(FWHM[3],2)+' nm'
+			str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm     Z @'+fr_srch_str+'% = '+strtrim(Z90,2)+' nm     UnwZ @'+fr_srch_str+'% = '+strtrim(UnwZ90,2)+' nm'
+			str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm    Z-std = '+strtrim(Zstd,2)+' nm    UnwZ-std = '+strtrim(UnwZstd,2)+' nm'
+		endif else begin
+			str1='Nph mean= '+strtrim(Nph_mean,2)+'   Nph STD = '+strtrim(Nph_std,2)+'     # of Peaks = '+strtrim(cnt,2)
+			str2='X = '+strtrim(XPos,2)+' pix        Y = '+strtrim(YPos,2)+' pix        Z = '+strtrim(ZPos,2)+' nm        UnwZ = '+strtrim(UnwZPos,2)+' nm'
+			str3='X-FWHM = '+strtrim(FWHM[0],2)+' nm    Y-FWHM = '+strtrim(FWHM[1],2)+' nm    Z-FWHM = '+strtrim(FWHM[2],2)+' nm    UnwZ-FWHM = '+strtrim(FWHM[3],2)+' nm'
+			str4='X @'+fr_srch_str+'% = '+strtrim(X90,2)+' nm    Y @'+fr_srch_str+'% = '+strtrim(Y90,2)+' nm     Z @'+fr_srch_str+'% = '+strtrim(Z90,2)+' nm     UnwZ @'+fr_srch_str+'% = '+strtrim(UnwZ90,2)+' nm'
+			str5='X-std = '+strtrim(Xstd,2)+' nm    Y-std = '+strtrim(Ystd,2)+' nm    Z-std = '+strtrim(Zstd,2)+' nm    UnwZ-std = '+strtrim(UnwZstd,2)+' nm'
+		endelse
+
+		printf,1,strtrim(Nph_mean,2)+'	'+strtrim(Nph_std,2)+'	'+strtrim(cnt,2)+'	'+strtrim(XPos,2)+'	'+strtrim(YPos,2)+'	'+strtrim(ZPos,2)+'	'+strtrim(UnwZPos,2)+$
+		'	'+strtrim(FWHM[0],2)+'	'+strtrim(FWHM[1],2)+'	'+strtrim(FWHM[2],2)+'	'+strtrim(FWHM[3],2)+'	'+strtrim(Xstd,2)+'	'+strtrim(Ystd,2)+$
+		'	'+strtrim(Zstd,2)+'	'+strtrim(UnwZstd,2)+'	'+strtrim(X90,2)+'	'+strtrim(Y90,2)+'	'+strtrim(Z90,2)+'	'+strtrim(UnwZ90,2)
+		Dist_Results=[Nph_mean,Nph_std,cnt,XPos,YPos,ZPos,UnwZPos,FWHM,Xstd,Ystd,Zstd,UnwZstd,X90,Y90,Z90,UnwZ90]
+
 	endelse
+
 endelse
 
 print,str1
@@ -7436,17 +7543,7 @@ xyouts,0.02,0.87,str3,/NORMAL,color=200,charsize=1.5
 xyouts,0.02,0.85,str4,/NORMAL,color=200,charsize=1.5
 xyouts,0.02,0.83,str5,/NORMAL,color=200,charsize=1.5
 
-if CGrpSize eq 49 then begin
-		printf,1,strtrim(Nph_mean,2)+'	'+strtrim(Nph_std,2)+'	'+strtrim(cnt,2)+'	'+strtrim(XPos,2)+'	'+strtrim(YPos,2)+'	'+strtrim(ZPos,2)+'	'+strtrim(UnwZPos,2)+$
-	'	'+strtrim(FWHM[0],2)+'	'+strtrim(FWHM[1],2)+'	'+strtrim(FWHM[2],2)+'	'+strtrim(FWHM[3],2)+'	'+strtrim(Xstd,2)+'	'+strtrim(Ystd,2)+$
-	'	'+strtrim(Zstd,2)+'	'+strtrim(UnwZstd,2)+'	'+strtrim(X90,2)+'	'+strtrim(Y90,2)+'	'+strtrim(Z90,2)+'	'+strtrim(UnwZ90,2)
-	Dist_Results=[Nph_mean,Nph_std,cnt,XPos,YPos,ZPos,UnwZPos,FWHM,Xstd,Ystd,Zstd,UnwZstd,X90,Y90,Z90,UnwZ90]
-endif else begin
-		printf,1,strtrim(Nph_mean,2)+'	'+strtrim(Nph_std,2)+'	'+strtrim(cnt,2)+'	'+strtrim(XPos,2)+'	'+strtrim(YPos,2)+$
-	'	'+strtrim(FWHM[0],2)+'	'+strtrim(FWHM[1],2)+'	'+strtrim(Xstd,2)+'	'+strtrim(Ystd,2)+$
-	'	'+strtrim(X90,2)+'	'+strtrim(Y90,2)
-	Dist_Results=[Nph_mean,Nph_std,cnt,XPos,YPos,FWHM,Xstd,Ystd,X90,Y90]
-endelse
+
 close,1
 
 end
@@ -7531,7 +7628,8 @@ ylen=dd
 	region=fltarr(dd,dd)
 	for i_peak=0,(cnt-1) do begin
 		point_lun,1,2ull*xsz*ysz*CGroupParams[FrNum_ind,peak_set[i_peak]]
-		readu,1,data
+		readu,1,dataretall
+
 		region=region+(((float(temporary(data[x0:x1,y0:y1]))-thisfitcond.zerodark)/thisfitcond.cntpere)>0.)
 		if (i_peak mod 100) eq 0 then begin
 			xyouts,0.1,0.5,str_out,CHARSIZE=2.0,/NORMAL,col=0
@@ -7716,6 +7814,30 @@ for j=0L,(Ngr-1) do begin
 	endif
 endfor
 obj_destroy, oStatusBar
+
+end
+;
+;-----------------------------------------------------------------
+;
+pro Correct_GroupSigmaXYZ, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+; Cretated 10.03.2017 GS
+; This procedure corrects group Sigma X, Y, and Z multiplies values for Groupsize>1 by sqrt(2)
+;
+Gr_size_ind = min(where(RowNames eq '24 Group Size'))                    ; CGroupParametersGP[24,*] - total peaks in the group
+GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))                ; CGroupParametersGP[21,*] - new x - position sigma
+GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))                ; CGroupParametersGP[22,*] - new y - position sigma
+GrSigZ_ind = min(where(RowNames eq 'Group Sigma Z'))                    ; CGroupParametersGP[41,*] - Group Sigma Z
+
+
+ind_to_correct = where(CGroupParams[Gr_size_ind,*] gt 1, cnt)
+
+if cnt gt 0 then begin
+	CGroupParams[GrSigX_ind,ind_to_correct]*=sqrt(2.0)
+	CGroupParams[GrSigY_ind,ind_to_correct]*=sqrt(2.0)
+	CGroupParams[GrSigZ_ind,ind_to_correct]*=sqrt(2.0)
+endif
 
 end
 ;

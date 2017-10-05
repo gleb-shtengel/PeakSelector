@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/31/2017 16:13.55
+; Generated on:	10/03/2017 13:22.32
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -305,6 +305,10 @@ pro WID_BASE_0_PeakSelector_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Renumber_Group_Peaks, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Correct_GroupSigmaXYZ'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Correct_GroupSigmaXYZ, Event
+    end
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_10'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         ColorTheTable, Event
@@ -324,6 +328,10 @@ pro WID_BASE_0_PeakSelector_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_ColorBarExtend'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnColorBar_Extend, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_XYZ_diamonds'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        On_XYZ_use_diamonds, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Set_nm_per_pixel_scale'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -882,6 +890,11 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       UNAME='W_MENU_Renumber_GP' ,VALUE='Re-number Group Peaks')
 
   
+  W_MENU_Correct_GroupSigmaXYZ = Widget_Button(W_MENU_11,  $
+      UNAME='W_MENU_Correct_GroupSigmaXYZ' ,VALUE='Correct'+ $
+      ' GroupSigmaXYZ (*1.414)')
+
+  
   W_MENU_9 = Widget_Button(WID_BASE_0_PeakSelector_MBAR,  $
       UNAME='W_MENU_9' ,/MENU ,VALUE='Display')
 
@@ -906,6 +919,11 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   W_MENU_ColorBarExtend = Widget_Button(W_MENU_9,  $
       UNAME='W_MENU_ColorBarExtend' ,/CHECKED_MENU ,VALUE='Extend'+ $
       ' Color Bar')
+
+  
+  W_MENU_XYZ_diamonds = Widget_Button(W_MENU_9,  $
+      UNAME='W_MENU_XYZ_diamonds' ,/CHECKED_MENU ,VALUE='XYZ Plot:'+ $
+      ' Use Diamonds')
 
   
   W_MENU_Set_nm_per_pixel_scale = Widget_Button(W_MENU_9,  $

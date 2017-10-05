@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/29/2017 04:57.04
+; Generated on:	08/29/2017 12:50.41
 ; 
 pro WID_BASE_AnchorPts_event, Event
 
@@ -327,8 +327,8 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_DROPLIST_TRANSFORM_METHOD = Widget_Droplist(WID_BASE_AnchorPts,  $
       UNAME='WID_DROPLIST_TRANSFORM_METHOD' ,XOFFSET=208 ,YOFFSET=8  $
-      ,SCR_XSIZE=226 ,SCR_YSIZE=26 ,VALUE=[ 'Linear Regression',  $
-      'POLYWARP', 'Affine', 'X-Y Shift Only' ])
+      ,SCR_XSIZE=226 ,SCR_YSIZE=26 ,VALUE=[ 'X-Y Shift Only', 'Linear'+ $
+      ' Regression', 'POLYWARP', '2D Affine', '3D Affine' ])
 
   
   WID_LABEL_2 = Widget_Label(WID_BASE_AnchorPts, UNAME='WID_LABEL_2'  $

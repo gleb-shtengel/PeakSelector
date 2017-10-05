@@ -1,10 +1,10 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	07/07/2017 10:50.37
+; Generated on:	10/05/2017 15:33.17
 VERSION 1
 END
 
-WID_BASE_Extract_Peaks_Multiple_TIFFs BASE 5 5 749 962
+WID_BASE_Extract_Peaks_Multiple_TIFFs BASE 5 5 749 1011
 REALIZE "Initialize_Extract_Peaks_mTIFFs"
 TLB
 CAPTION "Extract Peaks from multiple TIFF files in a single directory"
@@ -13,16 +13,17 @@ XPAD = 3
 YPAD = 3
 SPACE = 3
 BEGIN
-  WID_BUTTON_Cancel_Extract_mTIFFS PUSHBUTTON 579 865 130 40
+  WID_BUTTON_Cancel_Extract_mTIFFS PUSHBUTTON 194 915 130 40
   VALUE "Cancel"
   ALIGNCENTER
   ONACTIVATE "OnCancel_Extract_mTIFFS"
   END
-  WID_DROPLIST_SetSigmaFitSym_mTIFFS DROPLIST 496 690 200 30
+  WID_DROPLIST_SetSigmaFitSym_mTIFFS DROPLIST 415 690 290 30
   CAPTION "SetSigmaFitSymmetry"
-  NUMITEMS = 2
+  NUMITEMS = 3
   ITEM "R"
-  ITEM "X Y"
+  ITEM "X Y unconstrained"
+  ITEM "X Y constr: SigX(Z), SigY(Z)"
   ONSELECT "Set_SigmaFitSym_mTIFFS"
   END
   WID_BTTN_SelectDirectory PUSHBUTTON 415 10 100 30
@@ -44,7 +45,7 @@ BEGIN
   ITEM "IDL Bridge"
   ONSELECT "Set_TransformEngine_mTIFFS"
   END
-  WID_Filter_Parameters_mTIFFS TABLE 410 725 300 120
+  WID_Filter_Parameters_mTIFFS TABLE 414 838 300 120
   N_ROWS = 10
   N_COLS = 1
   NUMCOLLABELS = 1
@@ -56,7 +57,7 @@ BEGIN
   EDITABLE
   ONINSERTCHAR "Do_Change_Astig_Macroparams_mTIFFS"
   END
-  WID_BUTTON_Start_Extract_mTIFFS PUSHBUTTON 414 865 150 40
+  WID_BUTTON_Start_Extract_mTIFFS PUSHBUTTON 30 916 150 40
   VALUE "Confirm and Start"
   ALIGNCENTER
   ONACTIVATE "Start_mTIFFS_Extract"
@@ -184,5 +185,16 @@ BEGIN
   WID_LABEL_nfiles_Glob_mTIFFs LABEL 210 152 190 25
   VALUE ""
   ALIGNLEFT
+  END
+  WID_BUTTON_PickCalFile_MultiTIFF PUSHBUTTON 415 720 150 32
+  VALUE "Pick CAL (WND) File"
+  ALIGNCENTER
+  ONACTIVATE "OnPickCalFile_Astig_MultiTIFF"
+  END
+  WID_TEXT_WindFilename_Astig_MultiTIFF TEXT 420 751 290 80
+  EDITABLE
+  WRAP
+  WIDTH = 20
+  HEIGHT = 2
   END
 END

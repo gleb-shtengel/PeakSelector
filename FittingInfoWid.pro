@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	02/19/2014 15:17.41
+; Generated on:	10/05/2017 15:32.29
 ; 
 pro WID_BASE_Info_event, Event
 
@@ -39,6 +39,10 @@ pro WID_BASE_Info_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_DROPLIST' )then $
         SetLocalizationMethod, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_PickCalFile_FittingInfo'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnPickCalFile_Astig_FittingInfo, Event
+    end
     else:
   endcase
 
@@ -56,7 +60,7 @@ pro WID_BASE_Info, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BASE_Info = Widget_Base( GROUP_LEADER=wGroup,  $
       UNAME='WID_BASE_Info' ,XOFFSET=5 ,YOFFSET=5 ,SCR_XSIZE=330  $
-      ,SCR_YSIZE=736 ,NOTIFY_REALIZE='DoRealizeInfo' ,TITLE='Fitting'+ $
+      ,SCR_YSIZE=900 ,NOTIFY_REALIZE='DoRealizeInfo' ,TITLE='Fitting'+ $
       ' Info' ,SPACE=3 ,XPAD=3 ,YPAD=3 ,/MODAL)
 
   
@@ -76,14 +80,14 @@ pro WID_BASE_Info, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_BUTTON_Info_OK = Widget_Button(WID_BASE_Info,  $
-      UNAME='WID_BUTTON_Info_OK' ,XOFFSET=171 ,YOFFSET=642  $
+      UNAME='WID_BUTTON_Info_OK' ,XOFFSET=167 ,YOFFSET=793  $
       ,SCR_XSIZE=140 ,SCR_YSIZE=55 ,/ALIGN_CENTER ,VALUE='Confirm and'+ $
       ' Start Fit')
 
   
   WID_DROPLIST_FitDisplayType = Widget_Droplist(WID_BASE_Info,  $
-      UNAME='WID_DROPLIST_FitDisplayType' ,XOFFSET=38 ,YOFFSET=530  $
-      ,SCR_XSIZE=225 ,SCR_YSIZE=30  $
+      UNAME='WID_DROPLIST_FitDisplayType' ,XOFFSET=5 ,YOFFSET=530  $
+      ,SCR_XSIZE=300 ,SCR_YSIZE=30  $
       ,NOTIFY_REALIZE='DoRealizeDropListDispType' ,TITLE='Fit-Display'+ $
       ' Level' ,VALUE=[ 'No Display', 'Some Frames/Peaks', 'All'+ $
       ' Frames/Peaks ', 'Cluster - No Display', 'IDL Bridge - No'+ $
@@ -91,20 +95,33 @@ pro WID_BASE_Info, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_DROPLIST_SetSigmaFitSym = Widget_Droplist(WID_BASE_Info,  $
-      UNAME='WID_DROPLIST_SetSigmaFitSym' ,XOFFSET=40 ,YOFFSET=565  $
-      ,SCR_XSIZE=225 ,SCR_YSIZE=30 ,TITLE='SetSigmaFitSymmetry'  $
-      ,VALUE=[ 'R', 'X Y' ])
+      UNAME='WID_DROPLIST_SetSigmaFitSym' ,XOFFSET=5 ,YOFFSET=610  $
+      ,SCR_XSIZE=300 ,SCR_YSIZE=30 ,TITLE='Gaussian Fit' ,VALUE=[  $
+      'R', 'X Y unconstrained', 'X Y constr: SigX(Z), SigY(Z)' ])
 
   
   WID_BUTTON_CancelFit = Widget_Button(WID_BASE_Info,  $
-      UNAME='WID_BUTTON_CancelFit' ,XOFFSET=11 ,YOFFSET=642  $
+      UNAME='WID_BUTTON_CancelFit' ,XOFFSET=7 ,YOFFSET=793  $
       ,SCR_XSIZE=140 ,SCR_YSIZE=55 ,/ALIGN_CENTER ,VALUE='Cancel')
 
   
   WID_DROPLIST_Localization_Method = Widget_Droplist(WID_BASE_Info,  $
-      UNAME='WID_DROPLIST_Localization_Method' ,XOFFSET=43  $
-      ,YOFFSET=605 ,SCR_XSIZE=225 ,SCR_YSIZE=30 ,TITLE='Localization'+ $
+      UNAME='WID_DROPLIST_Localization_Method' ,XOFFSET=5  $
+      ,YOFFSET=570 ,SCR_XSIZE=300 ,SCR_YSIZE=30 ,TITLE='Localization'+ $
       ' method' ,VALUE=[ 'Gaussian Fit', 'Sparse Sampling' ])
+
+  
+  WID_BUTTON_PickCalFile_FittingInfo = Widget_Button(WID_BASE_Info,  $
+      UNAME='WID_BUTTON_PickCalFile_FittingInfo' ,XOFFSET=5  $
+      ,YOFFSET=645 ,SCR_XSIZE=150 ,SCR_YSIZE=32 ,/ALIGN_CENTER  $
+      ,VALUE='Pick CAL (WND) File')
+
+  
+  WID_TEXT_WindFilename_Astig__FittingInfo =  $
+      Widget_Text(WID_BASE_Info,  $
+      UNAME='WID_TEXT_WindFilename_Astig__FittingInfo' ,XOFFSET=5  $
+      ,YOFFSET=680 ,SCR_XSIZE=300 ,SCR_YSIZE=80 ,/EDITABLE ,/WRAP  $
+      ,XSIZE=20 ,YSIZE=2)
 
   Widget_Control, /REALIZE, WID_BASE_Info
 

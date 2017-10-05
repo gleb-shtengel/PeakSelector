@@ -1235,9 +1235,7 @@ if cnt le 1 then begin
 	return      ; if data not loaded return
 endif
 lbl_mx=max(CGroupParams[LabelSet_ind,filterlist])
-wID = Widget_Info(TopID, find_by_uname='W_MENU_54')
-widget_control,wID,get_value=z_color
-rend_z_color = z_color eq 'Z using Hue Scale'
+rend_z_color = 0
 XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
 testXZ=Widget_Info(XZ_swap_menue_ID,/button_set)
 YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')

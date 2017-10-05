@@ -20,6 +20,7 @@ PRO	GAUSS2_FUNCT, X, A, F, PDER
 ;	Function is:
 ;		F(x,y) = A0 + A1*EXP(-U/2)
 ;		where: U= (yp/A2)^2 + (xp/A3)^2
+;			xp = (x-A4)   and   yp = (x-A5)and
 ;
 ;	  If A has 7 elements a rotation of the ellipse is present and:
 ;		xp = (x-A4) * cos(A6) - (y-A5) * sin(A6)

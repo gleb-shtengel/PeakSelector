@@ -20,6 +20,7 @@ common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 
 cd,current = pth
 
@@ -62,6 +63,26 @@ widget_control,WID_LABEL_nfiles_Glob_mTIFFs_ID,SET_VALUE=nfiles_text
 
 UseGlobIni_mTIFFs = 0
 
+if strlen(wfilename) gt 1 then begin
+	WFileWidID = Widget_Info(wWidget, find_by_uname='WID_TEXT_WindFilename_Astig_MultiTIFF')
+	widget_control,WFileWidID,SET_VALUE = wfilename
+endif
+
+end
+;
+;-----------------------------------------------------------------
+;
+pro OnPickCalFile_Astig_MultiTIFF, Event
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+	wfilename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav'],title='Select *WND.sav file to open')
+	if wfilename ne '' then begin
+		restore,filename=wfilename
+		print,'Astigmatic Fit coefficients:', aa
+		cd,fpath
+		WFileWidID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_WindFilename_Astig_MultiTIFF')
+		widget_control,WFileWidID,SET_VALUE = wfilename
+	endif
 end
 ;
 ;-----------------------------------------------------------------
@@ -84,7 +105,7 @@ end
 ;
 pro On_Select_Directory, Event
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 fpath = Dialog_Pickfile(/read,/DIRECTORY)
 WID_TXT_mTIFFS_Directory_ID = Widget_Info(Event.Top, find_by_uname='WID_TXT_mTIFFS_Directory')
 widget_control,WID_TXT_mTIFFS_Directory_ID,SET_VALUE = fpath
@@ -104,7 +125,7 @@ end
 ;
 pro OnPickWINDFile_mTIFFS, Event
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 wfilename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav'],title='Select *WND.sav file to open')
 CATCH, Error_status
 IF Error_status NE 0 THEN BEGIN
@@ -181,32 +202,46 @@ IF Error_status NE 0 THEN BEGIN
 	return
 ENDIF
 
-fmask = "*.tif"
+;fmask = "*.tif"
 
 widget_control,/hourglass
 
 if UseGlobIni_mTIFFs then begin
+	if n_elements(RawFilenames) eq 0 then $
+		if include_subdir then RawFilenames = FILE_SEARCH(fpath, fmask) else RawFilenames = FILE_SEARCH(fpath + sep + fmask)
     GlobINI_FileInfo=FILE_INFO(GlobINI_FileName)
 	if ~(GlobINI_FileInfo.exists) then return
-	openr, lun, GlobINI_FileName, /GET_LUN
-   	array = ''
+	openr, lun, GlobINI_FileName, /GET_LUN,ERROR = err
+  	; If err is nonzero, something happened. Print the error message to
+	IF (err NE 0) then PRINT,!ERROR_STATE.MSG
+	eof_lun = EOF(lun)
+ 	array = ''
 	line = ''
-	WHILE NOT EOF(lun) DO BEGIN
-  		READF, lun, line
-  		Glob_line = '*'+line
-  		print,Glob_line
-  		if n_elements(Files) eq 0 then begin
-  			;Files = RawFilenames[where(strmatch(RawFilenames, Glob_line) eq 1)]
-			Files = extract_filenames_glob(RawFilenames, Glob_line)
-  			Glob_lines = [Glob_line]
-  		endif else begin
-  			;Files = [Files, RawFilenames[where(strmatch(RawFilenames, Glob_line) eq 1)]]
-  			Files = [Files, extract_filenames_glob(RawFilenames, Glob_line)]
-  			Glob_lines = [Glob_lines, Glob_line]
-		endelse
+	WHILE eof_lun ne 1 DO BEGIN
+		if eof_lun ne 1 then begin
+			READF, lun, line
+  			Glob_line = '*'+line
+  			print,Glob_line
+  			ind = where((strmatch(RawFilenames, Glob_line) eq 1),cnt)
+  			print,'number of matching files:',cnt
+			if cnt ge 1  then begin
+  				if n_elements(Files) eq 0 then begin
+				;Files = extract_filenames_glob(RawFilenames, Glob_line)
+					Files = RawFilenames[ind]
+  					Glob_lines = [Glob_line]
+  				endif else begin
+  		 			;Files = [Files, extract_filenames_glob(RawFilenames, Glob_line)]
+  					Files = [Files, RawFilenames[ind]]
+  					Glob_lines = [Glob_lines, Glob_line]
+				endelse
+			endif
+			eof_lun = EOF(lun)
+			print,eof_lun
+		endif
 	ENDWHILE
+	print,'Found files:',n_elements(Files)
 	FREE_LUN, lun
-	RawFilenames = Files
+	if n_elements(Files) gt 0  then RawFilenames = Files
 endif else begin
 	if include_subdir then RawFilenames = FILE_SEARCH(fpath, fmask) else RawFilenames = FILE_SEARCH(fpath + sep + fmask )
 endelse
@@ -391,6 +426,7 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -436,11 +472,16 @@ if (thisfitcond.xsz eq 0) or (thisfitcond.ysz eq 0) then begin
 	return      ; if data not loaded return
 endif
 
+if (n_elements(filen) eq 0) or (n_elements(pth) eq 0) then begin
+	z=dialog_message('Read TIF File info to load the file data')
+	return      ; if data not loaded return
+endif
+
 print,'start of ReadRawLoop6,  thisfitcond=',thisfitcond
 print,'Path: ',pth
 print,'First file name: ',filen
 
-Start_Time= SYSTIME(/SECONDS)
+Start_Time = SYSTIME(/SECONDS)
 thefile_no_exten=pth+filen
 DisplaySet=0
 xsz=thisfitcond.xsz													;number of x pixels
@@ -466,7 +507,7 @@ if DisplayType eq 3 then begin 	;set to 3 (--> -1) - Cluster
 	td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
 	temp_dir=curr_pwd + sep + td
 	FILE_MKDIR,temp_dir
-	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, RawFilenames, nloops, Astig_MacroParameters, GlobINI_FileName, UseGlobIni_mTIFFs, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
+	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, aa, RawFilenames, nloops, Astig_MacroParameters, GlobINI_FileName, UseGlobIni_mTIFFs, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
 	ReadRawLoopCluster_mTIFFs, Event
 	file_delete,td + sep + 'temp.sav'
 	file_delete,td
@@ -492,7 +533,11 @@ endif else begin
 
 			;Get parameters of one bunch of frames
 			if thisfitcond.LocalizationMethod eq 0 then begin
-				if DisplayType lt 4 then Apeakparams=ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+				if DisplayType lt 4 then begin
+					;Apeakparams=ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+					if thisfitcond.SigmaSym le 1 then Apeakparams = ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+					if thisfitcond.SigmaSym ge 2 then Apeakparams = ParamsofShortStackofFrames_AstigmaticZ(data,DisplayType,thisfitcond,aa,framefirst)
+				endif
 				if DisplayType eq 4 then begin
 					print,'loaded data block',nlps+1,'
 					t0 = SYSTIME(/SECONDS)
@@ -584,7 +629,7 @@ pro Reassemble_PKS_Files, Event, SumFilename, npks_det
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common calib, aa, wind_range, nmperframe, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -643,7 +688,6 @@ Gr_Ell_ind = min(where(RowNames eq 'XY Group Ellipticity'))				; CGroupParameter
 UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))				; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
 UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))		; CGroupParametersGP[48,*] - Group Z Position Error
 
-
 xi = 0ul
 npktot = total(ulong(npks_det), /PRESERVE_TYPE)
 print,'Total Peaks Detected: ',npktot,'    for data set: ', SumFilename
@@ -688,24 +732,35 @@ nloops = n_elements(RawFilenames)
 		Apeakparams = Apeakparams_tot
 		xydsz=[xsz,ysz]
 		image=image_tot
-
 		ind_good = where((ApeakParams.NPhot gt 50) and (ApeakParams.FitOK eq 1), sz)
 		CGroupParams=fltarr(CGrpSize,sz)
+
 		CGroupParams[Off_ind:Amp_ind,*]=ApeakParams[ind_good].A[0:1]
 		CGroupParams[X_ind,*]=ApeakParams[ind_good].peakx
 		CGroupParams[Y_ind,*]=ApeakParams[ind_good].peaky
-		CGroupParams[Xwid_ind:Ywid_ind,*]=ApeakParams[ind_good].A[2:3]
+		if Chi_ind gt 0 then CGroupParams[Chi_ind,*]=ApeakParams[ind_good].ChiSq
+
+		if thisfitcond.SigmaSym le 1 then begin
+			CGroupParams[Xwid_ind:Ywid_ind,*]=ApeakParams[ind_good].A[2:3]
+			if SigNphX_ind gt 0 then CGroupParams[SigNphX_ind:SigNphY_ind,*]=ApeakParams[ind_good].Sigma2[4:5]
+			if Par12_ind gt 0 then CGroupParams[Par12_ind,*]=ApeakParams[ind_good].A[2]*ApeakParams[ind_good].A[3]
+			if SigAmp_ind gt 0 then CGroupParams[SigAmp_ind,*]=ApeakParams[ind_good].Sigma2[1]
+			if SigX_ind gt 0 then CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams[ind_good].Sigma2[2:3]
+			if Ell_ind gt 0 then CGroupParams[Ell_ind,*]=(ApeakParams[ind_good].A[2]-ApeakParams[ind_good].A[3])/(ApeakParams[ind_good].A[2]+ApeakParams[ind_good].A[3])
+		endif else begin
+			CGroupParams[Xwid_ind,*] = ApeakParams[ind_good].peak_widx
+			CGroupParams[Ywid_ind,*] = ApeakParams[ind_good].peak_widy
+			if Z_ind gt 0 then CGroupParams[Z_ind,*]=ApeakParams[ind_good].A[4]
+			if SigX_ind gt 0 then CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams[ind_good].Sigma[2:3]
+			if SigZ_ind gt 0 then CGroupParams[SigZ_ind,*]=ApeakParams[ind_good].Sigma[4]
+			if Ell_ind gt 0 then CGroupParams[Ell_ind,*]=(ApeakParams[ind_good].peak_widx-ApeakParams[ind_good].peak_widy)/(ApeakParams[ind_good].peak_widx+ApeakParams[ind_good].peak_widy)
+			if thisfitcond.SigmaSym eq 4 then if Par12_ind gt 0 then CGroupParams[Par12_ind,*]=ApeakParams[ind_good].A[5]
+		endelse
 		CGroupParams[Nph_ind,*]=ApeakParams[ind_good].NPhot
-		if Chi_ind ge 0 then CGroupParams[Chi_ind,*]=ApeakParams[ind_good].ChiSq
-		if FitOK_ind ge 0 then CGroupParams[FitOK_ind,*]=ApeakParams[ind_good].FitOK
+		CGroupParams[FitOK_ind,*]=ApeakParams[ind_good].FitOK
 		CGroupParams[FrNum_ind,*]=ApeakParams[ind_good].FrameIndex
-		if PkInd_ind ge 0 then CGroupParams[PkInd_ind,*]=ApeakParams[ind_good].PeakIndex
-		if PkGlInd_ind ge 0 then CGroupParams[PkGlInd_ind,*]=dindgen(sz)
-		if Par12_ind ge 0 then CGroupParams[Par12_ind,*]=ApeakParams[ind_good].A[2]*ApeakParams[ind_good].A[3]
-		if SigAmp_ind ge 0 then CGroupParams[SigAmp_ind,*]=ApeakParams[ind_good].Sigma2[1]
-		if SigNphX_ind ge 0 then CGroupParams[SigNphX_ind:SigNphY_ind,*]=ApeakParams[ind_good].Sigma2[4:5]
-		CGroupParams[SigX_ind:SigY_ind,*]=ApeakParams[ind_good].Sigma2[2:3]
-		if Ell_ind ge 0 then CGroupParams[Ell_ind,*] = (CGroupParams[Xwid_ind,*] - CGroupParams[Ywid_ind,*]) / (CGroupParams[Xwid_ind,*] + CGroupParams[Ywid_ind,*])
+		if PkInd_ind gt 0 then CGroupParams[PkInd_ind,*]=ApeakParams[ind_good].PeakIndex
+		if PkGlInd_ind gt 0 then CGroupParams[PkGlInd_ind,*]=dindgen(sz[1])
 
 		TotalRawData = totdat_tot
 		FlipRotate={frt,present:0B,transp:0B,flip_h:0B,flip_v:0B}
@@ -730,6 +785,7 @@ Pro ReadRawLoopCluster_mTIFFs, Event			;Master program to read data and loop thr
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -838,7 +894,11 @@ dsz=xsz>ysz
 mg=((wxsz<wysz))/dsz
 
 if Nframes gt 1 then totdat=float(total(data[*,*,0L:Nframes-1L],3)/Nframes) else totdat=float(data)
-if thisfitcond.LocalizationMethod eq 0 then Apeakparams = ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+;if thisfitcond.LocalizationMethod eq 0 then Apeakparams = ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+if thisfitcond.LocalizationMethod eq 0 then begin
+	if thisfitcond.SigmaSym le 1 then Apeakparams = ParamsofShortStackofFrames(data,DisplayType,thisfitcond,framefirst)
+	if thisfitcond.SigmaSym ge 2 then Apeakparams = ParamsofShortStackofFrames_AstigmaticZ(data,DisplayType,thisfitcond,aa,framefirst)
+endif
 if thisfitcond.LocalizationMethod eq 1 then Apeakparams = ParamsofShortStackofFrames_SparseSampling(data,DisplayType,thisfitcond,framefirst)
 print,'ReadRawWorker: Finished ParamsofShortStackofFrames'
 mg=2
@@ -865,3 +925,4 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+

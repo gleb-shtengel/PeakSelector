@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/07/2017 10:50.45
+; Generated on:	10/05/2017 15:33.21
 ; 
 pro WID_BASE_Extract_Peaks_Multiple_TIFFs_event, Event
 
@@ -65,6 +65,10 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         On_Select_GolbIni, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_PickCalFile_MultiTIFF'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnPickCalFile_Astig_MultiTIFF, Event
+    end
     else:
   endcase
 
@@ -83,7 +87,7 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
   WID_BASE_Extract_Peaks_Multiple_TIFFs = Widget_Base(  $
       GROUP_LEADER=wGroup,  $
       UNAME='WID_BASE_Extract_Peaks_Multiple_TIFFs' ,XOFFSET=5  $
-      ,YOFFSET=5 ,SCR_XSIZE=749 ,SCR_YSIZE=962  $
+      ,YOFFSET=5 ,SCR_XSIZE=749 ,SCR_YSIZE=1011  $
       ,NOTIFY_REALIZE='Initialize_Extract_Peaks_mTIFFs'  $
       ,TITLE='Extract Peaks from multiple TIFF files in a single'+ $
       ' directory' ,SPACE=3 ,XPAD=3 ,YPAD=3 ,/MODAL)
@@ -91,16 +95,17 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
   
   WID_BUTTON_Cancel_Extract_mTIFFS =  $
       Widget_Button(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
-      UNAME='WID_BUTTON_Cancel_Extract_mTIFFS' ,XOFFSET=579  $
-      ,YOFFSET=865 ,SCR_XSIZE=130 ,SCR_YSIZE=40 ,/ALIGN_CENTER  $
+      UNAME='WID_BUTTON_Cancel_Extract_mTIFFS' ,XOFFSET=194  $
+      ,YOFFSET=915 ,SCR_XSIZE=130 ,SCR_YSIZE=40 ,/ALIGN_CENTER  $
       ,VALUE='Cancel')
 
   
   WID_DROPLIST_SetSigmaFitSym_mTIFFS =  $
       Widget_Droplist(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
-      UNAME='WID_DROPLIST_SetSigmaFitSym_mTIFFS' ,XOFFSET=496  $
-      ,YOFFSET=690 ,SCR_XSIZE=200 ,SCR_YSIZE=30  $
-      ,TITLE='SetSigmaFitSymmetry' ,VALUE=[ 'R', 'X Y' ])
+      UNAME='WID_DROPLIST_SetSigmaFitSym_mTIFFS' ,XOFFSET=415  $
+      ,YOFFSET=690 ,SCR_XSIZE=290 ,SCR_YSIZE=30  $
+      ,TITLE='SetSigmaFitSymmetry' ,VALUE=[ 'R', 'X Y unconstrained',  $
+      'X Y constr: SigX(Z), SigY(Z)' ])
 
   
   WID_BTTN_SelectDirectory =  $
@@ -127,7 +132,7 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
   
   WID_Filter_Parameters_mTIFFS =  $
       Widget_Table(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
-      UNAME='WID_Filter_Parameters_mTIFFS' ,XOFFSET=410 ,YOFFSET=725  $
+      UNAME='WID_Filter_Parameters_mTIFFS' ,XOFFSET=414 ,YOFFSET=838  $
       ,SCR_XSIZE=300 ,SCR_YSIZE=120 ,/EDITABLE ,COLUMN_LABELS=[  $
       'Value' ] ,ROW_LABELS=[ 'Nph. Min.', 'Full Sigma X Max.'+ $
       ' (pix.)', 'Full Sigma Y Max. (pix.)' ] ,XSIZE=1 ,YSIZE=10)
@@ -135,8 +140,8 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
   
   WID_BUTTON_Start_Extract_mTIFFS =  $
       Widget_Button(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
-      UNAME='WID_BUTTON_Start_Extract_mTIFFS' ,XOFFSET=414  $
-      ,YOFFSET=865 ,SCR_XSIZE=150 ,SCR_YSIZE=40 ,/ALIGN_CENTER  $
+      UNAME='WID_BUTTON_Start_Extract_mTIFFS' ,XOFFSET=30  $
+      ,YOFFSET=916 ,SCR_XSIZE=150 ,SCR_YSIZE=40 ,/ALIGN_CENTER  $
       ,VALUE='Confirm and Start')
 
   
@@ -256,6 +261,20 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
       Widget_Label(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
       UNAME='WID_LABEL_nfiles_Glob_mTIFFs' ,XOFFSET=210 ,YOFFSET=152  $
       ,SCR_XSIZE=190 ,SCR_YSIZE=25 ,/ALIGN_LEFT ,VALUE='')
+
+  
+  WID_BUTTON_PickCalFile_MultiTIFF =  $
+      Widget_Button(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
+      UNAME='WID_BUTTON_PickCalFile_MultiTIFF' ,XOFFSET=415  $
+      ,YOFFSET=720 ,SCR_XSIZE=150 ,SCR_YSIZE=32 ,/ALIGN_CENTER  $
+      ,VALUE='Pick CAL (WND) File')
+
+  
+  WID_TEXT_WindFilename_Astig_MultiTIFF =  $
+      Widget_Text(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
+      UNAME='WID_TEXT_WindFilename_Astig_MultiTIFF' ,XOFFSET=420  $
+      ,YOFFSET=751 ,SCR_XSIZE=290 ,SCR_YSIZE=80 ,/EDITABLE ,/WRAP  $
+      ,XSIZE=20 ,YSIZE=2)
 
   Widget_Control, /REALIZE, WID_BASE_Extract_Peaks_Multiple_TIFFs
 
