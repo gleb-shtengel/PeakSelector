@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	03/10/2017 13:18.54
+; Generated on:	10/05/2017 17:04.27
 VERSION 1
 END
 
@@ -31,7 +31,7 @@ BEGIN
   END
   WID_SLIDER_FramesPerNode SLIDER 10 130 142 48
   CAPTION "Frames per Node (Cluster)"
-  VALUE = 2500
+  VALUE = 500
   MINIMUM = 0
   MAXIMUM = 10000
   END

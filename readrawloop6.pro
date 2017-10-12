@@ -243,15 +243,24 @@ end
 ;
 pro FindPeaks, clip, totdat, d, Gauss_sigma, threshold, mxcnt, peakxa, peakya, maxpeakcriteria, criteria		;Create and ordered list of peak candidate coordinates
 if mxcnt eq 0 then return
+gauss_diff = 4	; Ratio of Gaussian kernels for difference of Gaussians
 clipsz=size(clip)
 Nx=clipsz[1]
 Ny=clipsz[2]
 criteriaclip=(clip-0.9*smooth(totdat,3))>0.5
 dk=2*d+1	&	dl=d
 xyvals=findgen(dk)-dl
+
 gcx=exp(-(xyvals^2)/Gauss_sigma^2/2.)
 gausscenter=gcx#gcx
 gausscenter=gausscenter-mean(gausscenter)
+
+;gcx0=exp(-(xyvals^2)/(Gauss_sigma/sqrt(gauss_diff))^2/2.)
+;gausscenter0=gcx0#gcx0
+;gcx1=exp(-(xyvals^2)/(Gauss_sigma*sqrt(gauss_diff))^2/2.)
+;gausscenter1=gcx1#gcx1
+;gausscenter=gausscenter0-gausscenter1
+
 criteria=(convol(criteriaclip,gausscenter) > 0)
 newcriteria=criteria
 maxpeakcriter=max(criteria)

@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	03/10/2017 13:19.01
+; Generated on:	10/05/2017 17:04.35
 ; 
 pro WID_BASE_GroupPeaks_event, Event
 
@@ -58,7 +58,7 @@ pro WID_BASE_GroupPeaks, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_SLIDER_FramesPerNode = Widget_Slider(WID_BASE_GroupPeaks,  $
       UNAME='WID_SLIDER_FramesPerNode' ,XOFFSET=10 ,YOFFSET=130  $
       ,SCR_XSIZE=142 ,SCR_YSIZE=48 ,TITLE='Frames per Node (Cluster)'  $
-      ,MINIMUM=0 ,MAXIMUM=10000 ,VALUE=2500)
+      ,MINIMUM=0 ,MAXIMUM=10000 ,VALUE=500)
 
   
   WID_BUTTON_GroupingOK = Widget_Button(WID_BASE_GroupPeaks,  $

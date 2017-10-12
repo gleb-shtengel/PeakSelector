@@ -2734,8 +2734,8 @@ UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))		; CGroupParam
 		CGroupParams[Gr_ind,*]=0
 		interrupt_load = 0
 		increment = 2500
-		grouping_gap = 10
-		grouping_radius100 = 50
+		grouping_gap = 30
+		grouping_radius100 = 20
 
 		framefirst=long(ParamLimits[FrNum_ind,0])
 		framelast=long(ParamLimits[FrNum_ind,1])
@@ -3738,8 +3738,7 @@ if GRP eq 1 then begin
 	if cnt ge 1 then mx=max(CGroupParams[LabelSet_ind,FilteredGroupedPeakIndex]) else mx=-1					; are there more than one label set of data,... then show in R,G,B
 endif
 
-print,'mx=',mx
-
+;print,'mx=',mx
 if (mx lt 1)  then begin
 	tv,loc
 	if DrawLegends eq original then TVscales,wxsz,wysz,mgw,nm_per_pixel
@@ -5762,18 +5761,12 @@ if (dx lt peakselector_x) or (dy lt peakselector_y) then $
 	widget_control,wWidget,Xsize=dx, SCR_XSIZE=peakselector_x, Ysize=dy, SCR_YSIZE=peakselector_y
 
 def_w=!D.WINDOW
-cd,current=cur_dir
-print,'started in directory: ',cur_dir
+cd, current=cur_dir
 if strpos(cur_dir,'PeakSelector') ge 0 then begin
-	print,'setting this directory to be default'
 	if !VERSION.OS_family eq 'unix' then pref_set,'IDL_MDE_START_DIR',cur_dir,/commit	else	pref_set,'IDL_WDE_START_DIR',cur_dir,/commit
 endif
-
 idl_pwd=cur_dir
 !PATH = idl_pwd + ';' + !PATH
-;viewer_dir=cur_dir+path_sep()+'3D_Viewer'
-;src_dir=viewer_dir+path_sep()+'src'
-;!PATH = !PATH +';' + viewer_dir+';' + src_dir
 
 ini_filename = !VERSION.OS_family eq 'unix' ? pref_get('IDL_MDE_START_DIR')+'/PeakSelector.ini' : pref_get('IDL_WDE_START_DIR')+'\PeakSelector.ini'
 Initialization_PeakSelector, wWidget, _EXTRA=_VWBExtra_
@@ -6366,10 +6359,6 @@ while (~ EOF(1)) and (strmid(line_i,0,7) ne 'RowLbls') do begin
 			iPALM_MacroParameters_R  = [iPALM_MacroParameters_R , fix(STRMID(var_val_str2,0,second_br))]
 		endif
 
-
-
-
-
 	endelse
 	i++
 endwhile
@@ -6396,6 +6385,12 @@ while (~ EOF(1)) and (i lt CGrpSize) do begin
 	i++
 endwhile
 RowNames=RowLabels[0:(CGrpSize-1)]
+
+start_dir = !VERSION.OS_family eq 'unix' ? linux_start_dir : windows_start_dir
+if strlen((file_search(start_dir ,/test_directory))[0]) gt 0 then cd, start_dir
+cd, current=st_dir
+print,'started in directory: ',st_dir
+
 CATCH, /CANCEL
 close,1
 end

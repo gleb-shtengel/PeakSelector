@@ -326,7 +326,7 @@ if test1 eq 0 then begin
 	return      ; if data not loaded return
 endif
 
-LoadThiFitCond,ini_filename,thisfitcond
+;LoadThiFitCond,ini_filename,thisfitcond
 pos=max(strsplit(tif_filename,sep))
 pth= strmid(tif_filename,0,(pos-1))
 fname=strmid(tif_filename,strlen(pth))
@@ -476,6 +476,10 @@ if (n_elements(filen) eq 0) or (n_elements(pth) eq 0) then begin
 	z=dialog_message('Read TIF File info to load the file data')
 	return      ; if data not loaded return
 endif
+
+;WID_DROPLIST_SetSigmaFitSym_mTIFFS_ID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_SetSigmaFitSym_mTIFFS')
+;SigmaSym=widget_info(WID_DROPLIST_SetSigmaFitSym_mTIFFS_ID,/DropList_Select)		;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
+;thisfitcond.SigmaSym = SigmaSym
 
 print,'start of ReadRawLoop6,  thisfitcond=',thisfitcond
 print,'Path: ',pth
@@ -802,7 +806,7 @@ spawn,'sh '+idl_pwd+'/runme_mTIFFs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_p
 thefile_no_exten=pth+filen
 
 ; We previously stored all filenames into MLRawFilenames array
-; and the filenames without corresponding .pks processed files inro RawFilenames
+; and the filenames without corresponding .pks processed files into RawFilenames
 ; now we just need to re-assemble all MLRawFilenames.
 RawFilenames = MLRawFilenames
 nloops = n_elements(RawFilenames)

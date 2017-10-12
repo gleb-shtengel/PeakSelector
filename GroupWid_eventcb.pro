@@ -15,6 +15,10 @@ wGrpGapID = Widget_Info(wWidget, find_by_uname='WID_SLIDER_Group_Gap')
 widget_control,wGrpGapID,set_value = grouping_gap
 wGrpGapID = Widget_Info(wWidget, find_by_uname='WID_SLIDER_Grouping_Radius')
 widget_control,wGrpGapID,set_value=grouping_radius100
+increment = 500
+WID_SLIDER_FramesPerNode_ID = Widget_Info(wWidget, find_by_uname='WID_SLIDER_FramesPerNode')
+widget_control,WID_SLIDER_FramesPerNode_ID,set_value=increment
+
 end
 ;
 ;-----------------------------------------------------------------
@@ -66,12 +70,10 @@ case GroupEngine of
 		framefirst=long(ParamLimits[FrNum_ind,0])
 		framelast=long(ParamLimits[FrNum_ind,1])
 		nloops=long(ceil((framelast-framefirst+1.0)/increment))
-
-		wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Group_Gap')
-		widget_control,wGrpGapID,get_value=grouping_gap
-
-		wGrpRadID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Grouping_Radius')
-		widget_control,wGrpRadID,get_value=grouping_radius100
+		;wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Group_Gap')
+		;widget_control,wGrpGapID,get_value=grouping_gap
+		;wGrpRadID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Grouping_Radius')
+		;widget_control,wGrpRadID,get_value=grouping_radius100
 		grouping_radius=FLOAT(grouping_radius100)/100	; in CCD pixel units
 		spacer = grouping_gap+2
 		maxgrsize = 10						; not absolute max group size: max group size for arrayed processing (groups with elements>maxgroupsize are later analyzed separately)
@@ -124,7 +126,7 @@ case GroupEngine of
 		if interrupt_load eq 1 then print,'Grouping aborted, cleaning up...'
 
 		if interrupt_load eq 0 then begin
-			GroupPeaksCluster_ReadBack, interrupt_load
+			GroupPeaksCluster_ReadBack, Event, interrupt_load
 		endif
 		print,'removing temp directory'
 		CATCH, Error_status
@@ -152,12 +154,10 @@ case GroupEngine of
 		increment = long(ceil((framelast-framefirst+1.0)/nloops))
 		nloops = long(ceil((framelast-framefirst+1.0)/increment)) > 1L
 		print,' Will start '+strtrim(nloops,2)+' bridge child processes'
-
-		wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Group_Gap')
-		widget_control, wGrpGapID, get_value=grouping_gap
-
-		wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Grouping_Radius')
-		widget_control, wGrpGapID, get_value=grouping_radius100
+;		wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Group_Gap')
+;		widget_control, wGrpGapID, get_value=grouping_gap
+;		wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Grouping_Radius')
+;		widget_control, wGrpGapID, get_value=grouping_radius100
 		grouping_radius = FLOAT(grouping_radius100)/100	; in CCD pixel units
 		spacer = grouping_gap + 2
 		maxgrsize = 10						; not absolute max group size: max group size for arrayed processing (groups with elements>maxgroupsize are later analyzed separately)
@@ -178,7 +178,7 @@ endcase
 
 if interrupt_load eq 0 then begin
 	wait,0.5
-	print,'Finished Grouing'
+	print,'Finished Grouping'
 
 	if bridge_exists gt 0 then begin
 		print,'Resetting Bridge Structure'
@@ -222,10 +222,10 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 ;FilterIt
 
 ;************ 1	Parameters read from GUI
-wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Group_Gap')
-widget_control,wGrpGapID,get_value=grouping_gap
-wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Grouping_Radius')
-widget_control,wGrpGapID,get_value=grouping_radius100
+;wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Group_Gap')
+;widget_control,wGrpGapID,get_value=grouping_gap
+;wGrpGapID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Grouping_Radius')
+;widget_control,wGrpGapID,get_value=grouping_radius100
 grouping_radius=FLOAT(grouping_radius100)/100	; in CCD pixel units
 spacer=grouping_gap+2
 maxgrsize=10						; not absolute max group size: max group size for arrayed processing (groups with elements>maxgroupsize are later analyzed separately)
@@ -242,17 +242,18 @@ end
 ;
 ;------------------------------------------------------------------------------------
 ;
-Pro GroupPeaksCluster_ReadBack, interrupt_load			;Master program to loop through group processing for cluster, using same fast new group processing core
+Pro GroupPeaksCluster_ReadBack, Event, interrupt_load			;Master program to loop through group processing for cluster, using same fast new group processing core
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common test, test1, nlps, test2, test3
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
 FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
 SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
 Gr_ind = min(where(RowNames eq '18 Grouped Index'))						; CGroupParametersGP[18,*] - group #
 
+nloops = 0
 restore,(temp_dir+'/temp.sav')
 spawn,'sh '+idl_pwd+'/group_status_check.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir			;Start monitoring the grouping workers on cluster
 
@@ -262,16 +263,21 @@ framelast=long(ParamLimits[FrNum_ind,1])
 file_delete,(temp_dir+'/npks_det.sav')
 
 print,'Grouping finished, reading back the data...'
-oStatusBar = obj_new('PALM_StatusBar', $
-        	COLOR=[0,0,255], $
-        	TEXT_COLOR=[255,255,255], $
-        	CANCEL_BUTTON_PRESENT = 1, $
-       	 	TITLE='Reading back  grouped data...', $
-      		TOP_LEVEL_BASE=tlb)
-fraction_complete_last=0.0D
-pr_bar_inc=0.01D
+
+;oStatusBar1 = obj_new('PALM_StatusBar', $
+;       	COLOR=[0,0,255], $
+;       	TEXT_COLOR=[255,255,255], $
+;       	CANCEL_BUTTON_PRESENT = 1, $
+;   	 	TITLE='Reading back  grouped data...', $
+;   		TOP_LEVEL_BASE=tlb)
+;fraction_complete_last=0.0D
+;pr_bar_inc=0.01D
+
 interrupt_load = 0
 nlps = 0L
+
+print,'nlps=', nlps, '  nloops=', nloops, '   interrupt_load=',interrupt_load
+print,'framefirst=', framefirst, '   increment=', increment, '   framelast', framelast
 
 while (nlps lt nloops) and (interrupt_load eq 0) do begin			;reassemble little pks files from all the workers into on big one
 	framestart=	framefirst + (nlps)*increment						;first frame in batch
@@ -293,15 +299,15 @@ while (nlps lt nloops) and (interrupt_load eq 0) do begin			;reassemble little p
 
 		file_delete, par_fname
 	endelse
-	fraction_complete=FLOAT(nlps)/FLOAT((nloops-1.0))
-	if	(fraction_complete-fraction_complete_last) gt pr_bar_inc then begin
-		fraction_complete_last=fraction_complete
-		oStatusBar -> UpdateStatus, fraction_complete
-	endif
+;	fraction_complete=FLOAT(nlps)/FLOAT((nloops-1.0))
+;	if	(fraction_complete-fraction_complete_last) gt pr_bar_inc then begin
+;		fraction_complete_last=fraction_complete
+;		oStatusBar1 -> UpdateStatus, fraction_complete
+;	endif
 	nlps++
-	interrupt_load = oStatusBar -> CheckCancel()
+;	interrupt_load = oStatusBar1 -> CheckCancel()
 endwhile
-obj_destroy, oStatusBar
+;obj_destroy, oStatusBar1
 print,'Finished reading the data back from Cluster'
 return
 end
