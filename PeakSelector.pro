@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	11/08/2017 09:24.47
+; Generated on:	11/14/2017 16:46.33
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -900,7 +900,7 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   W_MENU_Calculate_MSD = Widget_Button(W_MENU_11,  $
-      UNAME='W_MENU_Calculate_MSD' ,VALUE='Calculate Mean Square'+ $
+      UNAME='W_MENU_Calculate_MSD' ,VALUE='Calculate Mean Squared'+ $
       ' Displacement')
 
   
