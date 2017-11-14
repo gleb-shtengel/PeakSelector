@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	10/03/2017 13:22.27
+; Generated on:	11/14/2017 16:46.28
 VERSION 1
 END
 
@@ -387,6 +387,10 @@ BEGIN
       W_MENU_Correct_GroupSigmaXYZ PUSHBUTTON 0 0 0 0
       VALUE "Correct GroupSigmaXYZ (*1.414)"
       ONACTIVATE "Correct_GroupSigmaXYZ"
+      END
+      W_MENU_Calculate_MSD PUSHBUTTON 0 0 0 0
+      VALUE "Calculate Mean Squared Displacement"
+      ONACTIVATE "Calculate_MSD"
       END
     END
     W_MENU_9 PUSHBUTTON 0 0 0 0
