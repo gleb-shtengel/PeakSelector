@@ -3005,8 +3005,6 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 
-;CATCH, Error_status
-
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
 X_ind = min(where(RowNames eq 'X Position'))							; CGroupParametersGP[2,*] - Peak X  Position
@@ -3063,7 +3061,7 @@ allind1 = [Gr_ind, $
 		GrSigX_ind, $
 		GrSigY_ind, $
 		GrNph_ind, $
-		Gr_size_ind, $
+		;Gr_size_ind, $
 		;GrInd_ind, $
 		;LabelSet_ind, $
 		GrAmpL1_ind, $
@@ -3267,7 +3265,7 @@ for lbl_i=lbl_min,lbl_max do begin
 	if mult_colors_hist then filter_lbl=filter*(CGroupParams[LabelSet_ind,*] eq lbl_i) else filter_lbl=filter
 	hist_set=where(filter_lbl,cnt)
 	if PALM_with_groups AND Pam_is_Grp then begin
-		GrPkIndMin = fix(min(CGroupParams[GrInd_ind,filter_lbl]))
+		GrPkIndMin = min(CGroupParams[GrInd_ind,filter_lbl])
 		hist_set=where(filter_lbl*(CGroupParams[GrInd_ind,*] eq GrPkIndMin),cnt)
 	endif
 		;(((event.y ge Gr_ind) and (event.y lt Gr_size_ind)) or ((event.y ge GrAmpL1_ind) and (event.y le GrCoh_ind)) or ((event.y ge Gr_Ell_ind) and (event.y le UnwGrZErr_ind))) then hist_set=where(filter_lbl*(CGroupParams[GrInd_ind,*] eq 1),cnt)
@@ -3533,12 +3531,6 @@ if Save_Histograms_BMP_state then begin
 	presentimage=tvrd(true=1)
 	write_bmp,Histograms_BMP_File,presentimage,/rgb
 endif
-
-;IF Error_status NE 0 THEN BEGIN
-;	PRINT, 'InsertChar: Error :',!ERROR_STATE.MSG
-;ENDIF
-;CATCH,/CANCEL
-
 end
 ;
 ;-----------------------------------------------------------------
@@ -7782,40 +7774,6 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro Calculate_MSD, Event
-common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-
-X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
-Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
-Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
-Nph_ind = min(where(RowNames eq '6 N Photons'))							; CGroupParametersGP[6,*] - Number of Photons in the Peak
-FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
-
-peaks = where(filter,pkcnt)
-if pkcnt le 2 then begin
-	void = dialog_message('not enough peaks, cnt='+string(pkcnt))
-	return      ; if data not loaded return
-endif
-
-Pos = [CGroupParams[X_ind,peaks]*nm_per_pixel,CGroupParams[Y_ind,peaks]*nm_per_pixel,CGroupParams[Z_ind,peaks]]
-Frame = CGroupParams[FrNum_ind,peaks]
-Frame = Frame - Frame[0]
-MSD = dblarr(pkcnt)
-
-for i=0,pkcnt-1 do begin
-	;Pos_i = Pos[*,0:i]
-	indecis=indgen(pkcnt-i)
-	MSD[i] = total((Pos[*,indecis+i]-Pos[*,indecis])^2)/(pkcnt-i)
-endfor
-
-plot, MSD, xtitle = 'index', ytitle = 'MSD, nm^2', charsize=2
-oplot,MSD, psym=2
-end
-;
-;-----------------------------------------------------------------
-;
 pro Renumber_Group_Peaks, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -7977,4 +7935,3 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-
