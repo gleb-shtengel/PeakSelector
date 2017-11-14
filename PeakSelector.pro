@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	10/03/2017 13:22.32
+; Generated on:	11/08/2017 09:24.47
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -308,6 +308,10 @@ pro WID_BASE_0_PeakSelector_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Correct_GroupSigmaXYZ'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Correct_GroupSigmaXYZ, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Calculate_MSD'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Calculate_MSD, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_10'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -893,6 +897,11 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   W_MENU_Correct_GroupSigmaXYZ = Widget_Button(W_MENU_11,  $
       UNAME='W_MENU_Correct_GroupSigmaXYZ' ,VALUE='Correct'+ $
       ' GroupSigmaXYZ (*1.414)')
+
+  
+  W_MENU_Calculate_MSD = Widget_Button(W_MENU_11,  $
+      UNAME='W_MENU_Calculate_MSD' ,VALUE='Calculate Mean Square'+ $
+      ' Displacement')
 
   
   W_MENU_9 = Widget_Button(WID_BASE_0_PeakSelector_MBAR,  $
