@@ -1840,8 +1840,10 @@ if Transf_Meth ne 4 then begin;   All but 3D affine transformation
 		print,'Testing X-Y shift only'
 		dX = mean(Xi - Xo)
 		dY = mean(Yi - Yo)
-		P=[[-1*dX,0],[1,0]]
-		Q=[[-1*dY,1],[0,0]]
+		;P=[[-1*dX,0],[1,0]]
+		P=[[dX,0],[1,0]]
+		;Q=[[-1*dY,1],[0,0]]
+		Q=[[dY,1],[0,0]]
 	endif
 
 	;--------------------------------------------------------
@@ -1928,6 +1930,7 @@ if Transf_Meth ne 4 then begin;   All but 3D affine transformation
 		Transform_Error = sqrt(Transform_Error*Transform_Error + (Z1-Zi)*(Z1-Zi))
 	endif
 
+;stop
 endif else begin; in the case of affine 3D, convert everything to NM first
 	;--------------------------------------------------------
 	; Affine 3D

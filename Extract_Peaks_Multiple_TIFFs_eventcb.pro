@@ -217,6 +217,7 @@ if UseGlobIni_mTIFFs then begin
 	eof_lun = EOF(lun)
  	array = ''
 	line = ''
+	wcnt=0
 	WHILE eof_lun ne 1 DO BEGIN
 		if eof_lun ne 1 then begin
 			READF, lun, line
@@ -228,15 +229,15 @@ if UseGlobIni_mTIFFs then begin
   				if n_elements(Files) eq 0 then begin
 				;Files = extract_filenames_glob(RawFilenames, Glob_line)
 					Files = RawFilenames[ind]
-  					Glob_lines = [Glob_line]
   				endif else begin
   		 			;Files = [Files, extract_filenames_glob(RawFilenames, Glob_line)]
   					Files = [Files, RawFilenames[ind]]
-  					Glob_lines = [Glob_lines, Glob_line]
-				endelse
+ 				endelse
 			endif
+			Glob_lines = wcnt eq 0	?	[Glob_line] : [Glob_lines, Glob_line]
+			wcnt+=1
 			eof_lun = EOF(lun)
-			print,eof_lun
+			;print,eof_lun
 		endif
 	ENDWHILE
 	print,'Found files:',n_elements(Files)
@@ -256,13 +257,15 @@ if Excl_PKS then begin
 			if n_elements(RawFiles_new) eq 0 then RawFiles_new = RawFilenames[i] else RawFiles_new = [RawFiles_new, RawFilenames[i]]
 		endif
 	endfor
-	RawFilenames = RawFiles_new
+	RawFilenames = (n_elements(RawFiles_new) ne 0)	?	RawFiles_new	: ['']
 endif
 
 CATCH, /CANCEL
 
 WID_LIST_Extract_mTIFFS_ID = Widget_Info(Event.Top, find_by_uname='WID_LIST_Extract_mTIFFS')
 widget_control,WID_LIST_Extract_mTIFFS_ID,SET_VALUE = RawFilenames
+
+nfiles = (RawFilenames ne ['']) ? n_elements(RawFilenames)	:	0
 
 if UseGlobIni_mTIFFs then begin
 	nfiles_text = string(n_elements(RawFilenames))+' files (Glob)'
@@ -501,7 +504,8 @@ if mgw eq 0 then mgw=float(wxsz<wysz)/dsz
 mg_scl=2L		;	size reduction for frame display
 scl=4.			; 	brightness increase for frame display ;intensity scaling Range = scl* # electrons
 print,'DisplayType',DisplayType
-nloops = n_elements(RawFilenames)			;nloops=long((framelast-framefirst)/increment)
+;nloops = n_elements(RawFilenames)			;nloops=long((framelast-framefirst)/increment)
+nloops = (RawFilenames ne ['']) ? n_elements(RawFilenames)	:	0
 print,'nloops=',nloops
 
 if DisplayType eq 3 then begin 	;set to 3 (--> -1) - Cluster
@@ -511,7 +515,7 @@ if DisplayType eq 3 then begin 	;set to 3 (--> -1) - Cluster
 	td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
 	temp_dir=curr_pwd + sep + td
 	FILE_MKDIR,temp_dir
-	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, aa, RawFilenames, nloops, Astig_MacroParameters, GlobINI_FileName, UseGlobIni_mTIFFs, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
+	save, r_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, aa, RawFilenames, nloops, Astig_MacroParameters, GlobINI_FileName, UseGlobIni_mTIFFs, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
 	ReadRawLoopCluster_mTIFFs, Event
 	file_delete,td + sep + 'temp.sav'
 	file_delete,td
@@ -801,13 +805,22 @@ WID_BUTTON_Excl_PKS_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Excl_P
 Excl_PKS = Widget_Info(WID_BUTTON_Excl_PKS_ID, /BUTTON_SET)
 
 restore,(temp_dir+'/temp.sav')
-print,'sh '+idl_pwd+'/runme_mTIFFs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
-spawn,'sh '+idl_pwd+'/runme_mTIFFs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
+
+if nloops gt 0 then begin
+	print,'sh '+idl_pwd+'/runme_mTIFFs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
+	spawn,'sh '+idl_pwd+'/runme_mTIFFs.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
+endif
+
 thefile_no_exten=pth+filen
 
 ; We previously stored all filenames into MLRawFilenames array
 ; and the filenames without corresponding .pks processed files into RawFilenames
 ; now we just need to re-assemble all MLRawFilenames.
+print,'We previously stored all filenames into MLRawFilenames array'
+print,'and the filenames without corresponding .pks processed files into RawFilenames'
+print,'now we just need to re-assemble all MLRawFilenames.'
+if RawFilenames ne [''] then print,'n_elements(RawFilenames):',n_elements(RawFilenames) else print,'n_elements(RawFilenames): 0'
+print,'n_elements(MLRawFilenames):',n_elements(MLRawFilenames)
 RawFilenames = MLRawFilenames
 nloops = n_elements(RawFilenames)
 if Excl_PKS then begin ; process was previously interrupted and npks_det data DEOS NOT exist, need to create it
@@ -843,6 +856,13 @@ if Excl_PKS then begin ; process was previously interrupted and npks_det data DE
 endif else restore,(temp_dir+'/npks_det.sav')
 
 file_delete,(temp_dir+'/npks_det.sav'), /QUIET
+
+if UseGlobIni_mTIFFs then print,'Glob_lines:', Glob_lines
+print, 'n_elements(npks_det):',n_elements(npks_det)
+print, 'total(npks_det):',total(npks_det)
+print, 'n_elements(RawFilenames):',n_elements(RawFilenames)
+test = where(strmatch(RawFilenames, Glob_lines[0]) eq 1)
+print, 'n_files(Slab0):',n_elements(test)
 
 if NOT UseGlobIni_mTIFFs then begin
 ; stnadard procedure - no globs

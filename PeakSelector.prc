@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	11/14/2017 16:46.28
+; Generated on:	11/15/2017 22:23.35
 VERSION 1
 END
 
@@ -290,6 +290,10 @@ BEGIN
       W_MENU_Zastig PUSHBUTTON 0 0 0 0
       VALUE "Z-coordinate Operations - Astig Only "
       ONACTIVATE "ZCoordinateOperations_Astig"
+      END
+      W_MENU_ProcessMultiplePalmSlabs PUSHBUTTON 0 0 0 0
+      VALUE "Process Multiple PALM Slabs"
+      ONACTIVATE "Process_Multiple_Palm_Slabs_call"
       END
       W_Polarization_Analysis PUSHBUTTON 0 0 0 0
       VALUE "Polarization Analysis"

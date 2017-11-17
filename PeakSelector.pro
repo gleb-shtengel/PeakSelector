@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	11/14/2017 16:46.33
+; Generated on:	11/15/2017 22:23.39
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -220,6 +220,10 @@ pro WID_BASE_0_PeakSelector_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Zastig'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         ZCoordinateOperations_Astig, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_ProcessMultiplePalmSlabs'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Process_Multiple_Palm_Slabs_call, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='W_Polarization_Analysis'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -799,6 +803,11 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   W_MENU_Zastig = Widget_Button(W_MENU_11, UNAME='W_MENU_Zastig'  $
       ,VALUE='Z-coordinate Operations - Astig Only ')
+
+  
+  W_MENU_ProcessMultiplePalmSlabs = Widget_Button(W_MENU_11,  $
+      UNAME='W_MENU_ProcessMultiplePalmSlabs' ,VALUE='Process'+ $
+      ' Multiple PALM Slabs')
 
   
   W_Polarization_Analysis = Widget_Button(W_MENU_11,  $

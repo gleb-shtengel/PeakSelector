@@ -2382,6 +2382,8 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
+	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -5757,6 +5759,8 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
+Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
+	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 ;WID_BASE_0_PeakSelector resizing to fit computer screen
 disp_xy=GET_SCREEN_SIZE()
@@ -5801,7 +5805,8 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
-
+Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
+	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 Wid_ID_allow_bridge = Widget_Info(wWidget, find_by_uname='WID_BUTTON_Allow_Bridge')
 allow_bridge = widget_info(Wid_ID_allow_bridge,/button_set)
@@ -5970,6 +5975,8 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
+	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 ini_file_info=FILE_INFO(ini_file)
 if ~(ini_file_info.exists) then return
@@ -6923,6 +6930,12 @@ end
 ;
 pro ZCoordinateOperations_Astig, Event ; Starts Z-Operations Menu Widget for Astigmatic PALM (no interferometry)
 Zoperations_Astig_Wid, GROUP_LEADER=Event.top
+end
+;
+;-----------------------------------------------------------------
+;
+pro Process_Multiple_Palm_Slabs_call, Event ; Starts the macro to process and combine (register to scaffold) multiple PALM slabs
+Process_Multiple_Palm_Slabs, GROUP_LEADER=Event.top
 end
 ;
 ;-----------------------------------------------------------------
@@ -7977,4 +7990,3 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-
