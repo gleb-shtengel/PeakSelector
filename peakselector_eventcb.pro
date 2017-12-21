@@ -2092,6 +2092,20 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro Purge_selected_peaks, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+FilterIt
+pk_indecis=where(filter eq 0,cnt)
+if cnt lt 1 then begin
+	z=dialog_message('Filter returned no valid peaks')
+	return      ; if data not loaded return
+endif
+CGroupParams = temporary(CGroupParams[*,pk_indecis])
+ReloadParamlists, Event
+end
+;
+;-----------------------------------------------------------------
+;
 pro Purge_Group_Filtered, Event		;Purges peaks with group filter=0 and collapses CGroupParams
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -2382,8 +2396,9 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -3620,24 +3635,37 @@ if n_elements(CGroupParams) le 2 then begin
 	z=dialog_message('Please load a data file')
 	return      ; if data not loaded return
 endif
+
+LabelSet_ind = min(where(RowNames eq 'Label Set'))                        ; CGroupParametersGP[26,*] - Label Number
+
 filename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.txt'],title='Writes histogram data into *.txt ascii file')
 
 if strlen(fpath) ne 0 then cd,fpath
 if filename eq '' then return
 HistFile=AddExtension(filename,'.txt')
 
-lbl_cnt=max(CGroupParams[26,*])-min(CGroupParams[26,*])+1
+lbl_cnt=max(CGroupParams[LabelSet_ind,*])-min(CGroupParams[LabelSet_ind,*])+1
 
 openw,1,HistFile,width=1024
 header=xtitle
 for i=1,lbl_cnt do header=header+string(9B)+'Molecule Count Label #'+strtrim(fix(i),2)
 printf,1,header
 
-if lbl_cnt gt 1 then printf,1, [transpose(xcoord), (histhist_multilable)],FORMAT='('+strtrim(fix(lbl_cnt),2)+'(E12.4,"'+string(9B)+'"),E12.4)' else $
-printf,1, [transpose(xcoord), transpose(histhist)],FORMAT='(E12.4,"'+string(9B)+'",E12.4)'
+xc = hist_log_x ?	10^(xcoord)	: xcoord
+if hist_log_y then begin
+	if lbl_cnt gt 1 then begin
+		zero_ind = where(histhist_multilable le 0.5, cnt_zeros)
+		if cnt_zeros ge 1 then histhist_multilable[zero_ind]=0
+	endif else begin
+		zero_ind = where(histhist le 0.5, cnt_zeros)
+		if cnt_zeros ge 1 then histhist[zero_ind]=0
+	endelse
+endif
+
+if lbl_cnt gt 1 then printf,1, [transpose(xc), (histhist_multilable)],FORMAT='('+strtrim(fix(lbl_cnt),2)+'(E12.4,"'+string(9B)+'"),E12.4)' else $
+printf,1, [transpose(xc), transpose(histhist)],FORMAT='(E12.4,"'+string(9B)+'",E12.4)'
 
 close,1
-
 end
 ;
 ;-----------------------------------------------------------------
@@ -4409,12 +4437,20 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnPlotXgrUnwZgrLbl, Event
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+GrX_ind = min(where(RowNames eq 'Group X Position'))                    ; CGroupParametersGP[19,*] - average x - position in the group
+LabelSet_ind = min(where(RowNames eq 'Label Set'))                       ; CGroupParametersGP[26,*] - Label Number
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))                    ; CGroupParametersGP[40,*] - Group Z Position
+
+Z_ind = (UnwGrZ_ind gt 0) ?	UnwGrZ_ind	: GrZ_ind
+
 	WidDrXID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_X')
-	widget_control,WidDrXID, SET_VALUE=RowNames, Set_Droplist_Select=19
+	widget_control,WidDrXID, SET_VALUE=RowNames, Set_Droplist_Select = GrX_ind
 	WidDrYID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Y')
-	widget_control,WidDrYID, SET_VALUE=RowNames, Set_Droplist_Select=47
+	widget_control,WidDrYID, SET_VALUE=RowNames, Set_Droplist_Select = Z_ind
 	WidDrZID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Z')
-	widget_control,WidDrZID, SET_VALUE=RowNames, Set_Droplist_Select=26
+	widget_control,WidDrZID, SET_VALUE=RowNames, Set_Droplist_Select = LabelSet_ind
 	OnPlotXYButton, Event
 end
 ;
@@ -5501,7 +5537,11 @@ if n_elements(CGroupParams) le 2 then begin
           return      ; if data not loaded return
 endif
 
+FitOK_ind = min(where(RowNames eq 'FitOK'))                                ; CGroupParametersGP[8,*] - Original FitOK
+
 FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
+PkInd_ind = min(where(RowNames eq 'Peak Index of Frame'))
+
 X_ind=min(where(RowNames eq 'X Position'))
 Y_ind=min(where(RowNames eq 'Y Position'))
 GrX_ind=min(where(RowNames eq 'Group X Position'))
@@ -5522,9 +5562,9 @@ Ell_ind=min(where(RowNames eq 'XY Ellipticity'))
 Gr_Ell_ind=min(where(RowNames eq 'XY Group Ellipticity'))
 Gr_Size_ind = min(where(RowNames eq '24 Group Size'))
 Frame_Number_ind = min(where(RowNames eq 'Frame Number'))
-Label_ind = min(where(RowNames eq 'Label Set'))
-Wl_ind = min(where(RowNames eq 'Wavelength (nm)'))
+LabelSet_ind = min(where(RowNames eq 'Label Set'))                        ; CGroupParametersGP[26,*] - Label Number
 
+Wl_ind = min(where(RowNames eq 'Wavelength (nm)'))
 
 	WidFrameNumber = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_RawFrameNumber')
 	widget_control,WidFrameNumber,get_value=RawFrameNumber
@@ -5547,7 +5587,7 @@ Wl_ind = min(where(RowNames eq 'Wavelength (nm)'))
 	endif
 	OnRawFrameNumber, Event
 	raw_ind = (raw_cnt eq 1)	?	0	:	Raw_File_Index+1
-	cgrp_index=where(((CGroupParams[FrNum_ind,*] eq RawFrameNumber) and (CGroupParams[10,*] eq PeakNumber) and (CGroupParams[Label_ind,*] eq raw_ind)),cnt)
+	cgrp_index=where(((CGroupParams[FrNum_ind,*] eq RawFrameNumber) and (CGroupParams[PkInd_ind,*] eq PeakNumber) and (CGroupParams[LabelSet_ind,*] eq raw_ind)),cnt)
 	if cnt eq 0 then begin
 		print,'Peak not found:  file',(RawFilenames[Raw_File_Index]+raw_file_extension),',  Frame:',RawFrameNumber,'   Peak:',PeakNumber
 		black_region=intarr(950,50)
@@ -5556,7 +5596,7 @@ Wl_ind = min(where(RowNames eq 'Wavelength (nm)'))
 		xyouts,65,500,msg_str, CHARSIZE=3,/device
 		return
 	endif
-	fitOK=CGroupParams[8,cgrp_index[0]]
+	fitOK = CGroupParams[FitOK_ind,cgrp_index[0]]
 	if (fitOK ne 1) and (fitOK ne 2) then begin
 		print,'Bad Fit,    FitOK = ',fitOK
 		black_region=intarr(950,50)
@@ -5565,7 +5605,7 @@ Wl_ind = min(where(RowNames eq 'Wavelength (nm)'))
 		xyouts,65,500,msg_str, CHARSIZE=3,/device
 		return
 	endif
-	clip=ReadData(RawFilenames[Raw_File_Index],thisfitcond,RawFrameNumber,1)
+	clip=ReadData(RawFilenames[Raw_File_Index], thisfitcond, RawFrameNumber, 1)
 	d=thisfitcond.MaskSize & dd=2*d+1
 	SigmaSym = thisfitcond.SigmaSym
 	PeakX=CGroupParams[X_ind,cgrp_index[0]]
@@ -5627,9 +5667,11 @@ Wl_ind = min(where(RowNames eq 'Wavelength (nm)'))
 	Fid_Outline_color=1
 	Display_single_fiducial_outline, Event, peakx, peaky, Fid_Outl_Sz, Fid_Outline_color
 
-	Raw_File_Index=(widget_info(RawFileNameWidID,/DropList_Select))[0]
-	label=max(CgroupParams[26,*] eq 0)	?	0	:	(Raw_File_Index+1)
-	peak_index=min(where((CgroupParams[26,*] eq label) and (CgroupParams[FrNum_ind,*] eq RawFrameNumber) and (CgroupParams[10,*] eq PeakNumber),cnt))
+	Raw_File_Index = (widget_info(RawFileNameWidID,/DropList_Select))[0]
+	label = max(CgroupParams[LabelSet_ind,*] eq 0)	?	0	:	(Raw_File_Index+1)
+	peak_index = min(where((CgroupParams[LabelSet_ind,*] eq label) and $
+							(CgroupParams[FrNum_ind,*] eq RawFrameNumber) and $
+							(CgroupParams[PkInd_ind,*] eq PeakNumber),cnt))
 	if cnt eq 1 then ReloadPeakColumn,peak_index
 
 ;	common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
@@ -5759,8 +5801,9 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 ;WID_BASE_0_PeakSelector resizing to fit computer screen
 disp_xy=GET_SCREEN_SIZE()
@@ -5805,8 +5848,9 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 Wid_ID_allow_bridge = Widget_Info(wWidget, find_by_uname='WID_BUTTON_Allow_Bridge')
 allow_bridge = widget_info(Wid_ID_allow_bridge,/button_set)
@@ -5821,9 +5865,7 @@ Recalculate_Histograms_id=widget_info(wWidget,FIND_BY_UNAME='WID_BUTTON_Redraw')
 widget_control,Recalculate_Histograms_id,set_button=1
 
 if !VERSION.OS_family eq 'unix' then	ConfigureEnvironment			;loads dlms for Cuda
-CGroupParams=[0]
-TotalRawData=[0]
-DIC=[0]
+
 z_media_multiplier=1.00			; depends on objective NA and media index. This is ratio which determines by how much the focal plane of the (air) objective shifts in the media for a unit shift of the objective along the axis.
 lambda_vac=590.0
 nd_water=1.33
@@ -5916,6 +5958,10 @@ print, 'Loading preferences from the file:    ',ini_filename
 
 	ReloadMainTableColumns, wWidget
 
+CGroupParams=[0]
+TotalRawData=[0]
+DIC=[0]
+
 	WID_TABLE_StartReadSkip_ID = Widget_Info(wWidget, find_by_uname='WID_TABLE_StartReadSkip')
 	widget_control,WID_TABLE_StartReadSkip_ID,COLUMN_WIDTH=[1,60,60,60],use_table_select = [ -1, 0, 2, 1 ]
 
@@ -5975,8 +6021,9 @@ common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cus
 common ImportASCII, ImportASCII_Filename, ImportASCII_nm_per_pixel, ImportASCII_units, ImportASCII_ParamList
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 ini_file_info=FILE_INFO(ini_file)
 if ~(ini_file_info.exists) then return
@@ -6402,9 +6449,11 @@ endwhile
 RowNames=RowLabels[0:(CGrpSize-1)]
 
 start_dir = !VERSION.OS_family eq 'unix' ? linux_start_dir : windows_start_dir
-if strlen((file_search(start_dir ,/test_directory))[0]) gt 0 then cd, start_dir
-cd, current=st_dir
-print,'started in directory: ',st_dir
+if (strlen((file_search(start_dir ,/test_directory))[0]) gt 0) and (n_elements(CGroupParams) lt 1) then begin
+	cd, start_dir
+	cd, current=st_dir
+	print,'started in directory: ',st_dir
+endif
 
 CATCH, /CANCEL
 close,1
@@ -7741,7 +7790,7 @@ for iccd=0,2 do begin
 	A[4]=d
 	A[5]=d
 	fita = [1,1,1,1,0,0]
-	result=gauss2Dfithh(clip,A,sigma=sigma, chisq=chisq, FITA = fita, STATUS = status, ITMAX = 100)	;do 2D fit
+	result = gauss2Dfithh(clip,A,sigma=sigma, chisq=chisq, FITA = fita, STATUS = status, ITMAX = 100)	;do 2D fit
 	residual=clip-result+A[0]>0.0
 	tv,scl*rebin(clip,mag*xlen,mag*ylen,/sample),mag*((iccd+1)*(xlen+2)),mag*(2*ylen+2)
 	tv,scl*rebin(result,mag*xlen,mag*ylen,/sample),mag*((iccd+1)*(xlen+2)),mag*(ylen+1)

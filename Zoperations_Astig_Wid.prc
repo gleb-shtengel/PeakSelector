@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	09/25/2017 10:42.45
+; Generated on:	12/21/2017 11:41.11
 VERSION 1
 END
 
@@ -185,5 +185,18 @@ BEGIN
   ALLEVENTS
   WIDTH = 20
   HEIGHT = 2
+  END
+  WID_DROPLIST_LegendColor DROPLIST 235 178 250 31
+  CAPTION "Color Order"
+  NUMITEMS = 4
+  ITEM "Fiducial #"
+  ITEM "Fiducial X"
+  ITEM "Fiducial Y"
+  ITEM "Fiducial Frame#"
+  END
+  WID_BUTTON_Plot_ZvsFfame_woffset PUSHBUTTON 220 266 180 35
+  VALUE "Plot Z vs Frame w offset"
+  ALIGNCENTER
+  ONACTIVATE "Plot_ZvsFrame_with_offest"
   END
 END

@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	09/25/2017 10:42.50
+; Generated on:	12/21/2017 11:41.15
 ; 
 pro WID_BASE_Z_operations_Astig_event, Event
 
@@ -72,6 +72,10 @@ pro WID_BASE_Z_operations_Astig_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs_DH'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnButton_Press_use_multiple_GS_DH, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Plot_ZvsFfame_woffset'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Plot_ZvsFrame_with_offest, Event
     end
     else:
   endcase
@@ -290,6 +294,20 @@ pro WID_BASE_Z_operations_Astig, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       UNAME='WID_TEXT_ZCal_Astig_num_iter' ,XOFFSET=110 ,YOFFSET=175  $
       ,SCR_XSIZE=75 ,SCR_YSIZE=35 ,/EDITABLE ,/ALL_EVENTS ,/WRAP  $
       ,XSIZE=20 ,YSIZE=2)
+
+  
+  WID_DROPLIST_LegendColor =  $
+      Widget_Droplist(WID_BASE_Z_operations_Astig,  $
+      UNAME='WID_DROPLIST_LegendColor' ,XOFFSET=235 ,YOFFSET=178  $
+      ,SCR_XSIZE=250 ,SCR_YSIZE=31 ,TITLE='Color Order' ,VALUE=[  $
+      'Fiducial #', 'Fiducial X', 'Fiducial Y', 'Fiducial Frame#' ])
+
+  
+  WID_BUTTON_Plot_ZvsFfame_woffset =  $
+      Widget_Button(WID_BASE_Z_operations_Astig,  $
+      UNAME='WID_BUTTON_Plot_ZvsFfame_woffset' ,XOFFSET=220  $
+      ,YOFFSET=266 ,SCR_XSIZE=180 ,SCR_YSIZE=35 ,/ALIGN_CENTER  $
+      ,VALUE='Plot Z vs Frame w offset')
 
   Widget_Control, /REALIZE, WID_BASE_Z_operations_Astig
 

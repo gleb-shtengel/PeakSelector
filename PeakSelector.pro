@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	11/15/2017 22:23.39
+; Generated on:	12/14/2017 12:51.54
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -104,6 +104,10 @@ pro WID_BASE_0_PeakSelector_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Purge_current'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Purge_current_filter, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Purge_selected'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Purge_selected_peaks, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Purge_by_XY_coords'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -665,6 +669,11 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   W_MENU_Purge_current = Widget_Button(W_MENU_42,  $
       UNAME='W_MENU_Purge_current' ,VALUE='Purge with current'+ $
       ' filter')
+
+  
+  W_MENU_Purge_selected = Widget_Button(W_MENU_42,  $
+      UNAME='W_MENU_Purge_selected' ,VALUE='Purge Selected Peaks'+ $
+      ' (inverted filter)')
 
   
   W_MENU_Purge_by_XY_coords = Widget_Button(W_MENU_42,  $

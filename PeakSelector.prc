@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	11/15/2017 22:23.35
+; Generated on:	12/14/2017 12:51.50
 VERSION 1
 END
 
@@ -148,6 +148,10 @@ BEGIN
         W_MENU_Purge_current PUSHBUTTON 0 0 0 0
         VALUE "Purge with current filter"
         ONACTIVATE "Purge_current_filter"
+        END
+        W_MENU_Purge_selected PUSHBUTTON 0 0 0 0
+        VALUE "Purge Selected Peaks (inverted filter)"
+        ONACTIVATE "Purge_selected_peaks"
         END
         W_MENU_Purge_by_XY_coords PUSHBUTTON 0 0 0 0
         VALUE "Filtered by X-Y Coordinates"

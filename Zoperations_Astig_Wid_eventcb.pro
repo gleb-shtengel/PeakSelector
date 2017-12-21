@@ -17,6 +17,7 @@ pro Initialize_Z_operations_Astig, wWidget
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -83,6 +84,10 @@ WIDID_TEXT_ZCalStep = Widget_Info(wWidget, find_by_uname='WID_TEXT_ZCalStep_Asti
 nmperframe_txt=string(nmperframe[0],FORMAT='(F6.2)')
 widget_control,WIDID_TEXT_ZCalStep,SET_VALUE = nmperframe_txt
 
+WID_DROPLIST_LegendColor_ID = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_LegendColor')
+widget_control,WID_DROPLIST_LegendColor_ID, SET_VALUE=['Fiducial #', RowNames], Set_Droplist_Select=0
+
+
 end
 ;
 ;-----------------------------------------------------------------
@@ -110,17 +115,175 @@ function find_center_frame, subset, fitorder, frame_range
 	Nph_ind = min(where(RowNames eq '6 N Photons'))                            ; CGroupParametersGP[6,*] - Number of Photons in the Peak
 	; step1: find the frame with near max amplitude
 	center_fr0 = total(subset[Frame_Number,*] * subset[Nph_ind,*])/total(subset[Nph_ind,*])
-	subset_ind0 = where((subset[Frame_Number,*] gt (center_fr0 - frame_range/2)) and (subset[Frame_Number,*] lt (center_fr0 + frame_range/2)))
-	min_ell0 = min(abs(subset[Ell_ind,subset_ind0]), center_fr_ind0)
-	center_fr1 = subset[Frame_Number,subset_ind0[center_fr_ind0]]
+	subset_ind0 = where((subset[Frame_Number,*] gt (center_fr0 - frame_range/2)) and (subset[Frame_Number,*] lt (center_fr0 + frame_range/2)),cnt0)
+	if cnt0 gt 0 then begin
+		min_ell0 = min(abs(subset[Ell_ind,subset_ind0]), center_fr_ind0)
+		center_fr1 = subset[Frame_Number,subset_ind0[center_fr_ind0]]
+	endif else center_fr1 = center_fr0
 	; find a frame near the previously found center with ellipticity closest to 0
-	subset_ind1 = where((subset[Frame_Number,*] gt (center_fr1 - frame_range/2)) and (subset[Frame_Number,*] lt (center_fr1 + frame_range/2)))
-	min_ell = min(abs(subset[Ell_ind,subset_ind1]), center_fr_ind1)
-	center_fr = subset[Frame_Number,subset_ind1[center_fr_ind1]]
+	subset_ind1 = where((subset[Frame_Number,*] gt (center_fr1 - frame_range/2)) and (subset[Frame_Number,*] lt (center_fr1 + frame_range/2)),cnt1)
+	if cnt1 gt 0 then begin
+		min_ell = min(abs(subset[Ell_ind,subset_ind1]), center_fr_ind1)
+		center_fr = subset[Frame_Number,subset_ind1[center_fr_ind1]]
+	endif else center_fr = center_fr1
 	print,'center frame: step0:', center_fr0,', step 1:', center_fr1, ', step 2:', center_fr
 	return, center_fr
 end
+;
+;-----------------------------------------------------------------
+;
+pro Plot_ZvsFrame_with_offest, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
+if n_elements(CGroupParams) lt 1 then begin
+	z=dialog_message('Please load a data file')
+	return      ; if data not loaded return
+endif
+
+Off_ind = min(where(RowNames eq 'Offset'))                                ; CGroupParametersGP[0,*] - Peak Base Level (Offset)
+Amp_ind = min(where(RowNames eq 'Amplitude'))                            ; CGroupParametersGP[1,*] - Peak Amplitude
+X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
+Xwid_ind = min(where(RowNames eq 'X Peak Width'))                        ; CGroupParametersGP[4,*] - Peak X Gaussian Width
+Ywid_ind = min(where(RowNames eq 'Y Peak Width'))                        ; CGroupParametersGP[5,*] - Peak Y Gaussian Width
+Nph_ind = min(where(RowNames eq '6 N Photons'))                            ; CGroupParametersGP[6,*] - Number of Photons in the Peak
+Chi_ind = min(where(RowNames eq 'ChiSquared'))                            ; CGroupParametersGP[7,*] - Chi Squared
+FitOK_ind = min(where(RowNames eq 'FitOK'))                                ; CGroupParametersGP[8,*] - Original FitOK
+FrNum_ind = min(where(RowNames eq 'Frame Number'))                        ; CGroupParametersGP[9,*] - frame number
+PkInd_ind = min(where(RowNames eq 'Peak Index of Frame'))
+PkGlInd_ind = min(where(RowNames eq 'Peak Global Index'))
+Par12_ind = min(where(RowNames eq '12 X PkW * Y PkW'))                    ; CGroupParametersGP[12,*] - (Peak X Gaussian Width-const)*(Peak X Gaussian Width-const)
+SigAmp_ind = min(where(RowNames eq 'Sigma Amplitude'))
+SigNphX_ind = min(where(RowNames eq 'Sigma X Pos rtNph'))                ; CGroupParametersGP[14,*] - Peak X Sigma (based on Nph only)
+SigNphY_ind = min(where(RowNames eq 'Sigma Y Pos rtNph'))                ; CGroupParametersGP[15,*] - Peak Y Sigma (based on Nph only)
+SigX_ind = min(where(RowNames eq 'Sigma X Pos Full'))                    ; CGroupParametersGP[16,*] - x - sigma
+SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))                    ; CGroupParametersGP[17,*] - y - sigma
+
+Z_ind=min(where(RowNames eq 'Z Position'))
+SigZ_ind=min(where(RowNames eq 'Sigma Z'))
+GrZ_ind=min(where(RowNames eq 'Group Z Position'))
+GrSigZ_ind=min(where(RowNames eq 'Group Sigma Z'))
+Ell_ind=min(where(RowNames eq 'XY Ellipticity'))
+Gr_Ell_ind=min(where(RowNames eq 'XY Group Ellipticity'))
+Gr_Size = min(where(RowNames eq '24 Group Size'))
+
+sz=size(CGroupParams)
+
+WID_TEXT_Zmin_Astig_ID = Widget_Info(Event.top, find_by_uname='WID_TEXT_Zmin_Astig')
+widget_control,WID_TEXT_Zmin_Astig_ID,GET_VALUE = z_cal_min_txt
+z_cal_min = float(z_cal_min_txt[0])
+
+WID_TEXT_Zmax_Astig_ID = Widget_Info(Event.top, find_by_uname='WID_TEXT_Zmax_Astig')
+widget_control,WID_TEXT_Zmax_Astig_ID,GET_VALUE = z_cal_max_txt
+z_cal_max = float(z_cal_max_txt[0])
+
+WidSldFitOrderID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Zastig_Fit')
+widget_control,WidSldFitOrderID,get_value=fitorder
+
+use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
+if use_multiple_GS_id gt 0 then use_multiple_GS = widget_info(use_multiple_GS_id,/button_set) else use_multiple_GS=0
+use_multiple_GS_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs_DH')
+if use_multiple_GS_DH_id gt 0 then use_multiple_GS_DH = widget_info(use_multiple_GS_DH_id,/button_set) else use_multiple_GS_DH=0
+use_multiple_GS = use_multiple_GS or use_multiple_GS_DH
+
+WID_TEXT_GuideStarAncFilename_Astig_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_GuideStarAncFilename_Astig')
+widget_control,WID_TEXT_GuideStarAncFilename_Astig_ID,GET_VALUE = GS_anc_fname
+GS_anc_file_info=FILE_INFO(GS_anc_fname)
+use_multiple_GS = use_multiple_GS and GS_anc_file_info.exists
+
+GSAnchorPnts=dblarr(2,AnchPnts_MaxNum)
+GSAnchorPnts_line=dblarr(6)
+if use_multiple_GS  then begin
+	close,5
+	openr,5,GS_anc_fname
+	ip=0
+	while not EOF(5) do begin
+		readf,5,GSAnchorPnts_line
+		GSAnchorPnts[0:1,ip] = GSAnchorPnts_line[0:1]
+		ip+=1
+	endwhile
+	close,5
+endif else begin
+	GSAnchorPnts[0,0]= ParamLimits[2,2]
+	GSAnchorPnts[1,0]= ParamLimits[3,2]
+endelse
+
+indecis=where((GSAnchorPnts[0,*] gt 0.001),ip_cnt)
+
+WID_DROPLIST_LegendColor_ID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_LegendColor')
+LegendColor_scheme = widget_info(WID_DROPLIST_LegendColor_ID,/DropList_Select)
+
+col_jp = intarr(ip_cnt)
+col_jp = [250]
+par_aver = intarr(ip_cnt)
+if ip_cnt gt 1 then col_jp = 250-indgen(ip_cnt)*200/(ip_cnt-1)
+if use_multiple_GS and (LegendColor_scheme gt 0) then begin
+	filter_ini = filter
+	ParamLimits_ini = ParamLimits
+	for jp=0,(ip_cnt-1) do begin
+		ParamLimits[2,2] = GSAnchorPnts[0,jp]
+		ParamLimits[2,0] = GSAnchorPnts[0,jp]-GS_radius
+		ParamLimits[2,1] = GSAnchorPnts[0,jp]+GS_radius
+		ParamLimits[3,2] = GSAnchorPnts[1,jp]
+		ParamLimits[3,0] = GSAnchorPnts[1,jp]-GS_radius
+		ParamLimits[3,1] = GSAnchorPnts[1,jp]+GS_radius
+		FilterIt
+		subsetind0=where(filter eq 1,cnt)
+		par_aver[jp] = mean(CGroupParams[(LegendColor_scheme-1),subsetind0])
+	endfor
+	filter = filter_ini
+	ParamLimits = ParamLimits_ini
+	;par_ind = sort(par_aver)
+	col_jp = 250-sort(sort(par_aver))*200/(ip_cnt-1)
+endif
+
+ParamLimits0 = ParamLimits
+filter0=filter
+nmperframe_in_medium = nmperframe * z_media_multiplier
+print,'nm per frame in medium = ',nmperframe_in_medium
+
+!p.background=0
+!P.NOERASE=0
+rng = [z_cal_min,z_cal_max]
+
+for jp=0,(ip_cnt-1) do begin
+	filter=filter0
+	if use_multiple_GS then begin
+		ParamLimits[2,2] = GSAnchorPnts[0,jp]
+		ParamLimits[2,0] = GSAnchorPnts[0,jp]-GS_radius
+		ParamLimits[2,1] = GSAnchorPnts[0,jp]+GS_radius
+		ParamLimits[3,2] = GSAnchorPnts[1,jp]
+		ParamLimits[3,0] = GSAnchorPnts[1,jp]-GS_radius
+		ParamLimits[3,1] = GSAnchorPnts[1,jp]+GS_radius
+	endif
+
+	FilterIt
+	subsetind0=where(filter eq 1,cnt)
+
+	;print,par_aver[jp],mean(CGroupParams[FrNum_ind,subsetind0]),col_jp[jp]
+
+	if n_elements(zz) eq 0 and cnt gt 0 then begin
+		Zpos = transpose(CGroupParams[Z_ind,subsetind0])
+		center_fr = find_center_frame(CGroupParams[*,subsetind0], fitorder, 20)
+		zz=transpose(CGroupParams[FrNum_ind,subsetind0] - center_fr) * nmperframe_in_medium
+		plot, zz, Zpos, xtitle='Z position (from frame) (nm)', ytitle='Z position extracted (nm)', yrange = rng, $
+			ystyle=1, xrange = rng, xstyle=1, psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
+		col=col_jp[jp]
+		oplot, zz, Zpos, psym=6, col=col
+	endif else begin
+		col=col_jp[jp]
+		Zpos = transpose(CGroupParams[Z_ind,subsetind0])
+		center_fr = find_center_frame(CGroupParams[*,subsetind0], fitorder, 20)
+		zz = transpose(CGroupParams[FrNum_ind,subsetind0] - center_fr) * nmperframe_in_medium
+		oplot, zz, Zpos, psym=6, col=col
+	endelse
+endfor
+end
 ;
 ;-----------------------------------------------------------------
 ;
@@ -215,6 +378,32 @@ endelse
 
 indecis=where((GSAnchorPnts[0,*] gt 0.001),ip_cnt)
 
+WID_DROPLIST_LegendColor_ID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_LegendColor')
+LegendColor_scheme = widget_info(WID_DROPLIST_LegendColor_ID,/DropList_Select)
+
+col_jp = intarr(ip_cnt)
+col_jp = [250]
+par_aver = intarr(ip_cnt)
+if ip_cnt gt 1 then col_jp = 250-indgen(ip_cnt)*200/(ip_cnt-1)
+if use_multiple_GS and (LegendColor_scheme gt 0) then begin
+	filter_ini = filter
+	ParamLimits_ini = ParamLimits
+	for jp=0,(ip_cnt-1) do begin
+		ParamLimits[2,2] = GSAnchorPnts[0,jp]
+		ParamLimits[2,0] = GSAnchorPnts[0,jp]-GS_radius
+		ParamLimits[2,1] = GSAnchorPnts[0,jp]+GS_radius
+		ParamLimits[3,2] = GSAnchorPnts[1,jp]
+		ParamLimits[3,0] = GSAnchorPnts[1,jp]-GS_radius
+		ParamLimits[3,1] = GSAnchorPnts[1,jp]+GS_radius
+		FilterIt
+		subsetind0=where(filter eq 1,cnt)
+		par_aver[jp] = mean(CGroupParams[(LegendColor_scheme-1),subsetind0])
+	endfor
+	filter = filter_ini
+	ParamLimits = ParamLimits_ini
+	col_jp = 250-sort(sort(par_aver))*200/(ip_cnt-1)
+endif
+
 ParamLimits0 = ParamLimits
 filter0=filter
 nmperframe_in_medium = nmperframe * z_media_multiplier
@@ -248,14 +437,17 @@ for jp=0,(ip_cnt-1) do begin
     	xrng=[xi,xa]
 		!P.NOERASE=0
 		!p.multi=[0,1,2,0,0]
-		plot, zz, ellipticity, xtitle='Z position (nm)', ytitle='Ellipticity', yrange = [-0.5,0.5], ystyle=1, xrange = xrng, xstyle=1, psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
+		plot, zz, ellipticity, xtitle='Z position (nm)', ytitle='Ellipticity', yrange = [-0.5,0.5], ystyle=1, xrange = xrng, $
+			xstyle=1, psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
 		!p.multi=[1,1,2,0,0]
-		plot, zz, Xwid, xtitle='Z position (nm)', ytitle='Gaussian Width', yrange = yrng, ystyle=1, xrange = xrng, xstyle=1,  psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
+		plot, zz, Xwid, xtitle='Z position (nm)', ytitle='Gaussian Width', yrange = yrng, ystyle=1, xrange = xrng, $
+			xstyle=1,  psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
 		oplot, zz, Ywid, psym=5
 		oplot, zz, (Xwid+Ywid), psym=4
 		!P.NOERASE=1
 	endif else begin
-		col=(250-jp*50)>50
+		;col=(250-jp*50)>50
+		col=col_jp[jp]
 		ellipticity_add = transpose(CGroupParams[Ell_ind,subsetind0])
 		Xwid_add = transpose(CGroupParams[Xwid_ind,subsetind0])
 		Ywid_add = transpose(CGroupParams[Ywid_ind,subsetind0])
@@ -337,7 +529,6 @@ if num_iter gt 1 then begin
 	npks_superset = n_elements(superset_indices)
 	for i_iter =1, (num_iter-1) do begin
 		print,'Iteration #', i_iter,', re-extracting peaks'
-
 		; First step, re-exract the data for the fiducial set
 		for ip = 0, (npks_superset-1) do begin
 			clip=ReadData(RawFilenames[0],thisfitcond,superset[FrNum_ind,ip],1)
@@ -408,7 +599,8 @@ if num_iter gt 1 then begin
 				!P.NOERASE=1
 			endif else begin
 				if cnt gt 0 then begin
-					col=(250-jp*50)>50
+					;col=(250-jp*50)>50
+					col=col_jp[jp]
 					ellipticity_add = transpose(superset[Ell_ind,subsetindex])
 					Xwid_add = transpose(superset[Xwid_ind,subsetindex])
 					Ywid_add = transpose(superset[Ywid_ind,subsetindex])

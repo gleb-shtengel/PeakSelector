@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	10/05/2017 15:33.21
+; Generated on:	11/20/2017 10:35.16
 ; 
 pro WID_BASE_Extract_Peaks_Multiple_TIFFs_event, Event
 
@@ -32,10 +32,6 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_DROPLIST_TransformEngine_mTIFFS'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_DROPLIST' )then $
         Set_TransformEngine_mTIFFS, Event
-    end
-    Widget_Info(wWidget, FIND_BY_UNAME='WID_Filter_Parameters_mTIFFS'): begin
-      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TABLE_CH' )then $
-        Do_Change_Astig_Macroparams_mTIFFS, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Start_Extract_mTIFFS'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -69,6 +65,10 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnPickCalFile_Astig_MultiTIFF, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_Filter_Parameters_mTIFFs'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TABLE_CH' )then $
+        Do_Change_Filter_Params_mTIFFs, Event
+    end
     else:
   endcase
 
@@ -87,7 +87,7 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
   WID_BASE_Extract_Peaks_Multiple_TIFFs = Widget_Base(  $
       GROUP_LEADER=wGroup,  $
       UNAME='WID_BASE_Extract_Peaks_Multiple_TIFFs' ,XOFFSET=5  $
-      ,YOFFSET=5 ,SCR_XSIZE=749 ,SCR_YSIZE=1011  $
+      ,YOFFSET=5 ,SCR_XSIZE=749 ,SCR_YSIZE=1054  $
       ,NOTIFY_REALIZE='Initialize_Extract_Peaks_mTIFFs'  $
       ,TITLE='Extract Peaks from multiple TIFF files in a single'+ $
       ' directory' ,SPACE=3 ,XPAD=3 ,YPAD=3 ,/MODAL)
@@ -128,14 +128,6 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
       ,YOFFSET=660 ,SCR_XSIZE=225 ,SCR_YSIZE=30  $
       ,TITLE='Transformation Engine' ,VALUE=[ 'Local', 'Cluster',  $
       'IDL Bridge' ])
-
-  
-  WID_Filter_Parameters_mTIFFS =  $
-      Widget_Table(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
-      UNAME='WID_Filter_Parameters_mTIFFS' ,XOFFSET=414 ,YOFFSET=838  $
-      ,SCR_XSIZE=300 ,SCR_YSIZE=120 ,/EDITABLE ,COLUMN_LABELS=[  $
-      'Value' ] ,ROW_LABELS=[ 'Nph. Min.', 'Full Sigma X Max.'+ $
-      ' (pix.)', 'Full Sigma Y Max. (pix.)' ] ,XSIZE=1 ,YSIZE=10)
 
   
   WID_BUTTON_Start_Extract_mTIFFS =  $
@@ -272,9 +264,18 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
   
   WID_TEXT_WindFilename_Astig_MultiTIFF =  $
       Widget_Text(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
-      UNAME='WID_TEXT_WindFilename_Astig_MultiTIFF' ,XOFFSET=420  $
-      ,YOFFSET=751 ,SCR_XSIZE=290 ,SCR_YSIZE=80 ,/EDITABLE ,/WRAP  $
+      UNAME='WID_TEXT_WindFilename_Astig_MultiTIFF' ,XOFFSET=400  $
+      ,YOFFSET=750 ,SCR_XSIZE=310 ,SCR_YSIZE=70 ,/EDITABLE ,/WRAP  $
       ,XSIZE=20 ,YSIZE=2)
+
+  
+  WID_Filter_Parameters_mTIFFs =  $
+      Widget_Table(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
+      UNAME='WID_Filter_Parameters_mTIFFs' ,XOFFSET=380 ,YOFFSET=830  $
+      ,SCR_XSIZE=340 ,SCR_YSIZE=170 ,/EDITABLE ,COLUMN_LABELS=[  $
+      'Min', 'Max' ] ,ROW_LABELS=[ 'Amplitude', 'Sigma X Pos Full',  $
+      'Sigma Y Pos Full', 'Z Position', 'Sigma Z' ] ,XSIZE=2  $
+      ,YSIZE=10)
 
   Widget_Control, /REALIZE, WID_BASE_Extract_Peaks_Multiple_TIFFs
 

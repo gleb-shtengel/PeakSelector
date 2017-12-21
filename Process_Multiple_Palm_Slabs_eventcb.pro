@@ -32,7 +32,7 @@ end
 pro Initialize_Process_Multiple_PALM_Slabs, wWidget
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 	WID_BUTTON_PerformFiltering_mSlabs_ID = Widget_Info(wWidget, find_by_uname = 'WID_BUTTON_PerformFiltering_mSlabs')
 		widget_control, WID_BUTTON_PerformFiltering_mSlabs_ID, set_button = DoFilter
@@ -54,6 +54,13 @@ Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDr
 		widget_control, WID_Filter_Parameters_mSlabs_ID, COLUMN_WIDTH=[160,85,85],use_table_select = [ -1, 0, 1, (n_par-1) ]
 		widget_control, WID_Filter_Parameters_mSlabs_ID, set_value=transpose(Filter_Params);, use_table_select=[0,0,3,(CGrpSize-1)]
 		widget_control, WID_Filter_Parameters_mSlabs_ID, /editable,/sensitive
+
+	WID_Purge_Parameters_mSlabs_ID = Widget_Info(wWidget, find_by_uname = 'WID_Purge_Parameters_mSlabs')
+		n_par = n_elements(Filter_RowNames)
+		widget_control, WID_Purge_Parameters_mSlabs_ID, ROW_LABELS = Purge_RowNames_mSlabs, TABLE_YSIZE = n_par
+		widget_control, WID_Purge_Parameters_mSlabs_ID, COLUMN_WIDTH=[160,85,85],use_table_select = [ -1, 0, 1, (n_par-1) ]
+		widget_control, WID_Purge_Parameters_mSlabs_ID, set_value=transpose(Purge_Params_mSlabs);, use_table_select=[0,0,3,(CGrpSize-1)]
+		widget_control, WID_Purge_Parameters_mSlabs_ID, /editable,/sensitive
 
 	WID_AutoFindFiducials_Parameters_mSlabs_ID = Widget_Info(wWidget, find_by_uname = 'WID_AutoFindFiducials_Parameters_mSlabs')
 		widget_control, WID_AutoFindFiducials_Parameters_mSlabs_ID, set_value=transpose(AutoFindFiducial_Params)
@@ -79,7 +86,7 @@ end
 ;
 pro Do_Change_Filter_Params_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	widget_control,event.id,get_value=thevalue
 	Filter_Params[event.y,event.x]=thevalue[event.x,event.y]
 	widget_control, event.id, set_value=transpose(Filter_Params)
@@ -89,7 +96,7 @@ end
 ;
 pro DoInsert_Autodetect_Param_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	widget_control,event.id,get_value=thevalue
 	AutoFindFiducial_Params[event.y]=thevalue[event.x,event.y]
 	widget_control,event.id,set_value=transpose(AutoFindFiducial_Params)
@@ -97,9 +104,19 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro Do_Change_Purge_Params_mSlabs, Event
+Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	widget_control,event.id,get_value=thevalue
+	Purge_Params_mSlabs[event.y,event.x]=thevalue[event.x,event.y]
+	widget_control, event.id, set_value=transpose(Purge_Params_mSlabs)
+end
+;
+;-----------------------------------------------------------------
+;
 pro On_Change_ZStep_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-	Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	WID_TEXT_ZStep_mSlabs_ID = Widget_Info(Event.top, find_by_uname='WID_TEXT_ZStep_mSlabs')
 	widget_control,WID_TEXT_ZStep_mSlabs_ID,GET_VALUE = ZStep_mSlabs_txt
 	ZStep_mSlabs = float(ZStep_mSlabs_txt[0])
@@ -110,7 +127,7 @@ end
 ;
 pro OnSet_Button_PerformFiltering_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	DoFilter = Event.select
 	print,"Set DoFilter=", DoFilter
 end
@@ -119,7 +136,7 @@ end
 ;
 pro OnSet_Button_PerformPurging_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	DoPurge = Event.select
 	print,"Set DoPurge=", DoPurge
 end
@@ -128,7 +145,7 @@ end
 ;
 pro OnSet_Button_AutoFindFiducials_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	DoAutoFindFiducials = Event.select
 	print,"Set DoAutoFindFiducials=", DoAutoFindFiducials
 end
@@ -137,7 +154,7 @@ end
 ;
 pro OnSet_Button_DriftCorrect_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	DoDriftCottect = Event.select
 	print,"Set DoDriftCottect=", DoDriftCottect
 end
@@ -146,7 +163,7 @@ end
 ;
 pro OnSet_Button_PerfromGrouping_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	DoGrouping = Event.select
 	print,"Set DoGrouping=", DoGrouping
 end
@@ -155,7 +172,7 @@ end
 ;
 pro OnSet_Button_RegistertoScaffold_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	DoScaffoldRegister = Event.select
 	print,"Set DoScaffoldRegister=", DoScaffoldRegister
 end
@@ -166,7 +183,7 @@ pro OnPick_ScaffoldFiducials_File, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 	Scaffold_Fid_FName = Dialog_Pickfile(/read,get_path=fpath,filter=['*.anc'],title='Select *.anc file to open')
 	if Scaffold_Fid_FName ne '' then cd,fpath
 	AncFileWidID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_ScaffoldFiducialsFile_mSlabs')
@@ -216,7 +233,7 @@ end
 ;
 pro On_ReFind_Files_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
@@ -251,7 +268,7 @@ end
 ;
 pro On_Remove_Selected_mSlabs, Event
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
-		Filter_RowNames, Filter_Params, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
 
 	CATCH, Error_status
   	WID_LIST_Process_mSlabs_ID = Widget_Info(Event.Top, find_by_uname='WID_LIST_Process_mSlabs')
@@ -280,7 +297,118 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Start_Macro_mSlabs, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
+Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
+		Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+
+n_files = n_elements(mSlab_Filenames)
+if n_files le 0 then begin
+	print,'Select '
+	return
+endif
+
+
+
+for i=0, n_files-1 do begin
+
+print,'started processing slab #,',i,'of ',(n_files-1)
+; Step 1: Initial filtering
+	if NOT DoFilter then begin
+		print, 'Skipping the step "Perform Filtering"'
+	endif else begin
+		print, 'Starting the step "Perform Filtering"'
+		;	filter the data set
+		;   Filter_RowNames, Filter_Params
+		param_num = n_elements(Filter_RowNames)
+		if param_num gt 0 then begin
+			params = intarr(param_num)
+			for j = 0, param_num-1 do params[j] = min(where(RowNames eq Filter_RowNames[j]))
+            CGPsz = size(CGroupParams)
+            low  = Filter_Params[*,0]#replicate(1,CGPsz[2])
+            high = Filter_Params[*,1]#replicate(1,CGPsz[2])
+            filter = (CGroupParams[params,*] ge low) and (CGroupParams[params,*] le high)
+		endif
+	endelse
+
+
+
+; Step 2: Auto Detect Fiducials
+	if NOT DoAutoFindFiducials then begin
+		print, 'Skipping the step "Auto Detect Fiducials"'
+	endif else begin
+		print, 'Starting the step "Auto Detect Fiducials"'
+
+
+	endelse
+
+
+
+; Step 3: Perform Drift Correction
+	if NOT DoDriftCottect then begin
+		print, 'Skipping the step "Perform Drift Correction"'
+	endif else begin
+		print, 'Starting the step "Perform Drift Correction"'
+
+
+	endelse
+
+
+
+; Step 4: Perform Purging
+	if NOT DoPurge then begin
+		print, 'Skipping the step "Perform Purging"'
+	endif else begin
+		print, 'Starting the step "Perform Purging"'
+		; purge the data set
+		; Purge_RowNames_mSlabs, Purge_Params_mSlabs
+		param_num = n_elements(Purge_RowNames_mSlabs)
+		if param_num gt 0 then begin
+			params = intarr(param_num)
+			for j = 0, param_num-1 do params[j] = min(where(RowNames eq Purge_RowNames_mSlabs[j]))
+            CGPsz = size(CGroupParams)
+            low  = Purge_Params_mSlabs[*,0]#replicate(1,CGPsz[2])
+            high = Purge_Params_mSlabs[*,1]#replicate(1,CGPsz[2])
+            filter = (CGroupParams[params,*] ge low) and (CGroupParams[params,*] le high)
+            indecis = where (floor(total(temporary(filter), 1) / n_elements(params)) gt 0)
+			CGroupParams = CGroupParams[*, indecis]
+		endif
+	endelse
+
+
+
+; Step 5: Perform Grouping
+	if NOT DoGrouping then begin
+		print, 'Skipping the step "Perform Grouping"'
+	endif else begin
+		print, 'Starting the step "Perform Grouping"'
+
+
+	endelse
+
+
+
+; Step 6: Perform Register to Scaffold
+	if NOT DoScaffoldRegister then begin
+		print, 'Skipping the step "Register to Scaffold"'
+	endif else begin
+		print, 'Starting the step "Register to Scaffold"'
+
+
+		print, 'Concatenating summary array'
+		if i eq 0 then begin
+			if n_files ne 1 then CGroupParams_tot = CGroupParams
+		endif else begin
+			if i ne (n_files-1) then CGroupParams_tot = [CGroupParams_tot, CGroupParams] else CGroupParams = [CGroupParams_tot, CGroupParams]
+		endelse
+	endelse
+
+print,'finished processing slab #,',i,'of ',(n_files-1)
+endfor
 
 end
+
+
 
 

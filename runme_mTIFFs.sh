@@ -25,13 +25,16 @@ for i in `seq 0 $((NUM-1))`;
   do
     echo "#!/bin/sh" 1>${SCRIPT_NAME}${i}.sh
     echo "hostname">>${SCRIPT_NAME}${i}.sh
+    echo 'echo $DISPLAY'>>${SCRIPT_NAME}${i}.sh
+    echo 'echo “removing display variable”'>>${SCRIPT_NAME}${i}.sh
+    echo 'unset DISPLAY'>>${SCRIPT_NAME}${i}.sh
     echo "cd ${PALM_DATA_DIR}" 1>>${SCRIPT_NAME}${i}.sh
     # echo "source /usr/local/rsi/idl/bin/idl_setup.bash" 1>>${SCRIPT_NAME}${i}.sh old version of IDL
     echo "source /misc/local/exelis/idl/bin/idl_setup.bash" 1>>${SCRIPT_NAME}${i}.sh
     echo "idl -rt=${IDL_SCR_DIR}/${PROG_NAME} -args "${i}" "${PALM_DATA_DIR}" "${TEMP_FOLDER} 1>>${SCRIPT_NAME}${i}.sh
      chmod +x ${SCRIPT_NAME}${i}.sh
     #qsub -cwd -pe batch 2 -l d_rt=9999 -V -N ${SCRIPT_NAME}${i} -j y -o ${SCRIPT_NAME}${i}.out -b y -l idl_rt=6 ${PALM_DATA_DIR}/${TEMP_DIR}${SCRIPT_NAME}${i}.sh
-    bsub -n 4 -R"rusage[idl_rt=6]" -J ${SCRIPT_NAME}${i} -o ${SCRIPT_NAME}${i}.out idl_rt=6 ${TEMP_DIR}${SCRIPT_NAME}${i}.sh
+    bsub -n 2 -R"rusage[idl_rt=6]" -J ${SCRIPT_NAME}${i} -o ${SCRIPT_NAME}${i}.out idl_rt=6 ${TEMP_DIR}${SCRIPT_NAME}${i}.sh
     JOBLIST=$JOBLIST${SCRIPT_NAME}${i},
 done
 

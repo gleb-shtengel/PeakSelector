@@ -1,10 +1,10 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	10/05/2017 15:33.17
+; Generated on:	11/20/2017 10:35.09
 VERSION 1
 END
 
-WID_BASE_Extract_Peaks_Multiple_TIFFs BASE 5 5 749 1011
+WID_BASE_Extract_Peaks_Multiple_TIFFs BASE 5 5 749 1054
 REALIZE "Initialize_Extract_Peaks_mTIFFs"
 TLB
 CAPTION "Extract Peaks from multiple TIFF files in a single directory"
@@ -44,18 +44,6 @@ BEGIN
   ITEM "Cluster"
   ITEM "IDL Bridge"
   ONSELECT "Set_TransformEngine_mTIFFS"
-  END
-  WID_Filter_Parameters_mTIFFS TABLE 414 838 300 120
-  N_ROWS = 10
-  N_COLS = 1
-  NUMCOLLABELS = 1
-  COLLABEL "Value"
-  NUMROWLABELS = 3
-  ROWLABEL "Nph. Min."
-  ROWLABEL "Full Sigma X Max. (pix.)"
-  ROWLABEL "Full Sigma Y Max. (pix.)"
-  EDITABLE
-  ONINSERTCHAR "Do_Change_Astig_Macroparams_mTIFFS"
   END
   WID_BUTTON_Start_Extract_mTIFFS PUSHBUTTON 30 916 150 40
   VALUE "Confirm and Start"
@@ -191,10 +179,25 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnPickCalFile_Astig_MultiTIFF"
   END
-  WID_TEXT_WindFilename_Astig_MultiTIFF TEXT 420 751 290 80
+  WID_TEXT_WindFilename_Astig_MultiTIFF TEXT 400 750 310 70
   EDITABLE
   WRAP
   WIDTH = 20
   HEIGHT = 2
+  END
+  WID_Filter_Parameters_mTIFFs TABLE 380 830 340 170
+  N_ROWS = 10
+  N_COLS = 2
+  NUMCOLLABELS = 2
+  COLLABEL "Min"
+  COLLABEL "Max"
+  NUMROWLABELS = 5
+  ROWLABEL "Amplitude"
+  ROWLABEL "Sigma X Pos Full"
+  ROWLABEL "Sigma Y Pos Full"
+  ROWLABEL "Z Position"
+  ROWLABEL "Sigma Z"
+  EDITABLE
+  ONINSERTCHAR "Do_Change_Filter_Params_mTIFFs"
   END
 END

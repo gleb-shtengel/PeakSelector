@@ -21,6 +21,7 @@ common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, Trans
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 
 cd,current = pth
 
@@ -29,8 +30,6 @@ widget_control,WID_TXT_mTIFFS_Directory_ID,SET_VALUE = pth
 
 wtable_id = Widget_Info(wWidget, find_by_uname='WID_TABLE_InfoFile_mTIFFS')
 if !VERSION.OS_family eq 'unix' then widget_control,wtable_id,COLUMN_WIDTH=[200,100],use_table_select = [ -1, 0, 0, 22 ]
-wtable2_id = Widget_Info(wWidget, find_by_uname='WID_Filter_Parameters_mTIFFS')
-if !VERSION.OS_family eq 'unix' then widget_control,wtable2_id,COLUMN_WIDTH=[200,100],use_table_select = [ -1, 0, 0, 2 ]
 
 IF LMGR(/VM) then TransformEngine=0	; Set TransformEngine=0 if  IDL is in Virtual Machine Mode
 
@@ -51,9 +50,6 @@ widget_control,WID_DROPLIST_SetSigmaFitSym_mTIFFS_ID,SET_DROPLIST_SELECT=thisfit
 WID_DROPLIST_TransformEngine_mTIFFS_ID = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_TransformEngine_mTIFFS')
 widget_control,WID_DROPLIST_TransformEngine_mTIFFS_ID,SET_DROPLIST_SELECT=TransformEngine
 
-WID_Filter_Parameters_mTIFFS_ID = Widget_Info(wWidget, find_by_uname='WID_Filter_Parameters_mTIFFS')
-widget_control,WID_Filter_Parameters_mTIFFS_ID,set_value=transpose(Astig_MacroParameters), use_table_select=[0,0,0,(n_elements(Astig_MacroParameters)-1)]
-
 nfiles_text = ''
 WID_LABEL_nfiles_mTIFFs_ID = Widget_Info(wWidget, find_by_uname='WID_LABEL_nfiles_mTIFFs')
 widget_control,WID_LABEL_nfiles_mTIFFs_ID,SET_VALUE=nfiles_text
@@ -68,6 +64,22 @@ if strlen(wfilename) gt 1 then begin
 	widget_control,WFileWidID,SET_VALUE = wfilename
 endif
 
+WID_Filter_Parameters_mTIFFs_ID = Widget_Info(wWidget, find_by_uname = 'WID_Filter_Parameters_mTIFFs')
+	n_par = n_elements(Purge_RowNames_mTIFFs)
+	widget_control, WID_Filter_Parameters_mTIFFs_ID, ROW_LABELS = Purge_RowNames_mTIFFs, TABLE_YSIZE = n_par
+	widget_control, WID_Filter_Parameters_mTIFFs_ID, COLUMN_WIDTH=[160,85,85],use_table_select = [ -1, 0, 1, (n_par-1) ]
+	widget_control, WID_Filter_Parameters_mTIFFs_ID, set_value=transpose(Purge_Params_mTIFFs);, use_table_select=[0,0,3,(CGrpSize-1)]
+	widget_control, WID_Filter_Parameters_mTIFFs_ID, /editable,/sensitive
+
+end
+;
+;-----------------------------------------------------------------
+;
+pro Do_Change_Filter_Params_mTIFFs, Event
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
+	widget_control,event.id,get_value=thevalue
+	Purge_Params_mTIFFs[event.y,event.x]=thevalue[event.x,event.y]
+	widget_control, event.id, set_value=transpose(Purge_Params_mTIFFs)
 end
 ;
 ;-----------------------------------------------------------------
@@ -430,6 +442,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -515,7 +528,8 @@ if DisplayType eq 3 then begin 	;set to 3 (--> -1) - Cluster
 	td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
 	temp_dir=curr_pwd + sep + td
 	FILE_MKDIR,temp_dir
-	save, r_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, aa, RawFilenames, nloops, Astig_MacroParameters, GlobINI_FileName, UseGlobIni_mTIFFs, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
+	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, aa, RawFilenames, nloops, Astig_MacroParameters, $
+		GlobINI_FileName, UseGlobIni_mTIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
 	ReadRawLoopCluster_mTIFFs, Event
 	file_delete,td + sep + 'temp.sav'
 	file_delete,td
@@ -642,6 +656,7 @@ common Zdisplay, Z_scale_multiplier, vbar_top
 common Offset, PkWidth_offset
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 
 WID_BUTTON_Excl_PKS_ID = Widget_Info(Event.Top, find_by_uname='WID_BUTTON_Excl_PKS')
@@ -732,7 +747,7 @@ nloops = n_elements(RawFilenames)
 					endif
 				endelse
 			endif
-			file_delete, current_file, /QUIET
+			;file_delete, current_file, /QUIET
 		endelse
 	endfor
 
@@ -770,6 +785,20 @@ nloops = n_elements(RawFilenames)
 		if PkInd_ind gt 0 then CGroupParams[PkInd_ind,*]=ApeakParams[ind_good].PeakIndex
 		if PkGlInd_ind gt 0 then CGroupParams[PkGlInd_ind,*]=dindgen(sz[1])
 
+		;	purge the data sets before saving them
+		param_num = n_elements(Purge_RowNames_mTIFFs)
+		if DoPurge_mTIFFs and (param_num gt 0)then begin
+			;Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
+			params = intarr(param_num)
+			for i = 0, param_num-1 do params[i] = min(where(RowNames eq Purge_RowNames_mTIFFs[i]))
+            CGPsz = size(CGroupParams)
+            low  = Purge_Params_mTIFFs[*,0]#replicate(1,CGPsz[2])
+            high = Purge_Params_mTIFFs[*,1]#replicate(1,CGPsz[2])
+            filter = (CGroupParams[params,*] ge low) and (CGroupParams[params,*] le high)
+            indecis = where (floor(total(temporary(filter), 1) / n_elements(params)) gt 0)
+			CGroupParams = CGroupParams[*, indecis]
+		endif
+
 		TotalRawData = totdat_tot
 		FlipRotate={frt,present:0B,transp:0B,flip_h:0B,flip_v:0B}
 		NFrames=long64(max(CGroupParams[FrNum_ind,*]))+1
@@ -784,7 +813,11 @@ nloops = n_elements(RawFilenames)
 
 		print,'Wrote result file '+ SumFilename
 		print,''
+
 	endif else print,'No peaks detected, did not save anything for the data set ' + SumFilename
+	print,'Started deleting original PKS files'
+		for nlps=0,nloops-1 do file_delete, current_file, /QUIET
+	print,'Finished deleting original PKS files. Done'
 end
 ;
 ;------------------------------------------------------------------------------------
@@ -794,6 +827,7 @@ common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, Trans
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -857,12 +891,15 @@ endif else restore,(temp_dir+'/npks_det.sav')
 
 file_delete,(temp_dir+'/npks_det.sav'), /QUIET
 
-if UseGlobIni_mTIFFs then print,'Glob_lines:', Glob_lines
+if UseGlobIni_mTIFFs then begin
+	print,'Glob_lines:', Glob_lines
+	test = where(strmatch(RawFilenames, Glob_lines[0]) eq 1)
+endif
+print, 'n_files(Slab0):',n_elements(test)
 print, 'n_elements(npks_det):',n_elements(npks_det)
 print, 'total(npks_det):',total(npks_det)
 print, 'n_elements(RawFilenames):',n_elements(RawFilenames)
-test = where(strmatch(RawFilenames, Glob_lines[0]) eq 1)
-print, 'n_files(Slab0):',n_elements(test)
+
 
 if NOT UseGlobIni_mTIFFs then begin
 ; stnadard procedure - no globs
@@ -949,4 +986,3 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-
