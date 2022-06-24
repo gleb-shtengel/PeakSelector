@@ -16,7 +16,7 @@ https://www.l3harrisgeospatial.com/docs/licensingoptions.html
 
 
 Fast processing, utilizing computer multi-treading capabilities (IDL bridge), RT or FD licenses are required, this cannot be done under VM license. 
-Regular-sized iPALM data files can be processed on a Windows-based computer, but require high-end processors (ideally dual E5-2697 processors) and RT or FD licences.
+Regular-sized iPALM data files can be processed on a Windows-based computer, but require high-end processors (ideally dual E5-2697 processors) and RT or FD licenses.
 To start PeakSelector under FD license:
 - Start IDL.
 - Select and load PeakSelector.prj project.
