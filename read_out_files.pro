@@ -10,13 +10,14 @@ end
 
 Pro read_out_files, dir
 def_wind=!D.window
-print,'started Read_Out_Files procedure'
+print,'Started Read_Out_Files procedure'
 dir=(COMMAND_LINE_ARGS())[0]
 print,dir
 sh_files=FILE_SEARCH(dir+'*.sh')
 if size(sh_files,/N_DIMENSIONS) eq 0 then return
 sh_sort=sort(sh_files)
 n_sh_files=size(sh_files,/N_ELEMENTS)
+;print,'sh_files: ', sh_files, size(sh_files,/N_ELEMENTS)
 yw_size=n_sh_files*90/7<1600
 window,9,xpos=0,ypos=50,xsize=900,ysize=yw_size,title='Cluster Processing Progress'
 
@@ -27,8 +28,7 @@ out_files=FILE_SEARCH(dir+'*.out')
 n_out_files=size(out_files,/N_DIMENSIONS)
 while size(out_files,/N_DIMENSIONS) eq 0 do out_files=FILE_SEARCH(dir+'*.out')
 
-print,n_sh_files,n_out_files
-
+;print,n_sh_files,n_out_files
 while (out_files_completed ne 1) or (n_sh_files ne n_out_files) do begin
 	out_files=FILE_SEARCH(dir+'*.out')
 	n_out_files=n_elements(out_files)
@@ -44,12 +44,17 @@ while (out_files_completed ne 1) or (n_sh_files ne n_out_files) do begin
 			status=ReadOutFile(out_files[k])
 			xyouts,0.02,(1-float(i+1)/(n_out_files+1)),out_file_short+' :  '+status,/normal
 			print,out_file_short+' :  '+status
-			out_files_completed=out_files_completed and ((strmid(status,0,5) eq 'Wrote') or (strmid(status,0,30) eq 'Filter returned no valid peaks'))
+			cond1 = strmid(status,0,5) eq 'Wrote'
+			cond2  = strmid(status,0,30) eq 'Filter returned no valid peaks'
+			;print, 'out_files_completed_i =', out_files_completed, '   cond1 =', cond1, '   cond2 =', cond2
+			out_files_completed=out_files_completed and cond1 or cond2
+			;out_files_completed=out_files_completed and ((strmid(status,0,5) eq 'Wrote') or (strmid(status,0,30) eq 'Filter returned no valid peaks'))
 		endfor
 	endif
 	wait,5
 endwhile
 
+print,'Finishing Read_Out_Files procedure'
 out_files=FILE_SEARCH(dir+'*.out')
 n_out_files=n_elements(out_files)
 npks_det = ulonarr(n_out_files)

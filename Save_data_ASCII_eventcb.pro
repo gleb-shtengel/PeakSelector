@@ -66,7 +66,7 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro On_ASCII_ParamList_change, Event
+pro On_Save_ASCII_ParamList_change, Event
 common SaveASCII, SaveASCII_Filename, SaveASCII_Filter, SaveASCII_units, SaveASCII_ParamChoice, SaveASCII_ParamList
 	WidID_TEXT_ASCII_Save_Parameter_List = Widget_Info(Event.Top, find_by_uname='WID_TEXT_ASCII_Save_Parameter_List')
 	widget_control,WidID_TEXT_ASCII_Save_Parameter_List,GET_VALUE = SaveASCII_ParamString
@@ -87,6 +87,7 @@ common SaveASCII, SaveASCII_Filename, SaveASCII_Filter, SaveASCII_units, SaveASC
 		endif
 		i++
 	endwhile
+	print,'New List:',SaveASCII_ParamList
 end
 ;
 ;-----------------------------------------------------------------
@@ -121,6 +122,7 @@ GrX_ind = min(where(RowNames eq 'Group X Position'))
 GrY_ind = min(where(RowNames eq 'Group Y Position'))
 GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))
 GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))
+GrInd_ind = min(where(RowNames eq 'Frame Index in Grp'))                ; CGroupParametersGP[25,*] - Frame Index in the Group
 
 lat_ind = [X_ind, Y_ind, Xwid_ind, Ywid_ind, SigNphX_ind, SigNphY_ind, SigX_ind, SigY_ind, $
 					GrX_ind, GrY_ind, GrSigX_ind, GrSigY_ind]
@@ -137,7 +139,7 @@ endif
 
 if SaveASCII_Filter then begin
 	GroupFilterIt
-	FilteredIndex=where((filter eq 1) and (CGroupParams[25,*] eq 1))
+	FilteredIndex=where((filter eq 1) and (CGroupParams[GrInd_ind,*] eq 1))
 endif else begin
 	FilterIt
 	FilteredIndex=where(filter eq 1)
@@ -150,16 +152,18 @@ endif					;If no peaks in filter then return
 
 FGroupParams=CGroupParams[*,FilteredIndex]
 
-if SaveASCII_units then begin
-	for i=0, (n_elements(lat_ind)-1) do begin
-		if lat_ind[i] ge 0 then FGroupParams[lat_ind[i]]*=nm_per_pixel
-	endfor
-endif
-
 if SaveASCII_ParamChoice ge 1 then indecis = SaveASCII_ParamList[where(SaveASCII_ParamList lt CGrpSize)] else indecis = indgen(CGrpSize)
 if n_elements(indecis) eq 0 then begin
 	z=dialog_message('Select Valid indecis')
 	return
+endif
+
+if SaveASCII_units then begin
+	for i=0, (n_elements(lat_ind)-1) do begin
+		if min(where(indecis eq lat_ind[i])) ge 0 then begin
+			FGroupParams[lat_ind[i],*]*=nm_per_pixel
+		endif
+	endfor
 endif
 
 if SaveASCII_ParamChoice eq 2 then begin
@@ -183,5 +187,4 @@ endif else begin
 endelse
 end
 ;-----------------------------------------------------------------
-
 

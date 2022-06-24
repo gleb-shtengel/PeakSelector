@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	12/14/2017 12:51.54
+; Generated on:	03/17/2022 16:04.32
 ; 
 pro WID_BASE_0_PeakSelector_event, Event
 
@@ -212,6 +212,10 @@ pro WID_BASE_0_PeakSelector_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Convert_Pixels_to_NM'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Convert_X_to_wavelength, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_Check_Recenter'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Check_Recenter, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='W_MENU_46'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -469,9 +473,9 @@ pro WID_BASE_0_PeakSelector_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnPlotFrameZX, Event
     end
-    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Stat3DViewer'): begin
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_PurgeSelected'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
-        OnStatic3DViewer, Event
+        Purge_selected_peaks, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Reload_Paramlimits'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -541,6 +545,14 @@ pro WID_BASE_0_PeakSelector_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Set_Tie_RGB, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Apply_Filter1'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        On_ApplyFilter1_Button, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Apply_Filter2'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        On_ApplyFilter2_Button, Event
+    end
     else:
   endcase
 
@@ -554,7 +566,7 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       UNAME='WID_BASE_0_PeakSelector' ,XOFFSET=5 ,YOFFSET=1  $
       ,SCR_XSIZE=1622 ,SCR_YSIZE=1050  $
       ,NOTIFY_REALIZE='Initialization_PeakSelector_Main' ,/SCROLL  $
-      ,XSIZE=1622 ,YSIZE=1070 ,TITLE='Peak Selector v9.6© 2017,'+ $
+      ,XSIZE=1622 ,YSIZE=1070 ,TITLE='Peak Selector v9.75© 2019,'+ $
       ' Howard Hughes Medical Institute.  All rights reserved.'  $
       ,SPACE=3 ,XPAD=3 ,YPAD=3 ,MBAR=WID_BASE_0_PeakSelector_MBAR)
 
@@ -581,7 +593,7 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
 
   
   WID_DRAW_0 = Widget_Draw(WID_BASE_0_PeakSelector,  $
-      UNAME='WID_DRAW_0' ,FRAME=1 ,XOFFSET=567 ,SCR_XSIZE=1024  $
+      UNAME='WID_DRAW_0' ,FRAME=1 ,XOFFSET=565 ,SCR_XSIZE=1024  $
       ,SCR_YSIZE=1024 ,NOTIFY_REALIZE='OnDraw0Realize'  $
       ,/BUTTON_EVENTS)
 
@@ -796,6 +808,11 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   W_MENU_Convert_Pixels_to_NM = Widget_Button(W_MENU_41,  $
       UNAME='W_MENU_Convert_Pixels_to_NM' ,VALUE='Convert X-Y data to'+ $
       ' Wavelength-Y data')
+
+  
+  W_MENU_Check_Recenter = Widget_Button(W_MENU_41,  $
+      UNAME='W_MENU_Check_Recenter' ,/CHECKED_MENU ,VALUE='Re-center'+ $
+      ' when adding new label')
 
   
   W_MENU_11 = Widget_Button(WID_BASE_0_PeakSelector_MBAR,  $
@@ -1183,10 +1200,10 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       ' X')
 
   
-  WID_BUTTON_Stat3DViewer = Widget_Button(WID_BASE_0_PeakSelector,  $
-      UNAME='WID_BUTTON_Stat3DViewer' ,XOFFSET=310 ,YOFFSET=742  $
-      ,SCR_XSIZE=130 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Static 3D'+ $
-      ' Viewer')
+  WID_BUTTON_PurgeSelected = Widget_Button(WID_BASE_0_PeakSelector,  $
+      UNAME='WID_BUTTON_PurgeSelected' ,XOFFSET=310 ,YOFFSET=742  $
+      ,SCR_XSIZE=130 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Purge'+ $
+      ' Selected')
 
   
   WID_LABEL_0 = Widget_Text(WID_BASE_0_PeakSelector,  $
@@ -1195,27 +1212,11 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       ' Row --> Histogram' ] ,XSIZE=20 ,YSIZE=3)
 
   
-  WID_TABLE_StartReadSkip = Widget_Table(WID_BASE_0_PeakSelector,  $
-      UNAME='WID_TABLE_StartReadSkip' ,XOFFSET=175 ,YOFFSET=667  $
-      ,SCR_XSIZE=211 ,SCR_YSIZE=70 ,/EDITABLE ,/COLUMN_MAJOR  $
-      ,COLUMN_LABELS=[ 'Start', 'Read', 'Skip' ] ,XSIZE=3 ,YSIZE=1)
-
-  
   WID_BUTTON_Reload_Paramlimits =  $
       Widget_Button(WID_BASE_0_PeakSelector,  $
       UNAME='WID_BUTTON_Reload_Paramlimits' ,XOFFSET=160 ,YOFFSET=742  $
       ,SCR_XSIZE=140 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Reload'+ $
       ' Limits Table')
-
-  
-  WID_BASE_0 = Widget_Base(WID_BASE_0_PeakSelector,  $
-      UNAME='WID_BASE_0' ,XOFFSET=395 ,YOFFSET=705 ,SCR_XSIZE=150  $
-      ,SCR_YSIZE=22 ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
-
-  
-  WID_BUTTON_StartReadSkip = Widget_Button(WID_BASE_0,  $
-      UNAME='WID_BUTTON_StartReadSkip' ,SCR_XSIZE=148 ,SCR_YSIZE=22  $
-      ,/ALIGN_LEFT ,VALUE='Apply Read/Skip Filter')
 
   
   WID_BUTTON_Plot_XgrUnwZgrYgr =  $
@@ -1346,6 +1347,18 @@ pro WID_BASE_0_PeakSelector, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_BUTTON_Tie_RGB = Widget_Button(WID_BASE_Tie_RGB,  $
       UNAME='WID_BUTTON_Tie_RGB' ,/ALIGN_LEFT ,VALUE='Tie RGB')
+
+  
+  WID_BUTTON_Apply_Filter1 = Widget_Button(WID_BASE_0_PeakSelector,  $
+      UNAME='WID_BUTTON_Apply_Filter1' ,XOFFSET=170 ,YOFFSET=700  $
+      ,SCR_XSIZE=75 ,SCR_YSIZE=25 ,/ALIGN_CENTER ,VALUE='Apply Filter'+ $
+      ' 1')
+
+  
+  WID_BUTTON_Apply_Filter2 = Widget_Button(WID_BASE_0_PeakSelector,  $
+      UNAME='WID_BUTTON_Apply_Filter2' ,XOFFSET=255 ,YOFFSET=700  $
+      ,SCR_XSIZE=75 ,SCR_YSIZE=25 ,/ALIGN_CENTER ,VALUE='Apply Filter'+ $
+      ' 2')
 
   Widget_Control, /REALIZE, WID_BASE_0_PeakSelector
 

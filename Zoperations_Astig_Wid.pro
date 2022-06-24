@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	12/21/2017 11:41.15
+; Generated on:	11/10/2021 16:30.23
 ; 
 pro WID_BASE_Z_operations_Astig_event, Event
 
@@ -76,6 +76,10 @@ pro WID_BASE_Z_operations_Astig_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Plot_ZvsFfame_woffset'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         Plot_ZvsFrame_with_offest, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_SaveCalSet_ASCII_0'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        OnButton_Press_SaveCalSet_ASCII, Event
     end
     else:
   endcase
@@ -308,6 +312,18 @@ pro WID_BASE_Z_operations_Astig, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       UNAME='WID_BUTTON_Plot_ZvsFfame_woffset' ,XOFFSET=220  $
       ,YOFFSET=266 ,SCR_XSIZE=180 ,SCR_YSIZE=35 ,/ALIGN_CENTER  $
       ,VALUE='Plot Z vs Frame w offset')
+
+  
+  WID_BASE_SaveCalSet_ASCII =  $
+      Widget_Base(WID_BASE_Z_operations_Astig,  $
+      UNAME='WID_BASE_SaveCalSet_ASCII' ,XOFFSET=35 ,YOFFSET=264  $
+      ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+
+  
+  WID_BUTTON_SaveCalSet_ASCII_0 =  $
+      Widget_Button(WID_BASE_SaveCalSet_ASCII,  $
+      UNAME='WID_BUTTON_SaveCalSet_ASCII_0' ,/ALIGN_LEFT ,VALUE='Save'+ $
+      ' Cal Set ASCII')
 
   Widget_Control, /REALIZE, WID_BASE_Z_operations_Astig
 

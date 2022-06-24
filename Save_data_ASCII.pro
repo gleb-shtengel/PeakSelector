@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	01/10/2017 09:19.45
+; Generated on:	10/16/2018 08:26.20
 ; 
 pro WID_BASE_Save_Data_ASCII_event, Event
 
@@ -25,9 +25,9 @@ pro WID_BASE_Save_Data_ASCII_event, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_TEXT_ASCII_Save_Parameter_List'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TEXT_CH' )then $
-        On_ASCII_ParamList_change, Event
+        On_Save_ASCII_ParamList_change, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TEXT_STR' )then $
-        On_ASCII_ParamList_change, Event
+        On_Save_ASCII_ParamList_change, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_DROPLIST_Save_ASCII_Filter'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_DROPLIST' )then $

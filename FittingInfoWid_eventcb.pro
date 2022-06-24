@@ -15,7 +15,7 @@
 
 ;-----------------------------------------------------------------
 pro DoRealizeInfo, wWidget			;On create InfoFit fill with values from .txt file if availible
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 wtable = Widget_Info(wWidget, find_by_uname='WID_TABLE_InfoFile')
 values=[thisfitcond.zerodark,  thisfitcond.xsz,  thisfitcond.ysz,  thisfitcond.Nframesmax,$
@@ -41,12 +41,13 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnPickCalFile_Astig_FittingInfo, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 	wfilename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav'],title='Select *WND.sav file to open')
 	if wfilename ne '' then begin
 		restore,filename=wfilename
-		print,'Astigmatic Fit coefficients:', aa
+		print,'Astigmatic Fit coefficients:'
+		print,transpose(aa)
 		cd,fpath
 		WFileWidID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_WindFilename_Astig__FittingInfo')
 		widget_control,WFileWidID,SET_VALUE = wfilename
@@ -56,14 +57,14 @@ end
 ;-----------------------------------------------------------------
 ;
 pro DoRealizeDropListDispType, wWidget
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 widget_control,wWidget,SET_DROPLIST_SELECT = TransformEngine ? 3 : 1			;Sets the default value to "Some Frames/Peaks" for Windows and to "Cluster" for UNIX
 end
 ;
 ;-----------------------------------------------------------------
 ;
 pro DoInsertInfo, Event				;edits the fit info table
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 widget_control,event.id,get_value=thevalue
 value=float(reform(thevalue))
 CASE event.y OF
@@ -100,7 +101,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro SetSigmaFitSym, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 	WidDListSigmaSym = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_SetSigmaFitSym')
 	SigmaSym=widget_info(WidDListSigmaSym,/DropList_Select)		;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
 	thisfitcond.SigmaSym = SigmaSym
@@ -116,7 +117,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnInfoOK, Event					;Starts fitting of data according to settings
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 widget_control,/hourglass
 
 WidDListDispLevel = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_FitDisplayType')
@@ -136,7 +137,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro SetLocalizationMethod, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 	thisfitcond.LocalizationMethod=Event.index
 end
 

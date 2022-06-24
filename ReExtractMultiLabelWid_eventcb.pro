@@ -9,7 +9,7 @@
 
 pro StartReExtract, Event		; Starts Re-extracting Peaks for multilabel (3D) processing
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
 File1WidID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_Cam1Filename')
@@ -111,7 +111,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro SetSigmaSym_Reextract, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 	WidDListSigmaSym = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_SetSigmaFitSym_Reextract')
 	SigmaSym=widget_info(WidDListSigmaSym,/DropList_Select)		;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
 	thisfitcond.SigmaSym = SigmaSym
@@ -122,7 +122,7 @@ end
 pro Initialize_ReExtractMultiLabel, wWidget				; Initializes filenames and the Engine Selection (local for Windows, cluster for UNIX)
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common transformfilenames, lab_filenames, sum_filename
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 
 WidDListDispLevel = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_FitDisplayType')
 widget_control,WidDListDispLevel,SET_DROPLIST_SELECT = TransformEngine ? 3 : 1
@@ -164,13 +164,13 @@ end
 ;
 Pro ReadRawLoopMultiLabelCluster			;Master program to read data and loop through processing for cluster
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 restore,'temp/temp.sav'
 print,'sh '+idl_pwd+'/multilabel_runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd			;Spawn workers in cluster
 spawn,'sh '+idl_pwd+'/multilabel_runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd		;Spawn workers in cluster
 print,'ReadRawLoopMultiLabelCluster cluster jobs have completed'
-spawn,'sync'
-spawn,'sync'
+;spawn,'sync'
+;spawn,'sync'
 cd,curr_pwd
 for nlps=0l,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
 	framefirst=	thisfitcond.Frm0 + (nlps)*increment						;first frame in batch
@@ -190,6 +190,13 @@ end
 ;------------------------------------------------------------------------------------
 ;
 Pro	ReadRawMultilabelWorker,nlps,data_dir						;spawn mulitple copies of this programs for cluster
+CATCH, Error_status
+IF Error_status NE 0 THEN BEGIN
+	PRINT, 'ReadRawMultilabelWorker: Error index: ', Error_status
+	PRINT, 'ReadRawMultilabelWorker: Error :',!ERROR_STATE.MSG
+	CATCH,/CANCEL
+	stop
+ENDIF
 Nlps=long((COMMAND_LINE_ARGS())[0])
 data_dir=(COMMAND_LINE_ARGS())[1]
 cd,data_dir
@@ -206,10 +213,12 @@ d = thisfitcond.MaskSize		; d=5.								half size of region of a selected peak
 																;setup twinkle structure with all the fitted peak information
 peakparams = {twinkle,frameindex:0l,peakindex:0l,fitOK:0,peakx:0.0,peaky:0.0,A:fltarr(7),sigma1:fltarr(7),sigma2:fltarr(7),chisq:0.0,Nphot:0l}
 peakparams.A=[0.0,1.0,1.2,1.2,d,d,0.]
-print,'starting the worker process, Frames=',framefirst,framelast
+print,'ReadRawMultilabelWorker: starting the worker process, Frames=',framefirst,framelast
 firstpeak = -1
 lastpeak = 0
 for Label=0,nlbls-1 do begin
+	;print, 'ReadRawMultilabelWorker: MLRawFilenames[Label]:', MLRawFilenames[Label]
+	;print, 'ReadRawMultilabelWorker: ThisFitConds[Label]:',ThisFitConds[Label]
 	data=ReadData(MLRawFilenames[Label],ThisFitConds[Label],framefirst,Nframes)	;Reads thefile and returns data (bunch of frames) in (units of photons)
 	print,MLRawFilenames[Label]
 	for frameindx=0l,Nframes-1 do begin
@@ -238,8 +247,8 @@ print,'peaks:',firstpeak,lastpeak
 if (firstpeak ne -1) then begin
 	CGroupParamsML=CgrouPParams[27:33,firstpeak:lastpeak]
 	save,firstpeak,lastpeak,CGroupParamsML,filename='temp/ReExtract_peaks_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'.sav'
-	spawn,'sync'
-	spawn,'sync'
+	;spawn,'sync'
+	;spawn,'sync'
 	print,'Wrote file temp/ReExtract_peaks_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'.sav'
 endif else	print,'Wrote file - nothing to write'
 return
@@ -250,7 +259,7 @@ end
 ;
 Pro ReadRawLoopMultiLabel_Bridge			;
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 
 restore,'temp/temp.sav'
 
@@ -388,7 +397,7 @@ end
 ;------------------------------------------------------------------------------------
 ;
 pro ReadRawLoopMultipleLabel, DisplayType			;Master program to read data and loop through processing
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 										;use SigmaSym as a flag to indicate xsigma and ysigma are not independent and locked together in the fit
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2

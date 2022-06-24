@@ -60,7 +60,18 @@ widget_control,WID_TEXT_XY_GuideStarAncFilename_ID,GET_VALUE = GS_anc_fname
 GS_anc_file_info=FILE_INFO(GS_anc_fname)
 use_multiple_GS = use_multiple_GS and GS_anc_file_info.exists
 
-ExtractSubset, Event, xdrift, ydrift, use_multiple_GS
+WidDListDispFitMethodID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_XY_Fit_Method')
+FitMethod = widget_info(WidDListDispFitMethodID,/DropList_Select)
+if FitMethod eq 2 then begin
+	drift_filename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav'],title='Select *.sav file to load drift data')
+	drift_file_info = FILE_INFO(drift_filename)
+	if (drift_filename ne '') and drift_file_info.exists then begin
+		cd, fpath
+		restore, drift_filename
+		xdrift = GStarCoeff.xdrift
+		ydrift = GStarCoeff.ydrift
+	endif else return
+endif else ExtractSubset, Event, xdrift, ydrift, use_multiple_GS
 
 CGroupParams[X_ind,*] = CGroupParams[X_ind,*] - xdrift[CGroupParams[FrNum_ind,*]]
 CGroupParams[Y_ind,*] = CGroupParams[Y_ind,*] - ydrift[CGroupParams[FrNum_ind,*]]
@@ -90,10 +101,14 @@ endif
 
 ;NFrames=long64(max(CGroupParams[FrNum_ind,*]))
 NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[FrNum_ind,*])+1))	: long64(max(CGroupParams[FrNum_ind,*])+1)
-GuideStarDrift={present:0B,xdrift:dblarr(NFrames),ydrift:dblarr(NFrames),zdrift:dblarr(NFrames)}
+if n_elements(GuideStarDrift) eq 0 then begin
+	GuideStarDrift={present:0B,xdrift:fltarr(NFrames),ydrift:fltarr(NFrames),zdrift:fltarr(NFrames)}
+endif else begin
+	if n_elements(GuideStarDrift[0].xdrift) ne NFrames then GuideStarDrift={present:0B,xdrift:fltarr(NFrames),ydrift:fltarr(NFrames),zdrift:fltarr(NFrames)}
+endelse
 GuideStarDrift[0].present = 1
-GuideStarDrift[0].xdrift = xdrift
-GuideStarDrift[0].ydrift = ydrift
+GuideStarDrift[0].xdrift = GuideStarDrift[0].xdrift + xdrift
+GuideStarDrift[0].ydrift = GuideStarDrift[0].ydrift + ydrift
 end
 ;
 ;-----------------------------------------------------------------
@@ -191,10 +206,10 @@ if (NOT use_multiple_GS_XY_DH) then begin
 				n_ele=n_elements(indecis)
 				X1=subset[X_ind,indecis]
 				Xsmooth=smooth(subset[6,indecis]*subset[X_ind,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
-				Xfit=interpol(Xsmooth,subset[FrNum_ind,indecis],FR)
+				Xfit=interpol_gs(Xsmooth,subset[FrNum_ind,indecis],FR)
 				Y1=subset[Y_ind,indecis]
 				Ysmooth=smooth(subset[6,indecis]*subset[Y_ind,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
-				Yfit=interpol(Ysmooth,subset[FrNum_ind,indecis],FR)
+				Yfit=interpol_gs(Ysmooth,subset[FrNum_ind,indecis],FR)
 				frame_low = min(subset[FrNum_ind,indecis])
 				ind_low=where(FR[*] lt frame_low,c)
 				if c ge 1 then begin
@@ -292,10 +307,10 @@ endif else begin
 	endfor
 
 
-print,'SmWidth=', SmWidth
+	print,'SmWidth=', SmWidth
 
 	if FitMethod eq 0 then begin
-		non_zero_ind=where(superset_Nph gt 0)
+		non_zero_ind=where(superset_Nph gt 0, cnt_nz)
 		xcoef=poly_fit(superset_Fr[non_zero_ind], superset_X[non_zero_ind], fitorder, YFIT=fit_to_x)
 		XFit=poly(FR, xcoef)
 		ycoef=poly_fit(superset_Fr[non_zero_ind], superset_Y[non_zero_ind], fitorder, YFIT=fit_to_x)
@@ -304,15 +319,20 @@ print,'SmWidth=', SmWidth
 		Nph_arr = total(superset_Nph,1)
 		X_arr = total(superset_X*superset_Nph,1)
 		Y_arr = total(superset_Y*superset_Nph,1)
-		non_zero_ind=where(Nph_arr gt 0)
+		non_zero_ind=where(Nph_arr gt 0, cnt_nz)
 		Xsmooth=smooth(X_arr[non_zero_ind]/Nph_arr[non_zero_ind],SmWidth,/EDGE_TRUNCATE)
-		Xfit=interpol(Xsmooth,FR[non_zero_ind],FR)
+		Xfit=interpol_gs(Xsmooth,FR[non_zero_ind],FR)    ; interpol_gs is the same as interpol but forces the edge values outseide the range
+		;Xfit[0:non_zero_ind[0]]=Xfit[non_zero_ind[0]]
+		;Xfit[non_zero_ind[(cnt_nz-1)]:(NFrames-1)]=Xfit[non_zero_ind[(cnt_nz-1)]]
 		Ysmooth=smooth(Y_arr[non_zero_ind]/Nph_arr[non_zero_ind],SmWidth,/EDGE_TRUNCATE)
-		Yfit=interpol(Ysmooth,FR[non_zero_ind],FR)
+		Yfit=interpol_gs(Ysmooth,FR[non_zero_ind],FR)
+		;Yfit[0:non_zero_ind[0]]=Yfit[non_zero_ind[0]]
+		;Yfit[non_zero_ind[(cnt_nz-1)]:(NFrames-1)]=Yfit[non_zero_ind[(cnt_nz-1)]]
 	endelse
 
 	!p.multi=[0,1,2,0,0]
 	plot,FR,XFit,xtitle='Frame',ytitle='X-drift (pixels)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1, yrange=yrng_X, ystyle=1, thick=2
+	oplot,FR,XFit, thick=2
 	xdrift=Xfit-Xfit[0]
 	!p.multi=[1,1,2,0,0]
 	plot,FR,YFit,xtitle='Frame',ytitle='Y-drift (pixels)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1, yrange=yrng_Y ,ystyle=1, thick=2
@@ -322,21 +342,33 @@ endelse
 !p.background=0
 !P.NOERASE=0
 
-if use_multiple_GS  and (NOT use_multiple_GS_XY_DH) then begin
-	xdrift=total(xdrift_mult,1)/ip_cnt
-	x_residual=dblarr(ip_cnt)
-	for i=0,(ip_cnt-1) do x_residual[i]=(max(xdrift_mult[i,*]-xdrift)-min(xdrift_mult[i,*]-xdrift))*nm_per_pixel
-	print,'residual x-uncertainties (nm):   ',x_residual
-	xyouts,0.12,0.96,'X- residual uncertainties (nm):   ' + string(x_residual,FORMAT='(10(F8.2," "))'),color=200, charsize=1.5,CHARTHICK=1.0,/NORMAL
-	ydrift=total(ydrift_mult,1)/ip_cnt
-	y_residual=dblarr(ip_cnt)
-	for i=0,(ip_cnt-1) do y_residual[i]=(max(ydrift_mult[i,*]-ydrift)-min(ydrift_mult[i,*]-ydrift))*nm_per_pixel
-	print,'residual y-uncertainties (nm):   ',y_residual
-	xyouts,0.12,0.46,'Y- residual uncertainties (nm):   ' + string(y_residual,FORMAT='(10(F8.2," "))'),color=200, charsize=1.5,CHARTHICK=1.0,/NORMAL
+if use_multiple_ANC then begin
+	if (NOT use_multiple_GS_XY_DH) then begin
+		xdrift=total(xdrift_mult,1)/ip_cnt
+		x_residual=dblarr(ip_cnt)
+		for i=0,(ip_cnt-1) do x_residual[i]=(max(xdrift_mult[i,*]-xdrift)-min(xdrift_mult[i,*]-xdrift))*nm_per_pixel
+		print,'residual x-uncertainties (nm):   ',x_residual
+		xyouts,0.12,0.96,'X- residual uncertainties (nm):   ' + string(x_residual,FORMAT='(10(F8.2," "))'),color=200, charsize=1.5,CHARTHICK=1.0,/NORMAL
+		ydrift=total(ydrift_mult,1)/ip_cnt
+		y_residual=dblarr(ip_cnt)
+		for i=0,(ip_cnt-1) do y_residual[i]=(max(ydrift_mult[i,*]-ydrift)-min(ydrift_mult[i,*]-ydrift))*nm_per_pixel
+		print,'residual y-uncertainties (nm):   ',y_residual
+		xyouts,0.12,0.46,'Y- residual uncertainties (nm):   ' + string(y_residual,FORMAT='(10(F8.2," "))'),color=200, charsize=1.5,CHARTHICK=1.0,/NORMAL
+	endif else begin
+		fri = Paramlimits[FrNum_ind,0]
+		fra = Paramlimits[FrNum_ind,1]
+		max_xdrift=(max(xdrift[fri:fra])-min(xdrift[fri:fra]))*nm_per_pixel
+		xyouts,0.12,0.96,'X- drift (nm):   ' + string(max_xdrift,FORMAT='(F8.2)'),color=250, charsize=1.5,CHARTHICK=1.0,/NORMAL
+		max_ydrift=(max(ydrift[fri:fra])-min(ydrift[fri:fra]))*nm_per_pixel
+		xyouts,0.12,0.46,'Y- drift (nm):   ' + string(max_ydrift,FORMAT='(F8.2)'),color=250, charsize=1.5,CHARTHICK=1.0,/NORMAL
+	endelse
+
 endif else begin
-	max_xdrift=(max(xdrift)-min(xdrift))*nm_per_pixel
+	fri = Paramlimits[FrNum_ind,0]
+	fra = Paramlimits[FrNum_ind,1]
+	max_xdrift=(max(xdrift[fri:fra])-min(xdrift[fri:fra]))*nm_per_pixel
 	xyouts,0.12,0.96,'X- drift (nm):   ' + string(max_xdrift,FORMAT='(F8.2)'),color=250, charsize=1.5,CHARTHICK=1.0,/NORMAL
-	max_ydrift=(max(ydrift)-min(ydrift))*nm_per_pixel
+	max_ydrift=(max(ydrift[fri:fra])-min(ydrift[fri:fra]))*nm_per_pixel
 	xyouts,0.12,0.46,'Y- drift (nm):   ' + string(max_ydrift,FORMAT='(F8.2)'),color=250, charsize=1.5,CHARTHICK=1.0,/NORMAL
 endelse
 

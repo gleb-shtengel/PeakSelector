@@ -56,7 +56,7 @@ GroupEngine = widget_info(WidDListDispLevel,/DropList_Select)
 TransformEngine = GroupEngine
 CGroupParams[Gr_ind,*]=0
 interrupt_load = 0
-
+print,'GroupEngine=',GroupEngine
 case GroupEngine of
 
 	0: begin
@@ -123,9 +123,11 @@ case GroupEngine of
 
 		obj_destroy, oStatusBar
 
+		print,'interrupt_load = ', interrupt_load
 		if interrupt_load eq 1 then print,'Grouping aborted, cleaning up...'
 
 		if interrupt_load eq 0 then begin
+			print,'starting GroupPeaksCluster_ReadBack'
 			GroupPeaksCluster_ReadBack, Event, interrupt_load
 		endif
 		print,'removing temp directory'
@@ -165,13 +167,19 @@ case GroupEngine of
 		GroupDisplay = 0						; 0 for cluster, 1 for local
 		if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR')	else	idl_pwd=pref_get('IDL_WDE_START_DIR')
 		cd, current = curr_pwd
-		FILE_MKDIR, curr_pwd+'/temp'
+		;FILE_MKDIR, curr_pwd+'/temp'
+		td = 'temp' + strtrim(ulong(SYSTIME(/seconds)),2)
+		temp_dir=curr_pwd + sep + td
+		FILE_MKDIR,temp_dir
 		iPALM_data_cnt=n_elements(CGroupParams)
-		save, curr_pwd, idl_pwd, iPALM_data_cnt, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename='temp/temp.sav'		;save variables for cluster cpu access
-		GroupPeaks_Bridge, CGroupParams
+		save, curr_pwd, idl_pwd, iPALM_data_cnt, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename = td + sep + 'temp.sav'		;save variables for cluster cpu access
+		GroupPeaks_Bridge, CGroupParams, temp_dir
 		;file_delete, 'temp/temp.sav'
 		;file_delete, 'temp'
-		file_delete,'temp', /RECURSIVE, /ALLOW_NONEXISTENT
+		;file_delete,'temp', /RECURSIVE, /ALLOW_NONEXISTENT
+		cd, curr_pwd
+		file_delete,td + sep + 'temp.sav', /ALLOW_NONEXISTENT, /QUIET
+		file_delete, td, /ALLOW_NONEXISTENT, /QUIET
 		cd, curr_pwd
 	end
 endcase
@@ -359,8 +367,8 @@ if OKpkcnt ge 1 then begin
 	GroupPeaksCore, CGroupParamsGP, CGrpSize, OKpkcnt, grouping_radius, spacer,maxgrsize, disp_increment, GroupDisplay, RowNames
 endif else CGroupParamsGP=0
 save,CGroupParamsGP,filename=temp_dir+'/group_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
-spawn,'sync'
-spawn,'sync'
+;spawn,'sync'
+;spawn,'sync'
 print,'Wrote file '+temp_dir+'/group_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
 file_delete, temp_data_file
 return
@@ -368,9 +376,10 @@ end
 ;
 ;------------------------------------------------------------------------------------
 ;
-Pro GroupPeaks_Bridge,CGroupParams			;Master program to loop through group processing for cluster, using same fast new group processing core
+Pro GroupPeaks_Bridge, CGroupParams, temp_dir			;Master program to loop through group processing for cluster, using same fast new group processing core
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
-restore,'temp/temp.sav'
+restore,temp_dir + sep + '/temp.sav'
 print,'Starting IDL bridge worker routines'
 ;Starting IDL bridge workers
 obridge=obj_new("IDL_IDLBridge", output='')
@@ -379,10 +388,10 @@ print,'data_dir:	',curr_pwd
 print,'IDL_dir:		',IDL_pwd
 
 shmName='Status_rep_GR'
-max_len=150
+max_len=250
 SHMMAP,shmName,/BYTE, Dimension=nloops*max_len, GET_OS_HANDLE=OS_handle_val1
 Reports=SHMVAR(shmName)
-shmName_data='iPALM_data'
+shmName_data='iPALM_data_grouping'
 SHMMAP,shmName_data,/FLOAT, Dimension=[CGrpSize,(iPALM_data_cnt/CGrpSize)], GET_OS_HANDLE=OS_handle_val2
 CGroupParams_bridge=SHMVAR(shmName_data)
 CGroupParams_bridge[0,0]=CGroupParams
@@ -391,13 +400,14 @@ for i=0, nloops-1 do begin
 	obridge[i]->setvar, 'nlps',i
 	obridge[i]->setvar, 'data_dir',curr_pwd
 	obridge[i]->setvar, 'IDL_dir',IDL_pwd
+	obridge[i]->setvar, 'temp_dir',temp_dir
 	obridge[i]->setvar, 'OS_handle_val1',OS_handle_val1
 	obridge[i]->setvar, 'OS_handle_val2',OS_handle_val2
 	print,'bridge ',i,'  set variables'
 	obridge[i]->execute,'cd, IDL_dir'
 	print,'bridge ',i,'  changed directory'
 	obridge[i]->execute,"restore,'GroupPeaksWorker_Bridge.sav'"
-	obridge[i]->execute,'GroupPeaksWorker_Bridge, nlps, data_dir, OS_handle_val1, OS_handle_val2',/NOWAIT
+	obridge[i]->execute,'GroupPeaksWorker_Bridge, nlps, data_dir, temp_dir, OS_handle_val1, OS_handle_val2',/NOWAIT
 	print,'bridge ',i,'  started'
 endfor
 
@@ -434,29 +444,35 @@ end
 ;
 ;------------------------------------------------------------------------------------
 ;
-Pro	GroupPeaksWorker_Bridge,nlps,data_dir,OS_handle_val1,OS_handle_val2						;spawn mulitple copies of this programs for cluster
-Error_status=0
-cd,data_dir
+Pro	GroupPeaksWorker_Bridge, nlps, data_dir, temp_dir, OS_handle_val1, OS_handle_val2						;spawn mulitple copies of this programs for cluster
+
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
+;openw,1,temp_dir+sep+'Log.txt'
 CATCH, Error_status
+
 IF Error_status NE 0 THEN BEGIN
-    rep='GroupPeaksWorker_Bridge Error index: '+!ERROR_STATE.msg
+	rep=' GroupPeaks Bridge Worker Error:  '+!ERROR_STATE.msg
+	;printf,1,rep
+	;close,1
 	if strlen(rep) ge max_len then rep=strmid(rep,0,max_len) else rep=(rep+string(bytarr(max_len-strlen(rep))+32B))
 	Reports[rep_i:(rep_i+strlen(rep)-1)]=byte(rep)
 	CATCH, /CANCEL
-	close,1
 	return
 ENDIF
-
-restore,'temp/temp.sav'
-FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
-
 shmName='Status_rep_GR'
-max_len=150
-SHMMAP,shmName,/BYTE, Dimension=nloops*max_len,OS_Handle=OS_handle_val1
+max_len=250
+;printf,1,'Setting Status_rep_GR', (nlps+1), max_len, OS_handle_val1
+SHMMAP,shmName,/BYTE, Dimension=(nlps+1)*max_len, OS_Handle=OS_handle_val1
 Reports=SHMVAR(shmName)
 rep_i=nlps*max_len
 
-shmName_data='iPALM_data'
+temp_data_file = temp_dir + sep + 'temp.sav'
+restore, temp_data_file
+FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
+
+;printf,1,'Setting iPALM_data_grouping', iPALM_data_cnt, CGrpSize, OS_handle_val2
+
+shmName_data='iPALM_data_grouping'
 SHMMAP,shmName_data,/FLOAT, Dimension=[CGrpSize,(iPALM_data_cnt/CGrpSize)],OS_Handle=OS_handle_val2
 CGroupParams_bridge=SHMVAR(shmName_data)
 
@@ -469,6 +485,7 @@ GoodPeaks=where((CGroupParams_bridge[FrNum_ind,*] ge framestart) and (CGroupPara
 ind0 = GoodPeaks[0]
 ind1 = GoodPeaks[n_elements(GoodPeaks)-1]
 rep='Starting GroupPeaksCore for framefirst='+strtrim(framestart,2)+',  framelast='+strtrim(framestop,2)+',  OKpkcnt='+strtrim(OKpkcnt,2)
+;printf,1,rep
 if strlen(rep) ge max_len then rep=strmid(rep,0,max_len) else rep=(rep+string(bytarr(max_len-strlen(rep))+32B))
 Reports[rep_i:(rep_i+strlen(rep)-1)]=byte(rep)
 if OKpkcnt ge 1 then begin
@@ -480,7 +497,9 @@ if OKpkcnt ge 1 then begin
 endif else CGroupParamsGP=0
 rep='Grouped and saved data, frames '+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+', total peaks='+strtrim(OKpkcnt,2)
 if strlen(rep) ge max_len then rep=strmid(rep,0,max_len) else rep=(rep+string(bytarr(max_len-strlen(rep))+32B))
+;printf,1,rep
 Reports[rep_i:(rep_i+strlen(rep)-1)]=byte(rep)
+;close,1
 return
 end
 ;

@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	02/20/2014 10:12.13
+; Generated on:	11/09/2020 10:41.30
 VERSION 1
 END
 
@@ -13,10 +13,10 @@ XPAD = 3
 YPAD = 3
 SPACE = 3
 BEGIN
-  WID_BUTTON_StartMLExtract PUSHBUTTON 570 720 150 40
-  VALUE "Confirm and Start"
+  WID_BUTTON_StartTrsnformation_Macro PUSHBUTTON 530 720 180 40
+  VALUE "Perform Transformation Only"
   ALIGNCENTER
-  ONACTIVATE "Start_iPALM_Macro"
+  ONACTIVATE "Start_Transformation_Macro"
   END
   WID_BUTTON_CancelReExtract PUSHBUTTON 570 780 150 40
   VALUE "Cancel"
@@ -160,7 +160,7 @@ BEGIN
   VALUE "Works only in Cluseter or IDL Bridge modes"
   ALIGNLEFT
   END
-  WID_TABLE_InfoFile_iPALM_macro TABLE 10 230 260 540
+  WID_TABLE_InfoFile_iPALM_macro TABLE 10 265 260 540
   FRAME = 1
   N_ROWS = 26
   N_COLS = 1
@@ -195,5 +195,11 @@ BEGIN
   ROWLABEL "Sp. Max # of Iter."
   EDITABLE
   ONINSERTCHAR "DoInsertInfo_iPALM_Macro"
+  END
+  WID_DROPLIST_ZExctractEngine_iPALM DROPLIST 31 222 225 30
+  CAPTION "Z-Extraction Engine"
+  NUMITEMS = 2
+  ITEM "Local"
+  ITEM "IDL Bridge"
   END
 END

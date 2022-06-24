@@ -36,9 +36,10 @@ BEGIN
   END
   WID_DROPLIST_XY_Fit_Method DROPLIST 15 16 300 30
   CAPTION "GuideStar Drift Correction"
-  NUMITEMS = 2
+  NUMITEMS = 3
   ITEM "Polynomial"
   ITEM "Weighted Smoothing"
+  ITEM "Load From File"
   END
   WID_BUTTON_Close PUSHBUTTON 90 414 145 35
   VALUE "Close"

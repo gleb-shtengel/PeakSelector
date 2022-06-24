@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	03/04/2014 12:35.23
+; Generated on:	11/10/2021 15:55.30
 VERSION 1
 END
 
@@ -60,12 +60,12 @@ BEGIN
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_BUTTON_Write_Guide_Star PUSHBUTTON 408 360 130 30
+  WID_BUTTON_Write_Guide_Star PUSHBUTTON 408 362 130 25
   VALUE "Write Guide Star"
   ALIGNCENTER
   ONACTIVATE "OnWriteZDrift"
   END
-  WID_BUTTON_Test_Guide_Star PUSHBUTTON 408 320 130 30
+  WID_BUTTON_Test_Guide_Star PUSHBUTTON 408 335 130 25
   VALUE "Test Guide Star"
   ALIGNCENTER
   ONACTIVATE "OnTestZDrift"
@@ -178,7 +178,7 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "WriteWindPointWithoutScaling"
   END
-  WID_BASE_WriteEllipticityGuideStar BASE 368 390 0 0
+  WID_BASE_WriteEllipticityGuideStar BASE 370 390 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -235,19 +235,20 @@ BEGIN
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_BUTTON_PickAncFile PUSHBUTTON 380 250 150 32
+  WID_BUTTON_PickAncFile PUSHBUTTON 380 245 150 25
   VALUE "Pick ANC File"
   ALIGNCENTER
   ONACTIVATE "OnPickGuideStarAncFile"
   END
-  WID_BASE_WriteEllipticityGuideStar_1 BASE 379 284 0 0
+  WID_BUTTON_Use_Multiple_Guidestars_GS BASE 380 275 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
   BEGIN
-    WID_BUTTON_UseMultipleANCs PUSHBUTTON -1 -1 0 0
-    VALUE "Use Multiple GuideStars"
+    WID_BUTTON_Use_Multiple_Guidestars_ZGS PUSHBUTTON -1 -1 0 0
+    VALUE "Use Multiple GuideStars GS"
     ALIGNLEFT
+    ONACTIVATE "OnButton_Press_use_multiple_guidestars_ZGS"
     END
   END
   WID_BUTTON_Write_GuideStarRadius PUSHBUTTON 19 278 250 30
@@ -278,7 +279,7 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OptimizeSlopeCorrection"
   END
-  WID_BASE_WriteEllipticityGuideStar_E BASE 367 417 0 0
+  WID_BASE_WriteEllipticityGuideStar_E BASE 370 417 0 0
   COLUMNS = 1
   NONEXCLUSIVE
   CAPTION "IDL"
@@ -296,5 +297,17 @@ BEGIN
   ITEM "Local Peaks"
   ITEM "Bridge Groups"
   ITEM "Bridge Peaks"
+  END
+  WID_BUTTON_Use_Multiple_Guidestars_DH BASE 380 305 0 0
+  COLUMNS = 1
+  NONEXCLUSIVE
+  XPAD = 5
+  CAPTION "IDL"
+  BEGIN
+    WID_BUTTON_Use_Multiple_Guidestars_ZDH PUSHBUTTON -1 -1 0 0
+    VALUE "Use Multiple GuideStars DH"
+    ALIGNLEFT
+    ONACTIVATE "OnButton_Press_use_multiple_guidestars_ZDH"
+    END
   END
 END

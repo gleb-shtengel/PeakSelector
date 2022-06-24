@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	07/19/2017 15:30.53
+; Generated on:	02/26/2018 15:31.44
 ; 
 pro WID_BASE_GuideStar_event, Event
 
@@ -87,7 +87,8 @@ pro WID_BASE_GuideStar, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_DROPLIST_XY_Fit_Method = Widget_Droplist(WID_BASE_GuideStar,  $
       UNAME='WID_DROPLIST_XY_Fit_Method' ,XOFFSET=15 ,YOFFSET=16  $
       ,SCR_XSIZE=300 ,SCR_YSIZE=30 ,TITLE='GuideStar Drift'+ $
-      ' Correction' ,VALUE=[ 'Polynomial', 'Weighted Smoothing' ])
+      ' Correction' ,VALUE=[ 'Polynomial', 'Weighted Smoothing',  $
+      'Load From File' ])
 
   
   WID_BUTTON_Close = Widget_Button(WID_BASE_GuideStar,  $

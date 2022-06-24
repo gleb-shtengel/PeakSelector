@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	01/10/2017 08:37.37
+; Generated on:	10/16/2018 08:26.15
 VERSION 1
 END
 
@@ -25,8 +25,8 @@ BEGIN
   SCROLL
   EDITABLE
   ALLEVENTS
-  ONINSERTCHAR "On_ASCII_ParamList_change"
-  ONINSERTSTRING "On_ASCII_ParamList_change"
+  ONINSERTCHAR "On_Save_ASCII_ParamList_change"
+  ONINSERTSTRING "On_Save_ASCII_ParamList_change"
   WIDTH = 20
   HEIGHT = 1
   END

@@ -9,7 +9,7 @@ end
 pro Initialize_Transform_Extract_ReExtract_Filter_GetZ_iPALM, wWidget
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 nlbls=3
@@ -63,7 +63,7 @@ end
 ;
 pro OnPickCam1TxtFile, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
@@ -105,7 +105,7 @@ end
 ;
 pro OnPickCam2TxtFile, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
@@ -146,7 +146,7 @@ end
 ;
 pro OnPickCam3TxtFile, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
@@ -244,7 +244,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro DoInsertInfo_iPALM_Macro, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 widget_control,event.id,get_value=thevalue
 value=float(reform(thevalue))
 CASE event.y OF
@@ -281,7 +281,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Fill_Parameters_iPALM_Macro, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 
 TABLE_InfoFile_iPALM_macro_ID = Widget_Info(Event.top, find_by_uname='WID_TABLE_InfoFile_iPALM_macro')
@@ -309,7 +309,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Set_SigmaFitSym_iPALM, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 	SigmaSym=widget_info(event.id,/DropList_Select)		;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
 	thisfitcond.SigmaSym = SigmaSym
@@ -322,7 +322,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Set_TransformEngine_iPALM, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 	TransformEngine = widget_info(event.id,/DropList_Select)
 	print,'Set TransformEngine to ',TransformEngine
 end
@@ -331,17 +331,19 @@ end
 ;
 pro Start_iPALM_Macro, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common transformfilenames, lab_filenames, sum_filename
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
-
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
+print,"Use Confirm and Start Fast instead"
+return
+
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 Event1={ WIDGET, ID:TopID, TOP:TopID, HANDLER:TopID }
 thisfitcond_orig = thisfitcond
@@ -682,7 +684,7 @@ endif else begin
 	cd,current=curr_pwd
 	FILE_MKDIR,curr_pwd+'/temp'
 	save, curr_pwd,idl_pwd, CGroupParams, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius,maxgrsize,disp_increment,GroupDisplay, filename='temp/temp.sav'		;save variables for cluster cpu access
-	GroupPeaksCluster
+	GroupPeaksCluster_ReadBack, interrupt_load
 	file_delete,'temp/temp.sav'
 	file_delete,'temp'
 	cd,curr_pwd
@@ -714,9 +716,241 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro Start_Transformation_Macro, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
+common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+common transformfilenames, lab_filenames, sum_filename
+common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+Event1={ WIDGET, ID:TopID, TOP:TopID, HANDLER:TopID }
+thisfitcond_orig = thisfitcond
+TransformEngine_orig = TransformEngine
+Initialization_PeakSelector, TopID
+
+TransformEngine = 0
+
+WID_iPALM_MacroParameters_ID = Widget_Info(Event.Top, find_by_uname='WID_Filter_Parameters_iPALM_Macro')
+widget_control,WID_iPALM_MacroParameters_ID,get_value=iPALM_MacroParameters
+
+thisfitcond=thisfitcond_orig
+print,'Set Thisfitcond to',thisfitcond
+
+print,'Start_iPALM_Macro: iPALM_MacroParameters=',transpose(iPALM_MacroParameters)
+
+WID_ID_Use_SkipTransformation = Widget_Info(Event.Top, find_by_uname='WID_Use_SkipTransformation')
+SkipTransformation=widget_info(WID_ID_Use_SkipTransformation,/button_set)
+
+def_wind=!D.window
+nlbls=3
+lab_filenames=strarr(nlbls)
+Orig_RawFilenames = strarr(nlbls)
+RawFilenames = strarr(nlbls)
+disp_increment=500					; frame interval for progress display
+Start_Time= SYSTIME(/SECONDS)
+
+; Load the Original Filename1, and check if it exists
+File1WidID = Widget_Info(Event.Top, find_by_uname='WID_TXT_Cam1Filename')
+widget_control,File1WidID,GET_VALUE = text
+pos = strpos(text,'.',/reverse_search,/reverse_offset)
+Orig_RawFilenames[0] = text
+Orig_RawFilenames0Info=file_info(text)
+if ~Orig_RawFilenames0Info.exists then begin
+	z=dialog_message('CAM1 File does not exist')
+	return
+endif
+Orig_RawFilenames[0] = strmid(text,0,pos)
+
+; Load the Original Filename2, and check if it exists
+File2WidID = Widget_Info(Event.Top, find_by_uname='WID_TXT_Cam2Filename')
+widget_control,File2WidID,GET_VALUE = text
+pos = strpos(text,'.',/reverse_search,/reverse_offset)
+Orig_RawFilenames[1] = text
+Orig_RawFilenames1Info=file_info(text)
+if ~Orig_RawFilenames1Info.exists then begin
+	z=dialog_message('CAM2 File does not exist')
+	return
+endif
+Orig_RawFilenames[1] = strmid(text,0,pos)
+
+; Load the Original Filename3, and check if it exists
+File3WidID = Widget_Info(Event.Top, find_by_uname='WID_TXT_Cam3Filename')
+widget_control,File3WidID,GET_VALUE = text
+pos = strpos(text,'.',/reverse_search,/reverse_offset)
+Orig_RawFilenames[2] = text
+Orig_RawFilenames2Info=file_info(text)
+if ~Orig_RawFilenames2Info.exists then begin
+	z=dialog_message('CAM3 File does not exist')
+	return
+endif
+
+Orig_RawFilenames[2] = strmid(text,0,pos)
+
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
+Raw_dir = strmid(Orig_RawFilenames[2],0,strpos(Orig_RawFilenames[2],sep,/REVERSE_OFFSET,/REVERSE_SEARCH))
+cd,Raw_dir				; work out the directory where the CAM3 data File resides
+
+; Check if ANC and WND files exist and load the data
+AncFileWidID = Widget_Info(Event.Top, find_by_uname='WID_TXT_ANCFilename')
+widget_control,AncFileWidID,GET_VALUE = AnchorFile
+AncFileInfo=file_info(AnchorFile)
+AnchorPnts_line=dblarr(6)
+if ~AncFileInfo.exists then begin
+	z=dialog_message('*.ANC File does not exist')
+	return
+endif
+;AncSAV_File=AddExtension(AnchorFile,'_anc.sav')
+;AncSAV_FileInfo=file_info(AncSAV_File)
+;if AncFileInfo.exists then restore,filename=AncSAV_File else Transf_Meth=0
+close,5
+openr,5,AnchorFile
+ip=0
+while not EOF(5) do begin
+	readf,5,AnchorPnts_line
+	AnchorPnts[*,ip] = AnchorPnts_line
+	ip+=1
+endwhile
+close,5
+
+; Load other settings
+sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
+
+WID_Use_InfoFile_Flip = Widget_Info(Event.Top, find_by_uname='WID_Use_InfoFile_Flip')
+Flip_Using_InfoFile=widget_info(WID_Use_InfoFile_Flip,/button_set)
+
+; Create "Transformed" and "Sum" filenames, load original Thisfitconds
+for lbl_ind =0 , (nlbls-1) do begin
+	ReadThisFitCond, (Orig_RawFilenames[lbl_ind]+'.txt'), pth, filen, ini_filename, thisfitcond
+	pos=max(strsplit(Orig_RawFilenames[lbl_ind],sep))
+	fpath=strmid(Orig_RawFilenames[lbl_ind],0,pos-1)
+	pos1=strpos(Orig_RawFilenames[lbl_ind],'cam'+strtrim(strmid((lbl_ind+1),0),1))
+	pos2=strpos(Orig_RawFilenames[lbl_ind],'c'+strtrim(strmid((lbl_ind+1),0),1))
+	if pos1 gt 1 then begin
+		lab_filenames[lbl_ind]=strmid(Orig_RawFilenames[lbl_ind],0,pos1+4)+'trn2'+strmid(Orig_RawFilenames[lbl_ind],pos1+4,(strlen(Orig_RawFilenames[lbl_ind])-pos1-4))+'.dat'
+	endif else begin
+	if pos2 gt 1 then begin
+		lab_filenames[lbl_ind]=strmid(Orig_RawFilenames[lbl_ind],0,pos2+2)+'trn2'+strmid(Orig_RawFilenames[lbl_ind],pos2+2,(strlen(Orig_RawFilenames[lbl_ind])-pos2-2))+'.dat'
+	endif else		lab_filenames[lbl_ind]=strmid(Orig_RawFilenames[lbl_ind],pos)+'_transformed.dat'
+	endelse
+	if lbl_ind eq 0 then begin
+		ThisFitConds=replicate(thisfitcond,nlbls)
+		FlipRot=replicate({frt,present:0B,transp:0B,flip_h:0B,flip_v:0B},nlbls)
+		NFrames=thisfitcond.Nframesmax    ;
+		GStarDrifts=replicate({present:0B,xdrift:dblarr(Nframes),ydrift:dblarr(Nframes),zdrift:dblarr(Nframes)},nlbls)
+		FidCoeffs=replicate({fidcoef,present:0U,P:dblarr(2,2),Q:dblarr(2,2)},nlbls)
+		first_file=strmid(Orig_RawFilenames[0],pos)
+		cam_pos=strpos(first_file,'cam')
+		if cam_pos gt 1 then begin
+			sum_filename=strmid(first_file,0,cam_pos+3)+'123_sum'+strmid(first_file,cam_pos+4,strlen(first_file)-cam_pos-4)+'.dat'
+		endif else begin
+			cam_pos1=strpos(first_file,'c1')
+			if cam_pos1 gt 1 then begin
+				sum_filename=strmid(first_file,0,cam_pos1+1)+'123_sum'+strmid(first_file,cam_pos1+2,strlen(first_file)-cam_pos1-2)+'.dat'
+			endif else sum_filename=first_file
+		endelse
+		sum_filename=fpath + sep + sum_filename
+	endif else ThisFitConds[lbl_ind]=thisfitcond
+		if Flip_Using_InfoFile and thisfitcond.fliphor then begin
+		FlipRot[lbl_ind].present=1
+		FlipRot[lbl_ind].flip_h=1
+	endif
+	if Flip_Using_InfoFile and thisfitcond.flipvert then begin
+		FlipRot[lbl_ind].present=1
+		FlipRot[lbl_ind].flip_v=1
+	endif
+endfor
+
+
+AncSav=addextension(AnchorFile,'.sav')
+AncSav_FileInfo=file_info(AncSav)
+if AncSav_FileInfo.exists then restore, filename=AncSav
+;Transf_Meth	;0 - linear regression 1 - polywarp; 2 - pivot and average transform (in case of three fiducials only)
+if n_elements(transf_meth) eq 0 then transf_meth=0
+
+; Calculate the Fiducial Transformation Coefficients: Red to Green
+LabelToTransform=1
+LabelTarget=2
+DatFid=AnchorPnts[(2*LabelToTransform-2):(2*LabelToTransform-1),*]
+TargFid=AnchorPnts[(2*LabelTarget-2):(2*LabelTarget-1),*]
+anc_ind=where(DatFid[0,*] ne 0)
+Xo=reform(DatFid[0,anc_ind])
+Yo=reform(DatFid[1,anc_ind])
+XYo=complex(Xo,Yo)
+Xi=reform(TargFid[0,anc_ind])
+Yi=reform(TargFid[1,anc_ind])
+XYi=complex(Xi,Yi)
+Zo=XYo
+Zi=XYi
+
+print,'Using Transformation Method:  ',Transf_Meth
+print,'0 - linear regression 1 - polywarp; 2 - pivot and average transform (in case of three fiducials only)'
+
+if Transf_Meth eq 1 then begin
+	print,'Using Polywarp Degree:  ',PW_deg
+	polywarp,Xo,Yo,Xi,Yi,PW_deg,P,Q				;Xi=sum(kxij#Xo^jYo^i)   Yi=sum(kyij#Xo^jYo^i)
+	; transformation for actual data is inverse of that for the fiducials, see the difference betweem POLY_2D and POLYWRAP
+endif else begin
+	Complex_Linear_Regression, Zo, Zi, P,Q
+endelse
+FidCoeffs[0].present=1
+FidCoeffs[0].P=P
+FidCoeffs[0].Q=Q
+print,'Red-to-Green P=',P
+print,'Red-to-Green Q=',Q
+
+; Calculate the Fiducial Transformation Coefficients: Blue to Green
+LabelToTransform=3
+LabelTarget=2
+DatFid=AnchorPnts[(2*(LabelToTransform-1)):(2*LabelToTransform-1),*]
+TargFid=AnchorPnts[(2*(LabelTarget-1)):(2*LabelTarget-1),*]
+anc_ind=where(DatFid[0,*] ne 0)
+Xo=reform(DatFid[0,anc_ind])
+Yo=reform(DatFid[1,anc_ind])
+XYo=complex(Xo,Yo)
+Xi=reform(TargFid[0,anc_ind])
+Yi=reform(TargFid[1,anc_ind])
+XYi=complex(Xi,Yi)
+Zo=XYo
+Zi=XYi
+if Transf_Meth eq 1 then begin
+	polywarp,Xo,Yo,Xi,Yi,PW_deg,P,Q				;Xi=sum(kxij#Xo^jYo^i)   Yi=sum(kyij#Xo^jYo^i)
+	; transformation for actual data is inverse of that for the fiducials, see the difference betweem POLY_2D and POLYWRAP
+endif else begin
+	Complex_Linear_Regression, Zo, Zi, P,Q
+endelse
+FidCoeffs[2].present=1
+FidCoeffs[2].P=P
+FidCoeffs[2].Q=Q
+print,'Blue-to-Green P=',P
+print,'Blue-to-Green Q=',Q
+
+if ~SkipTransformation then begin
+	;Perform transformations, create "Transformed" and "Sum" files
+	print,'iPALM Macro: Start Data Transformation and Saving'
+	TransformRaw_Save_SaveSum, sum_filename, lab_filenames, Orig_RawFilenames, GStarDrifts, FidCoeffs, FlipRot
+	print,'iPALM Macro: Finished transformation and saving'
+endif else begin
+	print,'iPALM Macro: Load Thisfitcond for Existing SUM file'
+	sum_filename_txt=addextension(sum_filename,'.txt')
+	ReadThisFitCond, sum_filename_txt, pth, filen, ini_filename, thisfitcond
+endelse
+widget_control,event.top,/destroy
+TransformEngine = TransformEngine_orig
+print,'iPALM Transformation Macro: total time (sec)', (SYSTIME(/SECONDS)-Start_Time)
+end
+;
+;-----------------------------------------------------------------
+;
 pro Start_iPALM_Macro_Fast, Event			; !!! Only works with cluster or IDL bridge  (TransformEngine = 1 or 2)  !!!!
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
@@ -926,48 +1160,50 @@ print,'Blue-to-Green Q=',Q
 ;Perform transformations, create "Transformed" and "Sum" files
 print,'RawFilenames:   ',RawFilenames
 print,'iPALM Macro Fast: Start Data Transformation and Saving'
-if TransformEngine eq 1 then iPALM_Macro_Fast, RawFilenames, ThisFitConds, GStarDrifts, FidCoeffs, FlipRot, iPALM_MacroParameters $
- 						else iPALM_Macro_Fast_Bridge, RawFilenames, ThisFitConds, GStarDrifts, FidCoeffs, FlipRot, iPALM_MacroParameters
+if TransformEngine eq 1 then begin
+	iPALM_Macro_Fast, RawFilenames, ThisFitConds, GStarDrifts, FidCoeffs, FlipRot, iPALM_MacroParameters
+endif else iPALM_Macro_Fast_Bridge, RawFilenames, ThisFitConds, GStarDrifts, FidCoeffs, FlipRot, iPALM_MacroParameters
 
 print,'iPALM Macro Fast: Finished transformations'
 
-wset,def_wind
+	restore,'temp/temp.sav'
+	tot_fr=0
+	n_ele = 0
+	for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
+		framefirst=	thisfitcond.Frm0 + (nlps)*increment						;first frame in batch
+		framelast=((thisfitcond.Frm0 + (nlps+1)*increment-1)<thisfitcond.Nframesmax) < thisfitcond.FrmN
+		print,'iPALM Macro Fast: concatenating the segment',(nlps+1),'   of ',nloops
+		temp_file_info=file_info(temp_idl_fnames[Nlps])
+		if temp_file_info.exists then begin
+			CGroupParams=0
+			restore,filename=temp_idl_fnames[Nlps]
+			;print,'iPALM Macro Fast: delete',(nlps+1), '  file:',temp_idl_fnames[Nlps]
+			file_delete,temp_idl_fnames[Nlps],  /ALLOW_NONEXISTENT,/QUIET
+			n_ele_nlps = n_elements(CGroupParams)
 
-restore,'temp/temp.sav'
-tot_fr=0
-n_ele = 0
-for nlps=0,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
-	framefirst=	thisfitcond.Frm0 + (nlps)*increment						;first frame in batch
-	framelast=((thisfitcond.Frm0 + (nlps+1)*increment-1)<thisfitcond.Nframesmax) < thisfitcond.FrmN
-	print,'iPALM Macro Fast: concatenating the segment',(nlps+1),'   of ',nloops
-	temp_file_info=file_info(temp_idl_fnames[Nlps])
-	if temp_file_info.exists then begin
-		CGroupParams=0
-		restore,filename=temp_idl_fnames[Nlps]
-		;print,'iPALM Macro Fast: delete',(nlps+1), '  file:',temp_idl_fnames[Nlps]
-		file_delete,temp_idl_fnames[Nlps],  /ALLOW_NONEXISTENT,/QUIET
-		n_ele_nlps = n_elements(CGroupParams)
-		if (n_ele eq 0) and (n_ele_nlps ge CGrpSize) then begin
-			n_ele = n_ele_nlps
-			CGroupParams_tot=transpose(CGroupParams)
-			TotalRawData =totdat
-		endif else begin
-			Nframes=framelast-framefirst+1L
-			tot_fr=tot_fr+Nframes
-			if n_ele_nlps ge CGrpSize then begin
-				n_ele = n_ele + n_ele_nlps
-				CGroupParams_tot=[CGroupParams_tot, transpose(CGroupParams)]
-			endif
-			TotalRawData = TotalRawData/tot_fr*(tot_fr-Nframes) + totdat/tot_fr*Nframes
-		endelse
-	endif
-endfor
-file_delete,'temp/temp.sav',  /ALLOW_NONEXISTENT,/QUIET
-file_delete,'temp',  /ALLOW_NONEXISTENT,/QUIET
-file_delete,'npks_det.sav',  /ALLOW_NONEXISTENT,/QUIET
-print,'Concatenation complete'
-;help,CGroupParams_tot
-CGroupParams=transpose(CGroupParams_tot)
+			if (n_ele eq 0) and (n_ele_nlps ge CGrpSize) then begin
+				n_ele = n_ele_nlps
+				CGroupParams_tot=transpose(CGroupParams)
+				TotalRawData =totdat
+			endif else begin
+				Nframes=framelast-framefirst+1L
+				tot_fr=tot_fr+Nframes
+				if n_ele_nlps ge CGrpSize then begin
+					n_ele = n_ele + n_ele_nlps
+					CGroupParams_tot=[CGroupParams_tot, transpose(CGroupParams)]
+				endif
+				TotalRawData = TotalRawData/tot_fr*(tot_fr-Nframes) + totdat/tot_fr*Nframes
+			endelse
+		endif
+	endfor
+	file_delete,'temp/temp.sav',  /ALLOW_NONEXISTENT,/QUIET
+	file_delete,'temp',  /ALLOW_NONEXISTENT,/QUIET
+	file_delete,'npks_det.sav',  /ALLOW_NONEXISTENT,/QUIET
+	print,'Concatenation complete'
+	;help,CGroupParams_tot
+	CGroupParams=transpose(CGroupParams_tot)
+
+wset,def_wind
 
 sz=size(CGroupParams)
 CGroupParams[11,*]=lindgen(sz[2])
@@ -1033,7 +1269,7 @@ if TransformEngine eq 1 then begin
 
 		nlps = 0L
 
-		while (nlps lt nloops) and (interrupt_load eq 0) do begin			;reassemble little pks files from all the workers into on big one
+		while (nlps lt nloops) and (interrupt_load eq 0) do begin
 			framestart=	framefirst + (nlps)*increment						;first frame in batch
 			framestop=(framefirst + (nlps+1L)*increment-1)<framelast
 			GoodPeaks=where((CGroupParams[FrNum_ind,*] ge framestart) and (CGroupParams[FrNum_ind,*] le framestop),OKpkcnt)
@@ -1055,10 +1291,11 @@ if TransformEngine eq 1 then begin
 		endwhile
 
 		obj_destroy, oStatusBar
-
+		;print,'interrupt_load = ', interrupt_load
 		if interrupt_load eq 1 then print,'Grouping aborted, cleaning up...'
 		if interrupt_load eq 0 then begin
-			GroupPeaksCluster_ReadBack, interrupt_load
+			print,'starting GroupPeaksCluster_ReadBack'
+			GroupPeaksCluster_ReadBack, interrupt_load  ;reassemble little pks files from all the workers into on big one
 		endif
 		CATCH, Error_status
 		file_delete,td + sep + 'temp.sav'
@@ -1072,10 +1309,10 @@ if TransformEngine eq 1 then begin
 		if interrupt_load eq 1 then print,'Finished cleaning up...'
 endif else begin
 	iPALM_data_cnt=n_elements(CGroupParams)
-	save, curr_pwd,idl_pwd, iPALM_data_cnt, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename='temp/temp.sav'		;save variables for cluster cpu access
-	GroupPeaks_Bridge,CGroupParams
-	file_delete,'temp/temp.sav', /ALLOW_NONEXISTENT, /QUIET
-	file_delete,'temp', /ALLOW_NONEXISTENT, /QUIET
+	save, curr_pwd,idl_pwd, iPALM_data_cnt, CGrpSize, ParamLimits, increment, nloops, spacer, grouping_radius, maxgrsize, disp_increment, GroupDisplay, RowNames, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
+	GroupPeaks_Bridge, CGroupParams, temp_dir
+	file_delete,td + sep + 'temp.sav', /ALLOW_NONEXISTENT, /QUIET
+	file_delete, td, /ALLOW_NONEXISTENT, /QUIET
 endelse
 
 cd,curr_pwd
@@ -1084,10 +1321,18 @@ ReloadParamlists, Event1
 OnGroupCentersButton, Event1
 print,'iPALM Macro Fast: Finished Grouping'
 
-print,'iPALM Macro Fast: Start Second Extracting Z-coordinate'
-;OnExtractZCoord, Event1
-OnExtractZCoord_Bridge
+Wid_ZExctractEngine_ID = Widget_Info(Event.top, find_by_uname='WID_DROPLIST_ZExctractEngine_iPALM')
+ZExctractEngine = widget_info(Wid_ZExctractEngine_ID,/DropList_Select)
+;if ZExctractEngine=1 then perform extraction on bridge, otherwise locally
+if ZExctractEngine eq 1 then begin
+	print,'iPALM Macro Fast: Start Second Extracting Z-coordinate (local)'
+	OnExtractZCoord_Bridge
+endif else begin
+	print,'iPALM Macro Fast: Start Second Extracting Z-coordinate (bridge)'
+	OnExtractZCoord, Event1
+endelse
 
+print,'iPALM Macro Fast: Finished Second Extracting Z-coordinate'
 ReloadParamlists, Event1
 OnUnZoomButton, Event1
 
@@ -1115,7 +1360,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Recalculate_Thisfitconds, RawDataFiles, ThisFitConds
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 	sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 	if n_elements(filen) ne 0 then orig_filen=filen
 	nlabels=n_elements(RawDataFiles)
@@ -1141,7 +1386,7 @@ end
 ;
 pro iPALM_Macro_Fast, RawDataFiles, ThisFitConds, GStarDrifts, FidCoeffs, FlipRot,iPALM_MacroParameters		; Transformation core called by TransformRaw_Save_SaveSum_MenuItem
 ;This version (Short) only transformes chunks and leaves them in TEMP directory without combining into large transformed files.
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
@@ -1157,7 +1402,8 @@ common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, 
 	increment = 50*(fix(384./sqrt(float(xsz)*float(ysz)))>1)				;setup loopback conditions to write multiple files
 
 	if thisfitcond.FrmN le 500 then increment=thisfitcond.FrmN-thisfitcond.Frm0+1
-	n_cluster_nodes_max = 256
+	print,'Max cluster nodes to be used:', n_cluster_nodes_max
+	;n_cluster_nodes_max = 256
 	nloops = Fix((thisfitcond.FrmN-thisfitcond.Frm0+1)/increment) < n_cluster_nodes_max			;nloops=Fix((framelast-framefirst)/increment)
 		;don't allow to use more then n_cluster_nodes_max cluster cores
 	increment = long(floor((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/nloops))
@@ -1401,8 +1647,8 @@ print, 'Finished the data transformation, closed data files'
 	save,CGroupParams,xydsz,totdat,filename=temp_idl_fnames[Nlps]
 
 
-spawn,'sync'
-spawn,'sync'
+;spawn,'sync'
+;spawn,'sync'
 print,'Wrote file '+temp_idl_fnames[Nlps]
 end
 
@@ -1412,7 +1658,7 @@ end
 ;
 pro iPALM_Macro_Fast_Bridge, RawDataFiles, ThisFitConds, GStarDrifts, FidCoeffs, FlipRot,iPALM_MacroParameters		; Transformation core called by TransformRaw_Save_SaveSum_MenuItem
 ;This version (Short) only transformes chunks and leaves them in TEMP directory without combining into large transformed files.
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
@@ -1430,8 +1676,11 @@ common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr,
 
 	if thisfitcond.FrmN le 500 then increment=thisfitcond.FrmN-thisfitcond.Frm0+1
 
-	print,!CPU.HW_NCPU,'  CPU cores are present'
-	nloops = (Fix((thisfitcond.FrmN-thisfitcond.Frm0+1)/increment) < !CPU.HW_NCPU) < n_br_max		;nloops=Fix((framelast-framefirst)/increment)
+	ncores_cluster = fix(strtrim(GETENV('LSB_DJOB_NUMPROC'),2))
+	n_br_loops = ncores_cluster gt 0 ? ncores_cluster : !CPU.HW_NCPU
+	print, n_br_loops, '  CPU cores are present'
+	nloops = (Fix((thisfitcond.FrmN-thisfitcond.Frm0+1)/increment) < n_br_loops) < n_br_max		;nloops=Fix((framelast-framefirst)/increment)
+	print, 'will set up ', nloops, ' bridge processes'
 	; don't allow more bridge processes than there are CPU's
 	increment = long(ceil((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/nloops))
 	nloops = fix(ceil((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/increment))

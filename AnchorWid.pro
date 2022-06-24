@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	08/29/2017 12:50.41
+; Generated on:	03/18/2022 16:43.19
 ; 
 pro WID_BASE_AnchorPts_event, Event
 
@@ -184,6 +184,10 @@ pro WID_BASE_AnchorPts_event, Event
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_Align_Z_Shift'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
         OnPushButton_AlignZ_Shift, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_UseUnwZ'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Set_LimitXY, Event
     end
     else:
   endcase
@@ -581,6 +585,15 @@ pro WID_BASE_AnchorPts, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   WID_BUTTON_Align_Z_Shift = Widget_Button(WID_BASE_Align_Z_Shift,  $
       UNAME='WID_BUTTON_Align_Z_Shift' ,/ALIGN_LEFT ,VALUE='Align Z'+ $
       ' (shift only)')
+
+  
+  WID_BASE_UseUnwZ = Widget_Base(WID_BASE_AnchorPts,  $
+      UNAME='WID_BASE_UseUnwZ' ,XOFFSET=586 ,YOFFSET=187 ,TITLE='IDL'  $
+      ,COLUMN=1 ,/NONEXCLUSIVE)
+
+  
+  WID_BUTTON_UseUnwZ = Widget_Button(WID_BASE_UseUnwZ,  $
+      UNAME='WID_BUTTON_UseUnwZ' ,/ALIGN_LEFT ,VALUE='Use Unw Z')
 
   Widget_Control, /REALIZE, WID_BASE_AnchorPts
 

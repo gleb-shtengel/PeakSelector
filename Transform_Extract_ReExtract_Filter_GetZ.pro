@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	03/11/2014 09:32.30
+; Generated on:	11/09/2020 10:41.35
 ; 
 pro WID_BASE_iPALM_MACRO_event, Event
 
@@ -17,9 +17,9 @@ pro WID_BASE_iPALM_MACRO_event, Event
 
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BASE_iPALM_MACRO'): begin
     end
-    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_StartMLExtract'): begin
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_StartTrsnformation_Macro'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
-        Start_iPALM_Macro, Event
+        Start_Transformation_Macro, Event
     end
     Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_CancelReExtract'): begin
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
@@ -84,10 +84,11 @@ pro WID_BASE_iPALM_MACRO, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       ' Fiter, Group, Extract Z' ,SPACE=3 ,XPAD=3 ,YPAD=3 ,/MODAL)
 
   
-  WID_BUTTON_StartMLExtract = Widget_Button(WID_BASE_iPALM_MACRO,  $
-      UNAME='WID_BUTTON_StartMLExtract' ,XOFFSET=570 ,YOFFSET=720  $
-      ,SCR_XSIZE=150 ,SCR_YSIZE=40 ,/ALIGN_CENTER ,VALUE='Confirm and'+ $
-      ' Start')
+  WID_BUTTON_StartTrsnformation_Macro =  $
+      Widget_Button(WID_BASE_iPALM_MACRO,  $
+      UNAME='WID_BUTTON_StartTrsnformation_Macro' ,XOFFSET=530  $
+      ,YOFFSET=720 ,SCR_XSIZE=180 ,SCR_YSIZE=40 ,/ALIGN_CENTER  $
+      ,VALUE='Perform Transformation Only')
 
   
   WID_BUTTON_CancelReExtract = Widget_Button(WID_BASE_iPALM_MACRO,  $
@@ -247,7 +248,7 @@ pro WID_BASE_iPALM_MACRO, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
   
   WID_TABLE_InfoFile_iPALM_macro = Widget_Table(WID_BASE_iPALM_MACRO,  $
       UNAME='WID_TABLE_InfoFile_iPALM_macro' ,FRAME=1 ,XOFFSET=10  $
-      ,YOFFSET=230 ,SCR_XSIZE=260 ,SCR_YSIZE=540 ,/EDITABLE  $
+      ,YOFFSET=265 ,SCR_XSIZE=260 ,SCR_YSIZE=540 ,/EDITABLE  $
       ,COLUMN_LABELS=[ 'Values' ] ,ROW_LABELS=[ 'Zero Dark Cnt', 'X'+ $
       ' pixels Data', 'Y pixels Data', 'Max # Frames', 'Initial'+ $
       ' Frame', 'Final Frame', 'Peak Threshold Criteria', 'File type'+ $
@@ -258,6 +259,13 @@ pro WID_BASE_iPALM_MACRO, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra_
       ' Gauss Sigma', 'Max Block Size', 'Sparse OverSampling',  $
       'Sparse Lambda', 'Sparse Delta', 'Sp. Max Error', 'Sp. Max # of'+ $
       ' Iter.' ] ,XSIZE=1 ,YSIZE=26)
+
+  
+  WID_DROPLIST_ZExctractEngine_iPALM =  $
+      Widget_Droplist(WID_BASE_iPALM_MACRO,  $
+      UNAME='WID_DROPLIST_ZExctractEngine_iPALM' ,XOFFSET=31  $
+      ,YOFFSET=222 ,SCR_XSIZE=225 ,SCR_YSIZE=30 ,TITLE='Z-Extraction'+ $
+      ' Engine' ,VALUE=[ 'Local', 'IDL Bridge' ])
 
   Widget_Control, /REALIZE, WID_BASE_iPALM_MACRO
 

@@ -25,7 +25,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro DoRealize_PeakSelector_INI, wWidget
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 if ini_filename ne '' then begin
 	INIFileWidID = Widget_Info(wWidget, find_by_uname='WID_TEXT_INI_Filename')
@@ -50,7 +50,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Save_INI_File, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -80,7 +80,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnPickINIFile, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 ini_filename0 = Dialog_Pickfile(/read,get_path=fpath,filter=['*.ini'],title='Select *.ini file to open')
 if ini_filename0 ne '' then begin
@@ -103,7 +103,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common Offset, PkWidth_offset
 common Zdisplay, Z_scale_multiplier, vbar_top
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -149,7 +149,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common Offset, PkWidth_offset
 common Zdisplay, Z_scale_multiplier, vbar_top
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 
 COMMON managed,	ids, $		; IDs of widgets being managed

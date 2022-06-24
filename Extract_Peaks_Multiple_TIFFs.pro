@@ -3,7 +3,7 @@
 ;     generated and should not be modified.
 
 ; 
-; Generated on:	11/20/2017 10:35.16
+; Generated on:	04/04/2018 15:12.07
 ; 
 pro WID_BASE_Extract_Peaks_Multiple_TIFFs_event, Event
 
@@ -69,6 +69,14 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs_event, Event
       if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_TABLE_CH' )then $
         Do_Change_Filter_Params_mTIFFs, Event
     end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BTTN_Pick_BG_file'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        On_Pick_BG_file, Event
+    end
+    Widget_Info(wWidget, FIND_BY_UNAME='WID_BUTTON_subtract_BG_mTIFFs'): begin
+      if( Tag_Names(Event, /STRUCTURE_NAME) eq 'WIDGET_BUTTON' )then $
+        Set_Subtract_BG_mTIFFs, Event
+    end
     else:
   endcase
 
@@ -87,7 +95,7 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
   WID_BASE_Extract_Peaks_Multiple_TIFFs = Widget_Base(  $
       GROUP_LEADER=wGroup,  $
       UNAME='WID_BASE_Extract_Peaks_Multiple_TIFFs' ,XOFFSET=5  $
-      ,YOFFSET=5 ,SCR_XSIZE=749 ,SCR_YSIZE=1054  $
+      ,YOFFSET=5 ,SCR_XSIZE=749 ,SCR_YSIZE=1158  $
       ,NOTIFY_REALIZE='Initialize_Extract_Peaks_mTIFFs'  $
       ,TITLE='Extract Peaks from multiple TIFF files in a single'+ $
       ' directory' ,SPACE=3 ,XPAD=3 ,YPAD=3 ,/MODAL)
@@ -276,6 +284,32 @@ pro WID_BASE_Extract_Peaks_Multiple_TIFFs, GROUP_LEADER=wGroup, _EXTRA=_VWBExtra
       'Min', 'Max' ] ,ROW_LABELS=[ 'Amplitude', 'Sigma X Pos Full',  $
       'Sigma Y Pos Full', 'Z Position', 'Sigma Z' ] ,XSIZE=2  $
       ,YSIZE=10)
+
+  
+  WID_BTTN_Pick_BG_file =  $
+      Widget_Button(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
+      UNAME='WID_BTTN_Pick_BG_file' ,XOFFSET=348 ,YOFFSET=1036  $
+      ,SCR_XSIZE=100 ,SCR_YSIZE=30 ,/ALIGN_CENTER ,VALUE='Pick BG'+ $
+      ' file')
+
+  
+  WID_TXT_mTIFFS_BG_File =  $
+      Widget_Text(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
+      UNAME='WID_TXT_mTIFFS_BG_File' ,XOFFSET=138 ,YOFFSET=1029  $
+      ,SCR_XSIZE=200 ,SCR_YSIZE=60 ,/EDITABLE ,/WRAP ,VALUE=[ '*.tif'  $
+      ] ,XSIZE=20 ,YSIZE=2)
+
+  
+  WID_BASE_Subtract_BG_mTIFFs_0 =  $
+      Widget_Base(WID_BASE_Extract_Peaks_Multiple_TIFFs,  $
+      UNAME='WID_BASE_Subtract_BG_mTIFFs_0' ,XOFFSET=18 ,YOFFSET=1032  $
+      ,TITLE='IDL' ,COLUMN=1 ,/NONEXCLUSIVE)
+
+  
+  WID_BUTTON_subtract_BG_mTIFFs =  $
+      Widget_Button(WID_BASE_Subtract_BG_mTIFFs_0,  $
+      UNAME='WID_BUTTON_subtract_BG_mTIFFs' ,/ALIGN_LEFT  $
+      ,VALUE='Subtract BG')
 
   Widget_Control, /REALIZE, WID_BASE_Extract_Peaks_Multiple_TIFFs
 

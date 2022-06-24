@@ -1,227 +1,80 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	11/22/2017 10:31.30
+; Generated on:	01/10/2019 08:04.16
 VERSION 1
 END
 
-WID_BASE_Process_Multiple_PALM_Slabs BASE 5 5 964 979
+WID_BASE_Process_Multiple_PALM_Slabs BASE 5 5 562 686
 REALIZE "Initialize_Process_Multiple_PALM_Slabs"
 TLB
-CAPTION "Process Multiple PALM Sbals"
+CAPTION "Process Multiple PALM Sbals (Z Voltage States)"
 XPAD = 3
 YPAD = 3
 SPACE = 3
 SYSMENU = 1
 BEGIN
-  WID_BUTTON_Cancel_Macro_mSlabs PUSHBUTTON 193 879 130 40
+  WID_BUTTON_Cancel_ZvsV_mSlabs PUSHBUTTON 217 576 130 40
   VALUE "Cancel"
   ALIGNCENTER
-  ONACTIVATE "OnCancel_Macro_mSlabs"
+  ONACTIVATE "OnCancel_ZvsV_mSlabs"
   END
-  WID_BTTN_SelectDirectory_mSlabs PUSHBUTTON 415 10 100 30
-  VALUE "Pick Directory"
+  WID_BTTN_Select_RunDat_File_mSlabs PUSHBUTTON 100 7 300 30
+  VALUE "Select Run Setup (.dat) File"
   ALIGNCENTER
-  ONACTIVATE "On_Select_Directory_mSlabs"
+  ONACTIVATE "On_Select_RunDat_File_mSlabs"
   END
-  WID_TXT_mSlabs_Directory TEXT 10 5 400 50
+  WID_TXT_RunDat_Filename_mSlabs TEXT 15 42 500 69
   EDITABLE
   WRAP
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_Filter_Parameters_mSlabs TABLE 580 110 360 157
+  WID_Parameters_mSlabs TABLE 10 163 529 157
+  RESIZECOLUMNS
   N_ROWS = 10
-  N_COLS = 2
-  NUMCOLLABELS = 2
-  COLLABEL "Min"
-  COLLABEL "Max"
-  NUMROWLABELS = 5
-  ROWLABEL "Amplitude"
-  ROWLABEL "Sigma X Pos Full"
-  ROWLABEL "Sigma Y Pos Full"
-  ROWLABEL "Z Position"
-  ROWLABEL "Sigma Z"
+  N_COLS = 4
+  NUMCOLLABELS = 4
+  COLLABEL "Z Voltage (V)"
+  COLLABEL "# of Frames"
+  COLLABEL "# of Trans. Frames"
+  COLLABEL "Z offset (nm)"
+  NUMROWLABELS = 2
+  ROWLABEL "State 0"
+  ROWLABEL "State 1"
   EDITABLE
-  ONINSERTCHAR "Do_Change_Filter_Params_mSlabs"
+  ONINSERTCHAR "Do_Change_Params_mSlabs"
+  ONINSERTSTRING "Do_Change_Params_mSlabs"
   END
-  WID_BUTTON_Start_Macro_mSlabs PUSHBUTTON 29 880 150 40
-  VALUE "Confirm and Start"
+  WID_BUTTON_Shift_ZvsV_mSlabs PUSHBUTTON 90 460 350 35
+  VALUE "Assign States + Shift Z according to State Table"
   ALIGNCENTER
-  ONACTIVATE "Start_Macro_mSlabs"
+  ONACTIVATE "Assign_zStates_and_Shift_ZvsV_mSlabs"
   END
-  WID_BTTN_ReFind_Files_mSlabs PUSHBUTTON 24 120 150 30
-  VALUE "Re-Find Files"
+  WID_BTTN_Load_RunDat_File PUSHBUTTON 100 118 300 30
+  VALUE "Load Run Setup File"
   ALIGNCENTER
-  ONACTIVATE "On_ReFind_Files_mSlabs"
+  ONACTIVATE "On_Load_RunDat_mSlabs"
   END
-  WID_LIST_Process_mSlabs LIST 12 182 370 542
-  WIDTH = 11
-  HEIGHT = 2
-  END
-  WID_BASE_Include_Subdirectories_mSlabs BASE 200 120 0 0
-  COLUMNS = 1
-  NONEXCLUSIVE
-  CAPTION "IDL"
-  BEGIN
-    WID_BUTTON_Include_Subdirectories_mSlabs PUSHBUTTON -1 -1 0 0
-    VALUE "Include Subdirectories"
-    ALIGNLEFT
-    END
-  END
-  WID_LABEL_nfiles_mSlabs LABEL 14 152 190 25
-  VALUE ""
+  WID_LABEL_ZvsV_Slope_mSlabs LABEL 30 355 180 25
+  VALUE "Z(nm) vs Voltage(V) Slope "
   ALIGNLEFT
   END
-  WID_BTTN_Remove_Selected_mSlabs PUSHBUTTON 60 829 230 40
-  VALUE "Remove Selected Files"
-  ALIGNCENTER
-  ONACTIVATE "On_Remove_Selected_mSlabs"
-  END
-  WID_TXT_mSlabs_FileMask TEXT 540 5 175 50
-  NUMITEMS = 1
-  ITEM "*_IDL.sav"
-  EDITABLE
-  WRAP
-  WIDTH = 20
-  HEIGHT = 2
-  END
-  WID_BASE_AutoFindFiducials_mSlabs BASE 410 300 0 0
-  COLUMNS = 1
-  NONEXCLUSIVE
-  CAPTION "IDL"
-  BEGIN
-    WID_BUTTON_AutoFindFiducials_mSlabs PUSHBUTTON -1 -1 0 0
-    VALUE "Auto Detect Fiducials"
-    ALIGNLEFT
-    ONACTIVATE "OnSet_Button_AutoFindFiducials_mSlabs"
-    END
-  END
-  WID_BASE_DriftCorrection_mSlabs BASE 409 417 0 0
-  COLUMNS = 1
-  NONEXCLUSIVE
-  CAPTION "IDL"
-  BEGIN
-    WID_BUTTON_DriftCorrect_mSlabs PUSHBUTTON -1 -1 0 0
-    VALUE "Perform Drift Correction"
-    ALIGNLEFT
-    ONACTIVATE "OnSet_Button_DriftCorrect_mSlabs"
-    END
-  END
-  WID_BASE_Group_mSlabs BASE 410 650 0 0
-  COLUMNS = 1
-  NONEXCLUSIVE
-  CAPTION "IDL"
-  BEGIN
-    WID_BUTTON_Group_mSlabs PUSHBUTTON -1 -1 0 0
-    VALUE "Perform Grouping"
-    ALIGNLEFT
-    ONACTIVATE "OnSet_Button_PerfromGrouping_mSlabs"
-    END
-  END
-  WID_SLIDER_FramesPerNode_mSlabs SLIDER 579 719 142 48
-  CAPTION "Frames per Node (Cluster)"
-  VALUE = 500
-  MINIMUM = 0
-  MAXIMUM = 10000
-  END
-  WID_SLIDER_Group_Gap_mSlabs SLIDER 579 649 149 48
-  CAPTION "Group Gap"
-  VALUE = 3
-  MAXIMUM = 256
-  END
-  WID_SLIDER_Grouping_Radius_mSlabs SLIDER 759 649 146 48
-  CAPTION "Grouping Radius*100"
-  VALUE = 25
-  MAXIMUM = 200
-  END
-  WID_DROPLIST_GroupEngine_mSlabs DROPLIST 743 719 181 22
-  CAPTION "Grouping Engine"
-  NUMITEMS = 3
-  ITEM "Local"
-  ITEM "Cluster"
-  ITEM "IDL Bridge"
-  END
-  WID_BASE_RegisterToScaffold_mSlabs BASE 410 806 0 0
-  COLUMNS = 1
-  NONEXCLUSIVE
-  CAPTION "IDL"
-  BEGIN
-    WID_BUTTON_RegisterToScaffold_mSlabs PUSHBUTTON -1 -1 0 0
-    VALUE "Register to Scaffold"
-    ALIGNLEFT
-    ONACTIVATE "OnSet_Button_RegistertoScaffold_mSlabs"
-    END
-  END
-  WID_AutoFindFiducials_Parameters_mSlabs TABLE 580 300 0 0
-  N_ROWS = 3
-  N_COLS = 1
-  NUMCOLLABELS = 1
-  COLLABEL "Value"
-  NUMROWLABELS = 3
-  ROWLABEL "Thr. Min."
-  ROWLABEL "Thr. Max."
-  ROWLABEL "Rad. (pix.)"
-  EDITABLE
-  ONINSERTCHAR "DoInsert_Autodetect_Param_mSlabs"
-  END
-  WID_BUTTON_PickScaffoldFiducials_mSlab PUSHBUTTON 599 806 244 30
-  VALUE "Pick Scaffold Fiducials File"
-  ALIGNCENTER
-  ONACTIVATE "OnPick_ScaffoldFiducials_File"
-  END
-  WID_TEXT_ScaffoldFiducialsFile_mSlabs TEXT 599 846 296 55
-  EDITABLE
-  WRAP
-  WIDTH = 20
-  HEIGHT = 2
-  END
-  WID_BASE_PerformFiltering_mSlabs BASE 410 110 0 0
-  COLUMNS = 1
-  NONEXCLUSIVE
-  CAPTION "IDL"
-  BEGIN
-    WID_BUTTON_PerformFiltering_mSlabs PUSHBUTTON -1 -1 0 0
-    VALUE "Perfrom Filtering"
-    ALIGNLEFT
-    ONACTIVATE "OnSet_Button_PerformFiltering_mSlabs"
-    END
-  END
-  WID_BASE_PerformPurging_mSlabs BASE 410 495 0 0
-  COLUMNS = 1
-  NONEXCLUSIVE
-  CAPTION "IDL"
-  BEGIN
-    WID_BUTTON_PerformPurging_mSlabs PUSHBUTTON -1 -1 0 0
-    VALUE "Perfrom Purging"
-    ALIGNLEFT
-    ONACTIVATE "OnSet_Button_PerformPurging_mSlabs"
-    END
-  END
-  WID_TEXT_ZStep_mSlabs TEXT 231 747 70 35
+  WID_TEXT_ZvsV_Slope_mSlabs TEXT 220 350 70 35
   EDITABLE
   WRAP
   ALLEVENTS
-  ONINSERTCHAR "On_Change_ZStep_mSlabs"
+  ONINSERTCHAR "On_Change_ZvsV_Slope_mSlabs"
   WIDTH = 20
   HEIGHT = 2
   END
-  WID_LABEL_Z_Step_mSlabs LABEL 51 757 180 25
-  VALUE "Z Step (nm) between slabs"
-  ALIGNLEFT
+  WID_BUTTON_Assign_zStates_mSlabs PUSHBUTTON 90 415 350 35
+  VALUE "Assign  Z States according to State Table"
+  ALIGNCENTER
+  ONACTIVATE "Assign_zStates_mSlabs"
   END
-  WID_Purge_Parameters_mSlabs TABLE 580 480 360 157
-  N_ROWS = 10
-  N_COLS = 2
-  NUMCOLLABELS = 2
-  COLLABEL "Min"
-  COLLABEL "Max"
-  NUMROWLABELS = 5
-  ROWLABEL "Amplitude"
-  ROWLABEL "Sigma X Pos Full"
-  ROWLABEL "Sigma Y Pos Full"
-  ROWLABEL "Z Position"
-  ROWLABEL "Sigma Z"
-  EDITABLE
-  ONINSERTCHAR "Do_Change_Purge_Params_mSlabs"
+  WID_BUTTON_Assign_Transition_Frames_mSlabs PUSHBUTTON 89 507 350 35
+  VALUE "Assign  Transition Frames to Z State -1"
+  ALIGNCENTER
+  ONACTIVATE "Assign_Transition_Frames_mSlabs"
   END
 END

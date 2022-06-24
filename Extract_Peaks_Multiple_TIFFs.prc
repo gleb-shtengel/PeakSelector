@@ -1,10 +1,10 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	11/20/2017 10:35.09
+; Generated on:	04/04/2018 15:12.03
 VERSION 1
 END
 
-WID_BASE_Extract_Peaks_Multiple_TIFFs BASE 5 5 749 1054
+WID_BASE_Extract_Peaks_Multiple_TIFFs BASE 5 5 749 1158
 REALIZE "Initialize_Extract_Peaks_mTIFFs"
 TLB
 CAPTION "Extract Peaks from multiple TIFF files in a single directory"
@@ -199,5 +199,29 @@ BEGIN
   ROWLABEL "Sigma Z"
   EDITABLE
   ONINSERTCHAR "Do_Change_Filter_Params_mTIFFs"
+  END
+  WID_BTTN_Pick_BG_file PUSHBUTTON 348 1036 100 30
+  VALUE "Pick BG file"
+  ALIGNCENTER
+  ONACTIVATE "On_Pick_BG_file"
+  END
+  WID_TXT_mTIFFS_BG_File TEXT 138 1029 200 60
+  NUMITEMS = 1
+  ITEM "*.tif"
+  EDITABLE
+  WRAP
+  WIDTH = 20
+  HEIGHT = 2
+  END
+  WID_BASE_Subtract_BG_mTIFFs_0 BASE 18 1032 0 0
+  COLUMNS = 1
+  NONEXCLUSIVE
+  CAPTION "IDL"
+  BEGIN
+    WID_BUTTON_subtract_BG_mTIFFs PUSHBUTTON -1 -1 0 0
+    VALUE "Subtract BG"
+    ALIGNLEFT
+    ONACTIVATE "Set_Subtract_BG_mTIFFs"
+    END
   END
 END

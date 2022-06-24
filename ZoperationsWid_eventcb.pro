@@ -106,6 +106,7 @@ FUNCTION Ell_Z, Z, A
 	return,roots[root_ind]
 end
 ;
+;
 ;----------------------------------------------------------------------------
 ;
 ;
@@ -179,7 +180,7 @@ Pro ExtractWindCalib, Event, zz, dd, BKGRND		; perform z-calibration on filtered
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 
 ;WlWidID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_WL')
@@ -229,7 +230,7 @@ z_unwrap_coeff=[0,700,700]
 fita=[1,1,1]
 if total(ellipticity) ne 0 then begin
 	zz_fit = lmfit(ellipticity,zz,z_unwrap_coeff,fita=fita,FUNCTION_NAME='ElliptVsZ',/DOUBLE)
-	;Analyze_cal_files_create_lookup_templates,5
+	Analyze_cal_files_create_lookup_templates,5
 endif else begin
 	z_unwrap_coeff = [0, 0, 0]
 	zz_fit = zz
@@ -353,7 +354,7 @@ endif
 
 !p.background=0
 
-;Analyze_cal_files_create_lookup_templates,5
+Analyze_cal_files_create_lookup_templates,5
 
 return
 end
@@ -389,7 +390,7 @@ if wfilename_ext ne wfilename then begin
 	wfilename  = wfilename_ext
 endif
 ExtractWindCalib, Event, zz, dd, BKGRND
-save, aa, z_unwrap_coeff, lambda_vac, nd_water, nd_oil, wind_range, cal_lookup_data, cal_lookup_zz, nmperframe, filename=wfilename_ext
+save, aa, z_unwrap_coeff, lambda_vac, nd_water, nd_oil, wind_range, cal_lookup_data, cal_lookup_zz, nmperframe, ellipticity_slopes, filename=wfilename_ext
 end
 ;
 ;-----------------------------------------------------------------
@@ -433,7 +434,7 @@ widget_control,WFileWidID,GET_VALUE = wfilename
 if wfilename eq '' then return
 wfilename_ext=AddExtension(wfilename,'_WND.sav')
 if wfilename_ext ne wfilename then widget_control,WFileWidID,SET_VALUE = wfilename_ext
-save, aa, z_unwrap_coeff, lambda_vac, nd_water, nd_oil, wind_range, filename=wfilename_ext
+save, aa, z_unwrap_coeff, lambda_vac, nd_water, nd_oil, wind_range, ellipticity_slopes, filename=wfilename_ext
 end
 ;
 ;-----------------------------------------------------------------
@@ -750,14 +751,30 @@ COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
 
+X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
+Gr_size_ind = min(where(RowNames eq '24 Group Size'))                    ; CGroupParametersGP[24,*] - total peaks in the group
+Z_ind = min(where(RowNames eq 'Z Position'))                            ; CGroupParametersGP[34,*] - Peak Z Position
+SigZ_ind = min(where(RowNames eq 'Sigma Z'))                            ; CGroupParametersGP[35,*] - Sigma Z
+Coh_ind = min(where(RowNames eq '36 Coherence'))                        ; CGroupParametersGP[36,*] - Coherence
+GrAmpL1_ind = min(where(RowNames eq 'Group A1'))                        ; CGroupParametersGP[37,*] - Group L1 Amplitude
+GrAmpL2_ind = min(where(RowNames eq 'Group A2'))                        ; CGroupParametersGP[38,*] - Group L2 Amplitude
+GrAmpL3_ind = min(where(RowNames eq 'Group A3'))                        ; CGroupParametersGP[39,*] - Group L3 Amplitude
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))                    ; CGroupParametersGP[40,*] - Group Z Position
+GrSigZ_ind = min(where(RowNames eq 'Group Sigma Z'))                    ; CGroupParametersGP[41,*] - Group Sigma Z
+GrCoh_ind = min(where(RowNames eq '42 Group Coherence'))                ; CGroupParametersGP[42,*] - Group Coherence
+Ell_ind = min(where(RowNames eq 'XY Ellipticity'))                        ; CGroupParametersGP[43,*] - XY Ellipticity
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwZErr_ind = min(where(RowNames eq 'Unwrapped Z Error'))                ; CGroupParametersGP[45,*] - Peak Z Position Error (Phase unwrapped)
+Gr_Ell_ind = min(where(RowNames eq 'XY Group Ellipticity'))                ; CGroupParametersGP[46,*] - Group Ellipticity
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))        ; CGroupParametersGP[48,*] - Group Z Position Error
+
 if (total(z_unwrap_coeff[*]) eq 0) then return
 
-Zindex = max(where(RowNames[*] eq 'Z Position'))
-UnwZindex = max(where(RowNames[*] eq 'Unwrapped Z'))
-GrZindex = max(where(RowNames[*] eq 'Group Z Position'))
-UnwGrZindex = max(where(RowNames[*] eq 'Unwrapped Group Z'))
 Zeta0_index = max(where(RowNames[*] eq 'Zeta0'))
-Z_params=[Zeta0_index,Zindex,UnwZindex,GrZindex,UnwGrZindex]
+
+Z_params=[Zeta0_index,Z_ind,UnwZ_ind,GrZ_ind,UnwGrZ_ind]
 
 Add_EllipCorrSlope_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_AddEllipticitySlopeCorrection')
 Add_EllipCorrSlope=widget_info(Add_EllipCorrSlope_id,/button_set)
@@ -771,44 +788,44 @@ for i = 0l,(sz[2]-1) do begin
 		if Add_EllipCorrSlope then z_unwrap_coeff_local[0]=z_unwrap_coeff_local[0]	$
 				+ (CGroupParams[2,i]-ellipticity_slopes[0])*ellipticity_slopes[1]	$
 				+ (CGroupParams[3,i]-ellipticity_slopes[2])*ellipticity_slopes[3]
-		Z_ellip = Z_ell(CGroupParams[43,i],z_unwrap_coeff_local)
-		CGroupParams[UnwZindex,i]= CGroupParams[Zindex,i] + round((Z_ellip - CGroupParams[Zindex,i])/wind_range) * wind_range
-		CGroupParams[45,i]= CGroupParams[UnwZindex,i] - Z_ellip
+		Z_ellip = Z_ell(CGroupParams[Ell_ind,i],z_unwrap_coeff_local)
+		CGroupParams[UnwZ_ind,i]= CGroupParams[Z_ind,i] + round((Z_ellip - CGroupParams[Z_ind,i])/wind_range) * wind_range
+		CGroupParams[UnwZErr_ind,i]= CGroupParams[UnwZ_ind,i] - Z_ellip
 	endif
-	if i mod sz_disp eq 0 then print,'peak#',i,'   z-data:  ',CGroupParams[Zindex,i],CGroupParams[UnwZindex,i]		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
+	if i mod sz_disp eq 0 then print,'peak#',i,'   z-data:  ',CGroupParams[Z_ind,i],CGroupParams[UnwZ_ind,i]		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
 
 endfor
 catch,/cancel
 
-if mean(CGroupParams[38,*]) ne 0 then begin		; if the grouping was perfromed on A1, A2, A3, perform Z-extraction for grpous
+if mean(CGroupParams[GrAmpL2_ind,*]) ne 0 then begin		; if the grouping was perfromed on A1, A2, A3, perform Z-extraction for grpous
 	for i = 0l,(sz[2]-1) do begin
-		if CGroupParams[24,i] gt 1 then begin
+		if CGroupParams[Gr_size_ind,i] gt 1 then begin
 			if (total(z_unwrap_coeff[*]) ne 0) and (CGrpSize ge 49) then begin 	; extract unwrapped Z position (from known dependence of ellipticity on Z-position)
 				Grz_unwrap_coeff_local=z_unwrap_coeff
 				if Add_EllipCorrSlope then Grz_unwrap_coeff_local[0]=Grz_unwrap_coeff_local[0]	$
-					+ (CGroupParams[2,i]-ellipticity_slopes[0])*ellipticity_slopes[1]	$
-					+ (CGroupParams[3,i]-ellipticity_slopes[2])*ellipticity_slopes[3]
-				Z_ellip = Z_ell(CGroupParams[46,i],Grz_unwrap_coeff_local)
-				CGroupParams[UnwGrZindex,i] = CGroupParams[GrZindex,i] + round((Z_ellip - CGroupParams[GrZindex,i])/wind_range) * wind_range
-				CGroupParams[48,i] = CGroupParams[UnwGrZindex,i] - Z_ellip
-			endif else if CGrpSize ge 49 then CGroupParams[UnwGrZindex,i] = CGroupParams[GrZindex,i]
+					+ (CGroupParams[X_ind,i]-ellipticity_slopes[0])*ellipticity_slopes[1]	$
+					+ (CGroupParams[Y_ind,i]-ellipticity_slopes[2])*ellipticity_slopes[3]
+				Z_ellip = Z_ell(CGroupParams[Gr_Ell_ind,i],Grz_unwrap_coeff_local)
+				CGroupParams[UnwGrZ_ind,i] = CGroupParams[GrZ_ind,i] + round((Z_ellip - CGroupParams[GrZ_ind,i])/wind_range) * wind_range
+				CGroupParams[UnwGrZErr_ind,i] = CGroupParams[UnwGrZ_ind,i] - Z_ellip
+			endif else if CGrpSize ge 49 then CGroupParams[UnwGrZ_ind,i] = CGroupParams[GrZ_ind,i]
 		endif else begin
-			CGroupParams[GrZindex,i]=CGroupParams[Zindex,i]
-			CGroupParams[41,i]=CGroupParams[35,i]
-			CGroupParams[42,i]=CGroupParams[36,i]
+			CGroupParams[GrZ_ind,i]=CGroupParams[Z_ind,i]
+			CGroupParams[GrSigZ_ind,i]=CGroupParams[SigZ_ind,i]
+			CGroupParams[GrCoh_ind,i]=CGroupParams[Coh_ind,i]
 			if (z_unwrap_coeff[0] ne 0) and (CGrpSize ge 49) then begin
-				CGroupParams[UnwGrZindex,i] = CGroupParams[UnwZindex,i]
-				CGroupParams[48,i] = CGroupParams[45,i]
+				CGroupParams[UnwGrZ_ind,i] = CGroupParams[UnwZ_ind,i]
+				CGroupParams[UnwGrZErr_ind,i] = CGroupParams[UnwZErr_ind,i]
 			endif
 		endelse
-		if i mod sz_disp eq 0 then print,'gr.peak#',i,'   z-data:  ',CGroupParams[GrZindex,i],CGroupParams[UnwGrZindex,i]		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
+		if i mod sz_disp eq 0 then print,'gr.peak#',i,'   z-data:  ',CGroupParams[GrZ_ind,i],CGroupParams[UnwGrZ_ind,i]		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
 	endfor
 endif
 catch,/cancel
 
 nZpar=n_elements(Z_params)-1
 for j=0,nZpar do ParamLimits[Z_params[j],2]=Median(CGroupParams[Z_params[j],*])
-ParamLimits[41,2]=(ParamLimits[41,2]>ParamLimits[35,2])
+ParamLimits[GrSigZ_ind,2]=(ParamLimits[GrSigZ_ind,2]>ParamLimits[SigZ_ind,2])
 for j=0,nZpar do ParamLimits[Z_params[j],0] = min(CGroupParams[Z_params[j],*])
 for j=0,nZpar do ParamLimits[Z_params[j],1] = max(CGroupParams[Z_params[j],*])
 for j=0,nZpar do ParamLimits[Z_params[j],3] = ParamLimits[Z_params[j],1] - ParamLimits[Z_params[j],0]
@@ -817,7 +834,7 @@ for j=0,nZpar do ParamLimits[Z_params[j],2] = (ParamLimits[Z_params[j],1] + Para
 LimitUnwrapZ
 
 print,'Z Operations: finished Z-extraction'
-TopIndex = (CGrpSize-1) > 41
+TopIndex = (CGrpSize-1) > GrSigZ_ind
 TopID=ids[where(names eq 'WID_BASE_0_PeakSelector')]
 wtable = Widget_Info(TopID, find_by_uname='WID_TABLE_0')
 widget_control,wtable,set_value=transpose(ParamLimits[0:TopIndex,0:3]), use_table_select=[0,0,3,TopIndex]
@@ -831,11 +848,19 @@ end
 pro OnAddOffsetSlope, Event			; adds constant offset and slope (per frames) to Z-coordinates
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+
+LabelSet_ind = min(where(RowNames eq 'Label Set'))                        ; CGroupParametersGP[26,*] - Label Number
+Z_ind = min(where(RowNames eq 'Z Position'))                            ; CGroupParametersGP[34,*] - Peak Z Position
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))                    ; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
 
 WidZPhaseOffsetID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Z_phase_offset')
 widget_control,WidZPhaseOffsetID,get_value=phase_offset
@@ -843,19 +868,19 @@ WidZPhaseSlopeID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Z_phase_slop
 widget_control,WidZPhaseSlopeID,get_value=phase_slope
 print,'phase offset=',phase_offset,'    phase_slope=',phase_slope
 
-Label_start=min(CGroupParams[26,*])
+Label_start=min(CGroupParams[LabelSet_ind,*])
 for i_l=0,(n_elements(wind_range)-1) do begin
-	labelindecis=where(CGroupParams[26,*] eq (i_l+Label_start))
-	CGroupParams[34,labelindecis]=(Cgroupparams[34,labelindecis] + phase_offset+CGroupParams[9,labelindecis]/1000.0*phase_slope + 4.0 * wind_range[i_l]) mod wind_range[i_l]
-	CGroupParams[40,labelindecis]=(Cgroupparams[40,labelindecis] + phase_offset+CGroupParams[9,labelindecis]/1000.0*phase_slope + 4.0 * wind_range[i_l]) mod wind_range[i_l]
+	labelindecis=where(CGroupParams[LabelSet_ind,*] eq (i_l+Label_start))
+	CGroupParams[Z_ind,labelindecis]=(Cgroupparams[Z_ind,labelindecis] + phase_offset+CGroupParams[9,labelindecis]/1000.0*phase_slope + 4.0 * wind_range[i_l]) mod wind_range[i_l]
+	CGroupParams[GrZ_ind,labelindecis]=(Cgroupparams[GrZ_ind,labelindecis] + phase_offset+CGroupParams[9,labelindecis]/1000.0*phase_slope + 4.0 * wind_range[i_l]) mod wind_range[i_l]
 endfor
 if CGrpSize ge 49 then begin
-	CGroupParams[44,*]= Cgroupparams[44,*] + phase_offset + CGroupParams[9,*]/1000.0*phase_slope
-	CGroupParams[47,*]= Cgroupparams[47,*] + phase_offset + CGroupParams[9,*]/1000.0*phase_slope
+	CGroupParams[UnwZ_ind,*]= Cgroupparams[UnwZ_ind,*] + phase_offset + CGroupParams[9,*]/1000.0*phase_slope
+	CGroupParams[UnwGrZ_ind,*]= Cgroupparams[UnwGrZ_ind,*] + phase_offset + CGroupParams[9,*]/1000.0*phase_slope
 endif
 
 if CGrpSize ge 49 then begin
-	for i=44,47,3 do begin
+	for i=UnwZ_ind,UnwGrZ_ind,3 do begin
 		valid_cgp=WHERE(FINITE(CGroupParams[i,*]),cnt)
 		ParamLimits[i,0]=1.1*min(CGroupParams[i,valid_cgp]) < 0.9*min(CGroupParams[i,valid_cgp])
 		ParamLimits[i,1]=1.1*max(CGroupParams[i,valid_cgp])
@@ -866,10 +891,10 @@ if CGrpSize ge 49 then begin
 	LimitUnwrapZ
 
 	wtable = Widget_Info(TopID, find_by_uname='WID_TABLE_0')
-	widget_control,wtable,get_value=ini_table, use_table_select=[0,44,3,47]
-	ini_table[0:3,0]=ParamLimits[44,0:3]
-	ini_table[0:3,3]=ParamLimits[47,0:3]
-	widget_control,wtable,set_value=ini_table, use_table_select=[0,44,3,47]
+	widget_control,wtable,get_value=ini_table, use_table_select=[0,UnwZ_ind,3,UnwGrZ_ind]
+	ini_table[0:3,0]=ParamLimits[UnwZ_ind,0:3]
+	ini_table[0:3,3]=ParamLimits[UnwGrZ_ind,0:3]
+	widget_control,wtable,set_value=ini_table, use_table_select=[0,UnwZ_ind,3,UnwGrZ_ind]
 	widget_control, wtable, /editable,/sensitive
 endif
 
@@ -1258,7 +1283,7 @@ IF Error_status NE 0 THEN BEGIN
 ENDIF
 shmName='Status_reports'
 max_len=150
-SHMMAP,shmName,/BYTE, Dimension=nloops*max_len,OS_Handle=OS_handle_val1
+SHMMAP,shmName,/BYTE, Dimension=nloops*max_len, OS_Handle=OS_handle_val1
 Reports=SHMVAR(shmName)
 rep_i=nlps*max_len
 
@@ -1269,10 +1294,31 @@ CGroupParams=CGroupParams_bridge
 
 if (total(z_unwrap_coeff[*]) eq 0) then return
 
-Zindex = max(where(RowNames[*] eq 'Z Position'))
-UnwZindex = max(where(RowNames[*] eq 'Unwrapped Z'))
-GrZindex = max(where(RowNames[*] eq 'Group Z Position'))
-UnwGrZindex = max(where(RowNames[*] eq 'Unwrapped Group Z'))
+X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
+Gr_size_ind = min(where(RowNames eq '24 Group Size'))                    ; CGroupParametersGP[24,*] - total peaks in the group
+Z_ind = min(where(RowNames eq 'Z Position'))                            ; CGroupParametersGP[34,*] - Peak Z Position
+SigZ_ind = min(where(RowNames eq 'Sigma Z'))                            ; CGroupParametersGP[35,*] - Sigma Z
+Coh_ind = min(where(RowNames eq '36 Coherence'))                        ; CGroupParametersGP[36,*] - Coherence
+GrAmpL1_ind = min(where(RowNames eq 'Group A1'))                        ; CGroupParametersGP[37,*] - Group L1 Amplitude
+GrAmpL2_ind = min(where(RowNames eq 'Group A2'))                        ; CGroupParametersGP[38,*] - Group L2 Amplitude
+GrAmpL3_ind = min(where(RowNames eq 'Group A3'))                        ; CGroupParametersGP[39,*] - Group L3 Amplitude
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))                    ; CGroupParametersGP[40,*] - Group Z Position
+GrSigZ_ind = min(where(RowNames eq 'Group Sigma Z'))                    ; CGroupParametersGP[41,*] - Group Sigma Z
+GrCoh_ind = min(where(RowNames eq '42 Group Coherence'))                ; CGroupParametersGP[42,*] - Group Coherence
+Ell_ind = min(where(RowNames eq 'XY Ellipticity'))                        ; CGroupParametersGP[43,*] - XY Ellipticity
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwZErr_ind = min(where(RowNames eq 'Unwrapped Z Error'))                ; CGroupParametersGP[45,*] - Peak Z Position Error (Phase unwrapped)
+Gr_Ell_ind = min(where(RowNames eq 'XY Group Ellipticity'))                ; CGroupParametersGP[46,*] - Group Ellipticity
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))        ; CGroupParametersGP[48,*] - Group Z Position Error
+
+
+
+Z_ind = max(where(RowNames[*] eq 'Z Position'))
+UnwZ_ind = max(where(RowNames[*] eq 'Unwrapped Z'))
+GrZ_ind = max(where(RowNames[*] eq 'Group Z Position'))
+UnwGrZ_ind = max(where(RowNames[*] eq 'Unwrapped Group Z'))
 
 sz=size(CGroupParams)
 sz_disp=fix(sz[2]/100)
@@ -1287,12 +1333,12 @@ if Pk_Gr eq 0 then begin
 				+ (CGroupParams[2,i]-ellipticity_slopes[0])*ellipticity_slopes[1]	$
 				+ (CGroupParams[3,i]-ellipticity_slopes[2])*ellipticity_slopes[3]
 			Z_ellip = Z_ell(CGroupParams[43,i],z_unwrap_coeff_local)
-			CGroupParams[UnwZindex,i]= CGroupParams[Zindex,i] + round((Z_ellip - CGroupParams[Zindex,i])/wind_range) * wind_range
-			CGroupParams[UnwrZ_Err_index,i]= CGroupParams[UnwZindex,i] - Z_ellip
+			CGroupParams[UnwZ_ind,i]= CGroupParams[Z_ind,i] + round((Z_ellip - CGroupParams[Z_ind,i])/wind_range) * wind_range
+			CGroupParams[UnwrZ_Err_index,i]= CGroupParams[UnwZ_ind,i] - Z_ellip
 		endif
-;	if i mod sz_disp eq 0 then print,'peak#',i,'   z-data:  ',CGroupParams[Zindex,i],CGroupParams[UnwZindex,i]		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
+;	if i mod sz_disp eq 0 then print,'peak#',i,'   z-data:  ',CGroupParams[Z_ind,i],CGroupParams[UnwZ_ind,i]		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
 		if i mod sz_disp eq 0 then begin
-			rep='Fr.peak: '+strtrim(i,2)+'   z-data:  '+strtrim(CGroupParams[Zindex,i],2)+',   '+strtrim(CGroupParams[UnwZindex,i],2)		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
+			rep='Fr.peak: '+strtrim(i,2)+'   z-data:  '+strtrim(CGroupParams[Z_ind,i],2)+',   '+strtrim(CGroupParams[UnwZ_ind,i],2)		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
 			;printf,(nlps+3),rep
 			if strlen(rep) ge max_len then rep=strmid(rep,0,max_len) else rep=(rep+string(bytarr(max_len-strlen(rep))+32B))
 			Reports[rep_i:(rep_i+strlen(rep)-1)]=byte(rep)
@@ -1309,12 +1355,12 @@ if Pk_Gr eq 1 then begin
 					+ (CGroupParams[19,i]-ellipticity_slopes[0])*ellipticity_slopes[1]	$
 					+ (CGroupParams[20,i]-ellipticity_slopes[2])*ellipticity_slopes[3]
 					Z_ellip = Z_ell(CGroupParams[46,i],Grz_unwrap_coeff_local)
-					CGroupParams[UnwGrZindex,i] = CGroupParams[GrZindex,i] + round((Z_ellip - CGroupParams[GrZindex,i])/wind_range) * wind_range
-					CGroupParams[UnwrZ_Err_index,i] = CGroupParams[UnwGrZindex,i] - Z_ellip
-			endif else if CGrpSize ge 49 then CGroupParams[UnwGrZindex,i] = CGroupParams[GrZindex,i]
+					CGroupParams[UnwGrZ_ind,i] = CGroupParams[GrZ_ind,i] + round((Z_ellip - CGroupParams[GrZ_ind,i])/wind_range) * wind_range
+					CGroupParams[UnwrZ_Err_index,i] = CGroupParams[UnwGrZ_ind,i] - Z_ellip
+			endif else if CGrpSize ge 49 then CGroupParams[UnwGrZ_ind,i] = CGroupParams[GrZ_ind,i]
 
 			if i mod sz_disp eq 0 then begin
-				rep='Gr.peak: '+strtrim(i,2)+'   z-data:  '+strtrim(CGroupParams[GrZindex,i],2)+',   '+strtrim(CGroupParams[UnwGrZindex,i],2)		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
+				rep='Gr.peak: '+strtrim(i,2)+'   z-data:  '+strtrim(CGroupParams[GrZ_ind,i],2)+',   '+strtrim(CGroupParams[UnwGrZ_ind,i],2)		;amp norm to fiducial, coher norm to fiducial, zposition (nm)
 				;printf,(nlps+3),rep
 				if strlen(rep) ge max_len then rep=strmid(rep,0,max_len) else rep=(rep+string(bytarr(max_len-strlen(rep))+32B))
 				Reports[rep_i:(rep_i+strlen(rep)-1)]=byte(rep)
@@ -1366,8 +1412,20 @@ if wfilename ne '' then begin
 			wind_range = 0
 			z_unwrap_coeff = transpose([0.0,0.0,0.0])
 			restore,filename=wfilename
-			ReadWindPoint, Event
-			Update_Table_EllipticityFitCoeff, Event
+			;ReadWindPoint, Event
+			;Update_Table_EllipticityFitCoeff, Event
+
+			WindRangeID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_WindPeriod')
+			wind_range_txt=string(wind_range[0],FORMAT='(F6.2)')
+			widget_control,WindRangeID,SET_VALUE = wind_range_txt
+
+			EllipFitCoeff_WidID = Widget_Info(Event.Top, find_by_uname='WID_TABLE_EllipticityFitCoeff')
+			widget_control,EllipFitCoeff_WidID,COLUMN_WIDTH=[150,70,70,70],use_table_select = [ -1, 0, 2, 1 ]
+			widget_control,EllipFitCoeff_WidID,set_value=z_unwrap_coeff,TABLE_YSIZE=1
+
+			EllipCorrSlope_WidID = Widget_Info(Event.Top, find_by_uname='WID_TABLE_EllipticityCorrectionSlope')
+			widget_control,EllipCorrSlope_WidID,COLUMN_WIDTH=[1,90,95,90,95],use_table_select = [ -1, 0, 3, 1 ]
+			widget_control,EllipCorrSlope_WidID,set_value=ellipticity_slopes,TABLE_YSIZE=1
 		endif
 
 	WlWidID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_WL')
@@ -1524,6 +1582,20 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro OnButton_Press_use_multiple_guidestars_ZGS, Event
+use_multiple_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Use_Multiple_Guidestars_ZDH')
+if use_multiple_DH_id gt 0 then if Event.select then widget_control, use_multiple_DH_id, set_button=0
+end
+;
+;-----------------------------------------------------------------
+;
+pro OnButton_Press_use_multiple_guidestars_ZDH, Event
+use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Use_Multiple_Guidestars_ZGS')
+if use_multiple_GS_id gt 0 then if Event.select then widget_control, use_multiple_GS_id, set_button=0
+end
+;
+;-----------------------------------------------------------------
+;
 pro On_Buttonpress_WriteEllipticityGuideStar_Z, Event
 WriteEllipticityGuideStar_Z_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_WriteEllipticityGuideStar')
 WriteEllipticityGuideStar_Z=widget_info(WriteEllipticityGuideStar_Z_id,/button_set)
@@ -1545,15 +1617,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnTestZDrift, Event	;Shows fit to guide star w/o changing data: Z-coordinate
-common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-
-use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
-use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
-WID_TEXT_GuideStarAncFilename_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_GuideStarAncFilename')
-widget_control,WID_TEXT_GuideStarAncFilename_ID,GET_VALUE = GS_anc_fname
-GS_anc_file_info=FILE_INFO(GS_anc_fname)
-use_multiple_GS = use_multiple_GS and GS_anc_file_info.exists
-ExtractSubsetZ, Event, zdift, use_multiple_GS
+ExtractSubsetZ, Event, zdift
 end
 ;
 ;-----------------------------------------------------------------
@@ -1581,14 +1645,7 @@ WriteEllipticityGuideStar_E=widget_info(WriteEllipticityGuideStar_E_id,/button_s
 
 WriteEllipticityGuideStar = WriteEllipticityGuideStar_Z or WriteEllipticityGuideStar_E
 
-use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseMultipleANCs')
-use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
-WID_TEXT_GuideStarAncFilename_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_GuideStarAncFilename')
-widget_control,WID_TEXT_GuideStarAncFilename_ID,GET_VALUE = GS_anc_fname
-GS_anc_file_info=FILE_INFO(GS_anc_fname)
-use_multiple_GS = use_multiple_GS and GS_anc_file_info.exists
-
-ExtractSubsetZ, Event, zdrift, use_multiple_GS
+ExtractSubsetZ, Event, zdrift
 
 CGroupParams[Z_ind,*] = (CGroupParams[Z_ind,*] - zdrift[CGroupParams[9,*]] + 10.0 * wind_range) mod wind_range
 CGroupParams[GrZ_ind,*] = (CGroupParams[GrZ_ind,*] - zdrift[CGroupParams[9,*]] + 10.0 * wind_range) mod wind_range
@@ -1613,7 +1670,7 @@ if CGrpSize ge 49 then begin
 				widget_control,WidSmWidthID,get_value=SmWidth
 				indecis=uniq(subset[9,*])
 				E_smooth=smooth(subset[6,indecis]*subset[Ell_ind,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
-				E_Fit=interpol(E_smooth,subset[9,indecis],FR)
+				E_Fit=interpol_gs(E_smooth,subset[9,indecis],FR)
 				frame_low = min(subset[9,indecis])
 				ind_low=where(FR[*] lt frame_low,c)
 				if c ge 1 then E_Fit[ind_low]=E_fit[frame_low]
@@ -1638,26 +1695,50 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro ExtractSubsetZ, Event, zdrift, use_multiple_GS	;Pulls out subset of data from param limits and fits z vs frames
+pro ExtractSubsetZ, Event, zdrift	;Pulls out subset of data from param limits and fits z vs frames
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common InfoFit, pth, filen, thisfitcond, saved_pks_filenam
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
 if n_elements(CGroupParams) lt 1 then begin
 	z=dialog_message('Please load a data file')
 	return      ; if data not loaded return
 endif
 
+X_ind = min(where(RowNames eq 'X Position'))                            ; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))                            ; CGroupParametersGP[3,*] - Peak Y  Position
+Nph_ind = min(where(RowNames eq '6 N Photons'))                         ; CGroupParametersGP[6,*] - Number of Photons in the Peak
+FrNum_ind = min(where(RowNames eq 'Frame Number'))                      ; CGroupParametersGP[9,*] - frame number
+Z_ind = min(where(RowNames eq 'Z Position'))                            ; CGroupParametersGP[34,*] - Peak Z Position
+Ell_ind = min(where(RowNames eq 'XY Ellipticity'))                      ; CGroupParametersGP[43,*] - XY Ellipticity
+
+
 WidDListDispFitMethodID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_Z_Fit_Method')
 FitMethod = widget_info(WidDListDispFitMethodID,/DropList_Select)
 !p.multi=[0,1,2,0,0]
 
+WidSmWidthID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Z_Sm_Width')
+widget_control,WidSmWidthID,get_value=SmWidth
+
+WidSldFitOrderID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Z_Fit')
+widget_control,WidSldFitOrderID,get_value=fitorder
+
+WID_TEXT_GuideStarAncFilename_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_GuideStarAncFilename')
+widget_control,WID_TEXT_GuideStarAncFilename_ID,GET_VALUE = GS_anc_fname
+
+use_multiple_DH_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Use_Multiple_Guidestars_ZDH')
+use_multiple_DH = widget_info(use_multiple_DH_id,/button_set)
+
+use_multiple_GS_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_Use_Multiple_Guidestars_ZGS')
+use_multiple_GS = widget_info(use_multiple_GS_id,/button_set)
+
 GS_anc_file_info=FILE_INFO(GS_anc_fname)
-use_multiple_GS = use_multiple_GS and GS_anc_file_info.exists
+use_multiple_guidestars = (use_multiple_GS or use_multiple_DH) and GS_anc_file_info.exists
 GSAnchorPnts=dblarr(2,AnchPnts_MaxNum)
 GSAnchorPnts_line=dblarr(6)
-if use_multiple_GS  then begin
+if use_multiple_guidestars  then begin
 	close,5
 	openr,5,GS_anc_fname
 	ip=0
@@ -1677,79 +1758,162 @@ indecis=where((GSAnchorPnts[0,*] gt 0.001),ip_cnt)
 ParamLimits0 = ParamLimits
 filter0=filter
 
-for jp=0,(ip_cnt-1) do begin
-	filter=filter0
-	if use_multiple_GS then begin
+NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[FrNum_ind,*])+1))	: long64(max(CGroupParams[FrNum_ind,*])+1)
+FR=dindgen(NFrames)
+
+; original procedure (treat each Guide Star separetly and then average)
+if not use_multiple_DH then begin
+	for jp=0,(ip_cnt-1) do begin
+		filter=filter0
+		if use_multiple_GS then begin
+			ParamLimits[2,2] = GSAnchorPnts[0,jp]
+			ParamLimits[2,0] = GSAnchorPnts[0,jp]-GS_radius
+			ParamLimits[2,1] = GSAnchorPnts[0,jp]+GS_radius
+			ParamLimits[3,2] = GSAnchorPnts[1,jp]
+			ParamLimits[3,0] = GSAnchorPnts[1,jp]-GS_radius
+			ParamLimits[3,1] = GSAnchorPnts[1,jp]+GS_radius
+		endif
+
+		FilterIt
+
+		subsetindex=where(filter eq 1,cnt)
+		print,jp,cnt
+		if cnt lt 1 then begin
+			z=dialog_message('Z- GuideStar subset has '+string(cnt)+' points')
+			!p.multi=[0,0,0,0,0]
+			return      ; if data not loaded return
+		endif
+		print, 'Z- GuideStar subset has ',cnt,' points'
+		if cnt gt 0 then begin
+			subset=CGroupParams[*,subsetindex]
+			subsetZ = subset[Z_ind,*]
+			subset[Z_ind,*] = Phase_Unwrap(subset[Z_ind,*], wind_range)
+			if FitMethod eq 0 then begin
+				zcoef=poly_fit(subset[FrNum_ind,*],subset[Z_ind,*],fitorder,YFIT=fit_to_x)
+				ZFit=poly(FR,zcoef)
+			endif else begin
+
+				indecis=uniq(subset[FrNum_ind,*])
+				Zsmooth=smooth(subset[6,indecis]*subset[Z_ind,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
+				Zfit=interpol_gs(Zsmooth,subset[FrNum_ind,indecis],FR)
+				frame_low = min(subset[FrNum_ind,indecis])
+				ind_low=where(FR[*] lt frame_low,c)
+				if c ge 1 then Zfit[ind_low]=Zfit[frame_low]
+				frame_high = max(subset[FrNum_ind,indecis])
+				ind_high=where(FR[*] gt frame_high,c)
+				if c ge 1 then	Zfit[ind_high]=Zfit[frame_high]
+			endelse
+			zdrift=Zfit-Zfit[0]
+			zdrift_mult = (jp eq 0) ? transpose(zdrift) : [zdrift_mult,transpose(zdrift)]
+
+			;yr = Paramlimits[Z_ind,0:1]
+			;yr[0] = yr[0] < min(subset[Z_ind,*])
+			;yr[1] = yr[1] > max(subset[Z_ind,*])
+			yr =[-0.25*wind_range, 1.25*wind_range]
+
+			if jp eq 0 then begin
+				!P.NOERASE=0
+				plot,FR,ZFit,xtitle='frame',ytitle='Z-DRIFT (nm)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=yr,ystyle=1
+				oplot,subset[FrNum_ind,*],subset[Z_ind,*],psym=3
+				if FitMethod eq 0 then for i =0,fitorder do xyouts,0.8,0.95-0.02*i,zcoef[i],/normal
+				if total(abs(subset[Ell_ind,0:(100 < n_elements(zdrift))])) ne 0.0 then begin
+					Z0_unwrap=Z_Ell(mean(subset[Ell_ind,0:(100 < n_elements(zdrift))]),z_unwrap_coeff)
+					Ellipt_Fit = Ell_Z ((Z0_unwrap+zdrift), z_unwrap_coeff)
+					plot,FR,Ellipt_Fit,xtitle='frame',ytitle='X-Y Ellipticity',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=Paramlimits[Ell_ind,0:1],ystyle=1
+					oplot,subset[FrNum_ind,*],subset[Ell_ind,*],psym=3
+				endif
+				!P.NOERASE=1
+			endif else begin
+				!p.multi=[0,1,2,0,0]
+				plot,FR,ZFit,xtitle='frame',ytitle='Z-DRIFT (nm)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=yr,ystyle=1
+				col=(250-jp*50)>50
+				oplot,FR,ZFit,col=col
+				oplot,subset[FrNum_ind,*],subset[Z_ind,*],psym=3,col=col
+				if FitMethod eq 0 then for i =0,fitorder do xyouts,0.8,0.95-0.02*i,zcoef[i],/normal
+				if total(abs(subset[Ell_ind,0:(100 < n_elements(zdrift))])) ne 0.0 then begin
+					!p.multi=[1,1,2,0,0]
+					Z0_unwrap=Z_Ell(mean(subset[Ell_ind,0:(100 < n_elements(zdrift))]),z_unwrap_coeff)
+					Ellipt_Fit = Ell_Z ((Z0_unwrap+zdrift), z_unwrap_coeff)
+					plot,FR,Ellipt_Fit,xtitle='frame',ytitle='X-Y Ellipticity',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=Paramlimits[Ell_ind,0:1],ystyle=1
+					oplot,FR,Ellipt_Fit,col=col
+					oplot,subset[FrNum_ind,*],subset[Ell_ind,*],psym=3,col=col
+				endif
+			endelse
+		endif
+	endfor
+endif else begin
+; New procedure (DPH) - average first
+	superset_Z = dblarr(ip_cnt, NFrames)
+	superset_Nph = superset_Z
+	superset_FR = superset_Z
+	zdr_plotted=0
+
+	for jp=0,(ip_cnt-1) do begin
+		filter=filter0
+
 		ParamLimits[2,2] = GSAnchorPnts[0,jp]
 		ParamLimits[2,0] = GSAnchorPnts[0,jp]-GS_radius
 		ParamLimits[2,1] = GSAnchorPnts[0,jp]+GS_radius
 		ParamLimits[3,2] = GSAnchorPnts[1,jp]
 		ParamLimits[3,0] = GSAnchorPnts[1,jp]-GS_radius
 		ParamLimits[3,1] = GSAnchorPnts[1,jp]+GS_radius
-	endif
 
-	FilterIt
+		FilterIt
+		subsetindex=where(filter eq 1,cnt)
+		print, jp,'  Z- GuideStar subset has ',cnt,' points',  ',   X=',ParamLimits[2,2],', Y=',ParamLimits[3,2]
+		if cnt gt 0 then begin
+			subset = double(CGroupParams[*,subsetindex])
+			subset[Z_ind,*] = Phase_Unwrap(subset[Z_ind,*], wind_range)
+			subset[Z_ind,*] = subset[Z_ind,*] - mean(subset[Z_ind,*],/DOUBLE)
+			; remove secondary peaks in frames
+			x=subset[FrNum_ind,*]
+			ind = reverse(n_elements(X)-uniq(reverse(X))-1)
+			subset = temporary(subset[*,ind])
+			superset_Z[jp,subset[FrNum_ind,*]] = subset[Z_ind,*]
+			superset_Nph[jp,subset[FrNum_ind,*]] = subset[Nph_ind,*]
+			superset_FR[jp,*] = FR
+			if zdr_plotted eq 0 then begin
+				zdr_plotted=1
+				!P.NOERASE=0
+				ymean = mean(subset[Z_ind,*])
+				ystd = 10.0* stdev(subset[Z_ind,*])
+				yrng0 = [ymean-ystd, ymean+ystd]
+				plot,subset[FrNum_ind,*],subset[Z_ind,*],xtitle='Frame',ytitle='Z-DRIFT (nm)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1, yrange=yrng0,ystyle=1, psym=3
+				if Ell_ind ge 0 then  begin
+					plot,subset[FrNum_ind,*],subset[Ell_ind,*],xtitle='Frame',ytitle='X-Y Ellipticity',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=Paramlimits[Ell_ind,0:1],ystyle=1, psym=3
+				endif
+				!P.NOERASE=1
+			endif else begin
+				col=(250-jp*25)>50
+				!p.multi=[0,1,2,0,0]
+				plot,subset[FrNum_ind,*],subset[Z_ind,*],xtitle='Frame',ytitle='Z-DRIFT (nm)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1, yrange=yrng0,ystyle=1, psym=3
+				oplot,subset[FrNum_ind,*],subset[Z_ind,*],col=col,psym=3
+				if Ell_ind ge 0 then  begin
+					!p.multi=[1,1,2,0,0]
+					plot,subset[FrNum_ind,*],subset[Ell_ind,*],xtitle='Frame',ytitle='X-Y Ellipticity',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=Paramlimits[Ell_ind,0:1],ystyle=1, psym=3
+					oplot,subset[FrNum_ind,*],subset[Ell_ind,*],col=col,psym=3
+				endif
+			endelse
+		endif
+	endfor
 
-	subsetindex=where(filter eq 1,cnt)
-	print,jp,cnt
-	print, 'Z- GuideStar subset has ',cnt,' points'
-	if cnt gt 0 then begin
-		;NFrames=long64(max(CGroupParams[9,*]))
-		NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[9,*])+1))	: long64(max(CGroupParams[9,*])+1)
-		subset=CGroupParams[*,subsetindex]
-		FR=findgen(NFrames)
+	if FitMethod eq 0 then begin
+		non_zero_ind=where(superset_Nph gt 0)
+		zcoef=poly_fit(superset_Fr[non_zero_ind], superset_Z[non_zero_ind], fitorder, YFIT=fit_to_x)
+		ZFit=poly(FR, zcoef)
+	endif else begin
+		Nph_arr = total(superset_Nph,1)
+		Z_arr = total(superset_Z*superset_Nph,1)
+		non_zero_ind=where(Nph_arr gt 0)
+		Zsmooth=smooth(Z_arr[non_zero_ind]/Nph_arr[non_zero_ind],SmWidth,/EDGE_TRUNCATE)
+		Zfit=interpol_gs(Zsmooth,FR[non_zero_ind],FR)
+	endelse
 
-		if FitMethod eq 0 then begin
-			WidSldFitOrderID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Z_Fit')
-			widget_control,WidSldFitOrderID,get_value=fitorder
-			zcoef=poly_fit(subset[9,*],subset[34,*],fitorder,YFIT=fit_to_x)
-			ZFit=poly(FR,zcoef)
-		endif else begin
-			WidSmWidthID = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_Z_Sm_Width')
-			widget_control,WidSmWidthID,get_value=SmWidth
-			indecis=uniq(subset[9,*])
-			Zsmooth=smooth(subset[6,indecis]*subset[34,indecis],SmWidth,/EDGE_TRUNCATE)/smooth(subset[6,indecis],SmWidth,/EDGE_TRUNCATE)
-			Zfit=interpol(Zsmooth,subset[9,indecis],FR)
-			frame_low = min(subset[9,indecis])
-			ind_low=where(FR[*] lt frame_low,c)
-			if c ge 1 then Zfit[ind_low]=Zfit[frame_low]
-			frame_high = max(subset[9,indecis])
-			ind_high=where(FR[*] gt frame_high,c)
-			if c ge 1 then	Zfit[ind_high]=Zfit[frame_high]
-		endelse
-		zdrift=Zfit-Zfit[0]
-		zdrift_mult = (jp eq 0) ? transpose(zdrift) : [zdrift_mult,transpose(zdrift)]
+	!p.multi=[0,1,2,0,0]
+	plot,FR,ZFit,xtitle='Frame',ytitle='Z-DRIFT (nm)',xrange=Paramlimits[FrNum_ind,0:1],xstyle=1,yrange=yrng0,ystyle=1, thick=2
+	zdrift=Zfit-Zfit[0]
 
-		if jp eq 0 then begin
-			!P.NOERASE=0
-			plot,FR,ZFit,xtitle='frame',ytitle='Z-DRIFT (nm)',xrange=Paramlimits[9,0:1],xstyle=1,yrange=Paramlimits[34,0:1],ystyle=1
-			oplot,subset[9,*],subset[34,*],psym=3
-			if FitMethod eq 0 then for i =0,fitorder do xyouts,0.8,0.95-0.02*i,zcoef[i],/normal
-			if total(abs(subset[43,0:(100 < n_elements(zdrift))])) ne 0.0 then begin
-				Z0_unwrap=Z_Ell(mean(subset[43,0:(100 < n_elements(zdrift))]),z_unwrap_coeff)
-				Ellipt_Fit = Ell_Z ((Z0_unwrap+zdrift), z_unwrap_coeff)
-				plot,FR,Ellipt_Fit,xtitle='frame',ytitle='X-Y Ellipticity',xrange=Paramlimits[9,0:1],xstyle=1,yrange=Paramlimits[43,0:1],ystyle=1
-				oplot,subset[9,*],subset[43,*],psym=3
-			endif
-			!P.NOERASE=1
-		endif else begin
-			!p.multi=[0,1,2,0,0]
-			plot,FR,ZFit,xtitle='frame',ytitle='Z-DRIFT (nm)',xrange=Paramlimits[9,0:1],xstyle=1,yrange=Paramlimits[34,0:1],ystyle=1
-			col=(250-jp*50)>50
-			oplot,FR,ZFit,col=col
-			oplot,subset[9,*],subset[34,*],psym=3,col=col
-			if FitMethod eq 0 then for i =0,fitorder do xyouts,0.8,0.95-0.02*i,zcoef[i],/normal
-			if total(abs(subset[43,0:(100 < n_elements(zdrift))])) ne 0.0 then begin
-				!p.multi=[1,1,2,0,0]
-				Z0_unwrap=Z_Ell(mean(subset[43,0:(100 < n_elements(zdrift))]),z_unwrap_coeff)
-				Ellipt_Fit = Ell_Z ((Z0_unwrap+zdrift), z_unwrap_coeff)
-				plot,FR,Ellipt_Fit,xtitle='frame',ytitle='X-Y Ellipticity',xrange=Paramlimits[9,0:1],xstyle=1,yrange=Paramlimits[43,0:1],ystyle=1
-				oplot,FR,Ellipt_Fit,col=col
-				oplot,subset[9,*],subset[43,*],psym=3,col=col
-			endif
-		endelse
-	endif
-endfor
+endelse
 
 !p.multi=[0,0,0,0,0]
 !p.background=0
@@ -1765,7 +1929,6 @@ endif else begin
 	max_drift=(max(zdrift)-min(zdrift))
 	xyouts,0.12,0.96,'Z- drift (nm):   ' + string(max_drift,FORMAT='(F8.2)'),color=250, charsize=1.5,CHARTHICK=1.0,/NORMAL
 endelse
-
 ParamLimits = ParamLimits0
 filter = filter0
 return
@@ -1888,7 +2051,7 @@ pro Analyze_cal_files_create_lookup_templates,dim_xy
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 
 if ((size(nmperframe))[2] eq 0) then nmperframe=8.0
 close,1
@@ -1910,17 +2073,42 @@ xws=1024 & yws=1024
 window,20,xs=xws,ys=yws
 loadct,3
 
+;********* Status Bar Initialization  (before FOR loop) ******************
+oStatusBar = obj_new('PALM_StatusBar', COLOR=[0,0,255], TEXT_COLOR=[255,255,255],   TITLE='Creating PSF files...', TOP_LEVEL_BASE=tlb)
+fraction_complete_last=0.0
+pr_bar_inc=0.05
+nchunks_tot = float(4*NFrames)
+nch=0.0
+und_pos = strpos(wfilename, 'sum_', /REVERSE_SEARCH)+strlen('sum_')
+fid_id = STRMID(wfilename, und_pos, strlen(wfilename)-und_pos-8)
+print,'WFilename: ', wfilename, und_pos
+print,'Fiducial Identification: ', fid_id
+
 for k=0,3 do begin
 	fname=fnames[k]
+	fn_PSF = fname + '_' + fid_id + '_PSF.tiff'
 	ReadThisFitCond, (fname+'.txt'), pth, filen, ini_filename, thisfitcond
 	openr,1,(fname+'.dat')
 	for i=0,NFrames-1 do begin
+		; *********** Status Bar Update (inside FOR loop) **********
+		nch = nch+1.0
+        fraction_complete = nch/nchunks_tot
+        if (fraction_complete - fraction_complete_last) ge pr_bar_inc then begin
+        	oStatusBar -> UpdateStatus, fraction_complete
+        	fraction_complete_last = fraction_complete
+        endif
+
 		point_lun,1,2ull*xsz*ysz*i
 		readu,1,data
-   		cal_lookup_data[*,*,k,i]=(transform_extract_region(data,peakx,peaky,dim_xy)-thisfitcond.zerodark) / thisfitcond.cntpere > 0.
+		chunk = (transform_extract_region(data,peakx,peaky,dim_xy)-thisfitcond.zerodark) / thisfitcond.cntpere > 0.
+		chunk2 = (transform_extract_region(data,peakx,peaky,dim_xy2)-thisfitcond.zerodark) / thisfitcond.cntpere > 0.
+   		cal_lookup_data[*,*,k,i]= chunk
+   		if i eq 0 then write_tiff, fn_PSF, chunk2, /FLOAT, XRESOL=1, YRESOL=1, units=2  $
+   		else write_tiff, fn_PSF, chunk2, /FLOAT, /APPEND
    	endfor
-	close,1
+   	close,1
 endfor
+obj_destroy, oStatusBar ;********* Status Bar Close (after FOR loop)******************
 ;save, cal_lookup_data,cal_lookup_zz, nmperframe, lambda_vac, nd_water, nd_oil, filename=RawFilenames[0]+'_image_cal_data.sav'
 
 scl0=254.0/max(cal_lookup_data[*,*,0:2,*])
@@ -1949,7 +2137,7 @@ endfor
 
 if wfilename eq '' then return
 presentimage=tvrd(true=1)
-filename=AddExtension(wfilename,'_lookup_images.bmp')
+filename=AddExtension(wfilename,'_lookup_images1.bmp')
 write_bmp,filename,presentimage,/rgb
 wset,orig_window
 end
@@ -2051,17 +2239,17 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
 if (total(z_unwrap_coeff[*]) eq 0) then return
 wxsz=1024 & wysz=1024
-Zindex = max(where(RowNames[*] eq 'Z Position'))
-UnwZindex = max(where(RowNames[*] eq 'Unwrapped Z'))
-GrZindex = max(where(RowNames[*] eq 'Group Z Position'))
-UnwGrZindex = max(where(RowNames[*] eq 'Unwrapped Group Z'))
-Z_params=[Zindex,UnwZindex,GrZindex,UnwGrZindex]
+Z_ind = max(where(RowNames[*] eq 'Z Position'))
+UnwZ_ind = max(where(RowNames[*] eq 'Unwrapped Z'))
+GrZ_ind = max(where(RowNames[*] eq 'Group Z Position'))
+UnwGrZ_ind = max(where(RowNames[*] eq 'Unwrapped Group Z'))
+Z_params=[Z_ind,UnwZ_ind,GrZ_ind,UnwGrZ_ind]
 Fnames=[MLRawFilenames, RawFilenames[0]]
 
 dim_xy=5
@@ -2126,18 +2314,18 @@ pro LookupUnwrapZCoord_local, dim_xy, DisplayType
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
 if (total(z_unwrap_coeff[*]) eq 0) then return
 wxsz=1024 & wysz=1024
-Zindex = max(where(RowNames[*] eq 'Z Position'))
-UnwZindex = max(where(RowNames[*] eq 'Unwrapped Z'))
-GrZindex = max(where(RowNames[*] eq 'Group Z Position'))
-UnwGrZindex = max(where(RowNames[*] eq 'Unwrapped Group Z'))
-Z_params=[Zindex,UnwZindex,GrZindex,UnwGrZindex]
+Z_ind = max(where(RowNames[*] eq 'Z Position'))
+UnwZ_ind = max(where(RowNames[*] eq 'Unwrapped Z'))
+GrZ_ind = max(where(RowNames[*] eq 'Group Z Position'))
+UnwGrZ_ind = max(where(RowNames[*] eq 'Unwrapped Group Z'))
+Z_params=[Z_ind,UnwZ_ind,GrZ_ind,UnwGrZ_ind]
 Fnames=[MLRawFilenames, RawFilenames[0]]
 
 dim_xy2=2*dim_xy+1
@@ -2196,21 +2384,21 @@ for i = 0l,(peak_cnt-1) do begin
 		!p.noerase=1
 	endif
 		;  pick the possible matching image triplets from the cal data
-	Z_int=CGroupParams[Zindex,indecis[i]]
+	Z_int=CGroupParams[Z_ind,indecis[i]]
 	Select_Best_Lookup_Triplet, Z_int, peak_data, dim_xy, DisplayType, 	Z_lookup, Best_STD, wind_range, cal_lookup_data, cal_lookup_zz
-	CGroupParams[UnwZindex,indecis[i]]= CGroupParams[Zindex,indecis[i]] + round((Z_lookup - CGroupParams[Zindex,indecis[i]])/wind_range) * wind_range
+	CGroupParams[UnwZ_ind,indecis[i]]= CGroupParams[Z_ind,indecis[i]] + round((Z_lookup - CGroupParams[Z_ind,indecis[i]])/wind_range) * wind_range
 	CGroupParams[45,i] = Best_STD
-	if (i mod sz_disp) eq 0 then print,'peak#',i,'   z-data:  ',CGroupParams[Zindex,indecis[i]],CGroupParams[UnwZindex,indecis[i]]
+	if (i mod sz_disp) eq 0 then print,'peak#',i,'   z-data:  ',CGroupParams[Z_ind,indecis[i]],CGroupParams[UnwZ_ind,indecis[i]]
 endfor
 catch,/cancel
 
 if max(CGroupParams[18,*]) gt 0 then begin		; if the grouping was perfromed  perform Z-extraction for grpous
 	for i = 0l,(peak_cnt-1) do begin
 		if CGroupParams[24,indecis[i]] eq 1 then begin			; the group consists of a single element
-			CGroupParams[GrZindex,indecis[i]]=CGroupParams[Zindex,indecis[i]]
+			CGroupParams[GrZ_ind,indecis[i]]=CGroupParams[Z_ind,indecis[i]]
 			CGroupParams[41,indecis[i]]=CGroupParams[35,indecis[i]]
 			CGroupParams[42,indecis[i]]=CGroupParams[36,indecis[i]]
-			CGroupParams[UnwGrZindex,indecis[i]] = CGroupParams[UnwZindex,indecis[i]]
+			CGroupParams[UnwGrZ_ind,indecis[i]] = CGroupParams[UnwZ_ind,indecis[i]]
 			CGroupParams[48,indecis[i]] = CGroupParams[45,indecis[i]]
 		endif else begin
 			if CGroupParams[25,indecis[i]] eq 1 then begin	; perform group analysis only if we encounter the second group element, then set all group element values to it.
@@ -2241,13 +2429,13 @@ if max(CGroupParams[18,*]) gt 0 then begin		; if the grouping was perfromed  per
 					!p.noerase=1
 				endif
 				;  pick the possible matching image triplets from the cal data
-				Z_int=CGroupParams[GrZindex,indecis[i]]
+				Z_int=CGroupParams[GrZ_ind,indecis[i]]
 				Select_Best_Lookup_Triplet, Z_int, peak_data, dim_xy, DisplayType, 	Z_lookup, Best_STD, wind_range, cal_lookup_data, cal_lookup_zz
-				CGroupParams[UnwGrZindex,gr_indices] = CGroupParams[GrZindex,indecis[i]] + round((Z_lookup - CGroupParams[GrZindex,indecis[i]])/wind_range) * wind_range
+				CGroupParams[UnwGrZ_ind,gr_indices] = CGroupParams[GrZ_ind,indecis[i]] + round((Z_lookup - CGroupParams[GrZ_ind,indecis[i]])/wind_range) * wind_range
 				CGroupParams[48,gr_indices] = Best_STD
 			endif
 		endelse
-		if (i mod sz_disp) eq 0 then print,'gr. peak#',i,'   z-data:  ',CGroupParams[GrZindex,indecis[i]],CGroupParams[UnwGrZindex,indecis[i]]
+		if (i mod sz_disp) eq 0 then print,'gr. peak#',i,'   z-data:  ',CGroupParams[GrZ_ind,indecis[i]],CGroupParams[UnwGrZ_ind,indecis[i]]
 	endfor
 endif
 catch,/cancel
@@ -2260,15 +2448,15 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 
 DisplayType=0
 
-Zindex = max(where(RowNames[*] eq 'Z Position'))
-UnwZindex = max(where(RowNames[*] eq 'Unwrapped Z'))
-GrZindex = max(where(RowNames[*] eq 'Group Z Position'))
-UnwGrZindex = max(where(RowNames[*] eq 'Unwrapped Group Z'))
-Z_params=[Zindex,UnwZindex,GrZindex,UnwGrZindex]
+Z_ind = max(where(RowNames[*] eq 'Z Position'))
+UnwZ_ind = max(where(RowNames[*] eq 'Unwrapped Z'))
+GrZ_ind = max(where(RowNames[*] eq 'Group Z Position'))
+UnwGrZ_ind = max(where(RowNames[*] eq 'Unwrapped Group Z'))
+Z_params=[Z_ind,UnwZ_ind,GrZ_ind,UnwGrZ_ind]
 Fnames=[MLRawFilenames, RawFilenames[0]]
 dim_xy2=2*dim_xy+1
 
@@ -2307,8 +2495,8 @@ cd,current=curr_pwd
 FILE_MKDIR,curr_pwd+'/temp'
 save, curr_pwd, idl_pwd, ini_filename, CGroupParams, CGrpSize, ParamLimits, indecis, Fnames, RowNames, increment, nloops, $
 		cal_lookup_data, cal_lookup_zz, wind_range, nmperframe, dim_xy, filename='temp/temp.sav'		;save variables for cluster cpu access
-spawn,'sync'
-spawn,'sync'
+;spawn,'sync'
+;spawn,'sync'
 spawn,'sh '+idl_pwd+'/LookupUnwrapZ_runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd			;Spawn grouping workers in cluster
 
 for nlps=0L,nloops-1 do begin			;reassemble little pks files from all the workers into on big one
@@ -2355,11 +2543,11 @@ print,'restoring:   ',data_dir,'/temp/temp.sav'
 restore,'temp/temp.sav'
 print,'restore complete'
 
-Zindex = max(where(RowNames[*] eq 'Z Position'))
-UnwZindex = max(where(RowNames[*] eq 'Unwrapped Z'))
-GrZindex = max(where(RowNames[*] eq 'Group Z Position'))
-UnwGrZindex = max(where(RowNames[*] eq 'Unwrapped Group Z'))
-Z_params=[Zindex,UnwZindex,GrZindex,UnwGrZindex]
+Z_ind = max(where(RowNames[*] eq 'Z Position'))
+UnwZ_ind = max(where(RowNames[*] eq 'Unwrapped Z'))
+GrZ_ind = max(where(RowNames[*] eq 'Group Z Position'))
+UnwGrZ_ind = max(where(RowNames[*] eq 'Unwrapped Group Z'))
+Z_params=[Z_ind,UnwZ_ind,GrZ_ind,UnwGrZ_ind]
 DisplayType=0
 dim_xy2=2*dim_xy+1
 
@@ -2414,20 +2602,20 @@ for i = 0l,(peak_cnt-1) do begin
 		peak_data[*,*,k]=(peak_data[*,*,k] - perimeter_offset) > 0.0
 	endfor
     ;  pick the possible matching image triplets from the cal data
-	Z_int=CGroupParams[Zindex,current_indecis[i]]
+	Z_int=CGroupParams[Z_ind,current_indecis[i]]
 	Select_Best_Lookup_Triplet, Z_int, peak_data, dim_xy, DisplayType, 	Z_lookup, Best_STD, wind_range, cal_lookup_data, cal_lookup_zz
-	CGroupParams[UnwZindex,current_indecis[i]]= CGroupParams[Zindex,current_indecis[i]] + round((Z_lookup - CGroupParams[Zindex,current_indecis[i]])/wind_range) * wind_range
+	CGroupParams[UnwZ_ind,current_indecis[i]]= CGroupParams[Z_ind,current_indecis[i]] + round((Z_lookup - CGroupParams[Z_ind,current_indecis[i]])/wind_range) * wind_range
 	CGroupParams[45,i] = Best_STD
-	if (i mod sz_disp) eq 0 then	print,'peak#',i,'   z-data:  ',CGroupParams[Zindex,current_indecis[i]],CGroupParams[UnwZindex,current_indecis[i]]
+	if (i mod sz_disp) eq 0 then	print,'peak#',i,'   z-data:  ',CGroupParams[Z_ind,current_indecis[i]],CGroupParams[UnwZ_ind,current_indecis[i]]
 endfor
 
 if max(CGroupParams[18,*]) gt 0 then begin		; if the grouping was perfromed  perform Z-extraction for grpous
 	for i = 0l,(peak_cnt-1) do begin
 		if CGroupParams[24,current_indecis[i]] eq 1 then begin			; the group consists of a single element
-			CGroupParams[GrZindex,current_indecis[i]]=CGroupParams[Zindex,current_indecis[i]]
+			CGroupParams[GrZ_ind,current_indecis[i]]=CGroupParams[Z_ind,current_indecis[i]]
 			CGroupParams[41,current_indecis[i]]=CGroupParams[35,current_indecis[i]]
 			CGroupParams[42,current_indecis[i]]=CGroupParams[36,current_indecis[i]]
-			CGroupParams[UnwGrZindex,current_indecis[i]] = CGroupParams[UnwZindex,current_indecis[i]]
+			CGroupParams[UnwGrZ_ind,current_indecis[i]] = CGroupParams[UnwZ_ind,current_indecis[i]]
 			CGroupParams[48,current_indecis[i]] = CGroupParams[45,current_indecis[i]]
 		endif else begin
 			if CGroupParams[25,current_indecis[i]] eq 1 then begin	; perform group analysis only if we encounter the second group element, then set all group element values to it.
@@ -2454,20 +2642,20 @@ if max(CGroupParams[18,*]) gt 0 then begin		; if the grouping was perfromed  per
 				endfor
 
 				;  pick the possible matching image triplets from the cal data
-				Z_int=CGroupParams[GrZindex,current_indecis[i]]
+				Z_int=CGroupParams[GrZ_ind,current_indecis[i]]
 			   	Select_Best_Lookup_Triplet, Z_int, peak_data, dim_xy, DisplayType, 	Z_lookup, Best_STD, wind_range, cal_lookup_data, cal_lookup_zz
-				CGroupParams[UnwGrZindex,gr_indices] = CGroupParams[GrZindex,current_indecis[i]] + round((Z_lookup - CGroupParams[GrZindex,current_indecis[i]])/wind_range) * wind_range
+				CGroupParams[UnwGrZ_ind,gr_indices] = CGroupParams[GrZ_ind,current_indecis[i]] + round((Z_lookup - CGroupParams[GrZ_ind,current_indecis[i]])/wind_range) * wind_range
 				CGroupParams[48,gr_indices] = Best_STD
 			endif
 		endelse
-		if (i mod sz_disp) eq 0 then		print,'gr. peak#',i,'   z-data:  ',CGroupParams[GrZindex,current_indecis[i]],CGroupParams[UnwGrZindex,current_indecis[i]]
+		if (i mod sz_disp) eq 0 then		print,'gr. peak#',i,'   z-data:  ',CGroupParams[GrZ_ind,current_indecis[i]],CGroupParams[UnwGrZ_ind,current_indecis[i]]
 	endfor
 endif
 for k=0,3 do close,k+5
 CGroupParamsUnwZ=CGroupParams[*,current_indecis]
 save,CGroupParamsUnwZ,filename=data_dir+'/temp/LookupZUnwr_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
-spawn,'sync'
-spawn,'sync'
+;spawn,'sync'
+;spawn,'sync'
 print,'Wrote file '+data_dir+'/temp/LookupZUnwr_parameters_'+strtrim(string(framestart,format='(i)'),2)+'-'+strtrim(string(framestop,format='(i)'),2)+'_cgr.par'
 return
 end

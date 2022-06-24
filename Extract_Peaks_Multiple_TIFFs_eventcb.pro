@@ -17,9 +17,10 @@ end
 pro Initialize_Extract_Peaks_mTIFFs, wWidget
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
+common BG_subtraction, Subtract_BG, BG_FileName, BG_signal
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 
@@ -85,7 +86,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnPickCalFile_Astig_MultiTIFF, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 	wfilename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav'],title='Select *WND.sav file to open')
 	if wfilename ne '' then begin
@@ -106,7 +107,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Set_SigmaFitSym_mTIFFS, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
 	SigmaSym=widget_info(event.id,/DropList_Select)		;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
 	thisfitcond.SigmaSym = SigmaSym
@@ -163,7 +164,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Set_TransformEngine_mTIFFS, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 	TransformEngine = widget_info(Event.id,/DropList_Select)
 	print,'Set TransformEngine to ',TransformEngine
 end
@@ -181,7 +182,47 @@ common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
 	UseGlobIni_mTIFFs = Widget_Info(event.id, /BUTTON_SET)
 	;print,'Set UseGlobIni_mTIFFs = ',UseGlobIni_mTIFFs
 end
+;
+;-----------------------------------------------------------------
+;
+pro Set_Subtract_BG_mTIFFs, Event
+common BG_subtraction, Subtract_BG, BG_FileName, BG_signal
+	Subtract_BG = Widget_Info(event.id, /BUTTON_SET)
+end
+;
+;-----------------------------------------------------------------
+;
+pro On_Pick_BG_file, Event
+common BG_subtraction, Subtract_BG, BG_FileName, BG_signal
+	BG_filename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.tif'],title='Select *.tif file to open')
+	if (BG_filename ne '') and (file_info(BG_filename)).exists then begin
+		BG_FileWidID = Widget_Info(Event.Top, find_by_uname='WID_TXT_mTIFFS_BG_File')
+		widget_control, BG_FileWidID, SET_VALUE = BG_filename
+		Read_BG_signal
+	endif else 	z=dialog_message('Select an existing TIF file')
+end
+;
+;-----------------------------------------------------------------
+;
+pro Read_BG_signal
+common BG_subtraction, Subtract_BG, BG_FileName, BG_signal
+	if (BG_filename ne '') and (file_info(BG_filename)).exists then begin
+		sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
+		test0=file_info(BG_FileName)
+		test1=QUERY_TIFF(BG_FileName, tif_info)
+
+		if test1 eq 0 then begin
+			z=dialog_message('Incorrect TIF file')
+			return      ; if data not loaded return
+		endif
+
+		xsz = tif_info.dimensions[0]							; x-size (pixels)
+		ysz = tif_info.dimensions[1]							; y-size (pixels)
+		BG_signal = READ_TIFF(BG_filename)
+		print,'Mean BG signal = ', mean(BG_signal)
+	endif else 	z=dialog_message('Incorrect/Nonexistent TIF file')
+end
 ;
 ;-----------------------------------------------------------------
 ;
@@ -324,7 +365,7 @@ end
 ;
 pro On_Read_TIFF_Info_mTIFFS, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 if n_elements(RawFilenames) eq 0 then begin
@@ -360,7 +401,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Do_Change_TIFF_Info_mTIFFS, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 widget_control,event.id,get_value=thevalue
 value=float(reform(thevalue))
 CASE event.y OF
@@ -405,7 +446,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Fill_Fitting_Parameters_mTIFFS, WidgetID
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 values = [thisfitcond.zerodark,	$
 	thisfitcond.xsz,	$
 	thisfitcond.ysz,	$
@@ -435,11 +476,12 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Start_mTIFFS_Extract, Event
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 										;use SigmaSym as a flag to indicate xsigma and ysigma are not independent and locked together in the fit
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
+common BG_subtraction, Subtract_BG, BG_FileName, BG_signal
 common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R,  Astig_MacroParameters
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
@@ -493,10 +535,6 @@ if (n_elements(filen) eq 0) or (n_elements(pth) eq 0) then begin
 	return      ; if data not loaded return
 endif
 
-;WID_DROPLIST_SetSigmaFitSym_mTIFFS_ID = Widget_Info(Event.Top, find_by_uname='WID_DROPLIST_SetSigmaFitSym_mTIFFS')
-;SigmaSym=widget_info(WID_DROPLIST_SetSigmaFitSym_mTIFFS_ID,/DropList_Select)		;SigmaSym eq 0 is the flag for Radially symmetric gaussian fit else x & y indep
-;thisfitcond.SigmaSym = SigmaSym
-
 print,'start of ReadRawLoop6,  thisfitcond=',thisfitcond
 print,'Path: ',pth
 print,'First file name: ',filen
@@ -529,7 +567,7 @@ if DisplayType eq 3 then begin 	;set to 3 (--> -1) - Cluster
 	temp_dir=curr_pwd + sep + td
 	FILE_MKDIR,temp_dir
 	save, curr_pwd, idl_pwd, temp_dir, pth, filen, ini_filename, thisfitcond, aa, RawFilenames, nloops, Astig_MacroParameters, $
-		GlobINI_FileName, UseGlobIni_mTIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
+		GlobINI_FileName, UseGlobIni_mTIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs, Subtract_BG, BG_signal, filename=td + sep + 'temp.sav'		;save variables for cluster cpu access
 	ReadRawLoopCluster_mTIFFs, Event
 	file_delete,td + sep + 'temp.sav'
 	file_delete,td
@@ -542,6 +580,9 @@ endif else begin
 			Nframes = tif_info.num_images
 			print,'Started processing file:  ', RawFilenames[nlps]
 			data=float(ReadData(thefile_no_exten,thisfitcond,framefirst,Nframes))	;Reads thefile and returns data (bunch of frames) in (units of photons)
+			if Subtract_BG then begin
+
+			endif
 			print,'Read the data'
 
 			if DisplayType eq 2 then Showframes, data,xsz,ysz,mgw, Nframes,scl						;Shows time movie of data
@@ -649,7 +690,7 @@ end
 ;
 pro Reassemble_PKS_Files, Event, SumFilename, npks_det
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
@@ -747,7 +788,7 @@ nloops = n_elements(RawFilenames)
 					endif
 				endelse
 			endif
-			;file_delete, current_file, /QUIET
+			file_delete, current_file, /QUIET
 		endelse
 	endfor
 
@@ -823,11 +864,12 @@ end
 ;------------------------------------------------------------------------------------
 ;
 Pro ReadRawLoopCluster_mTIFFs, Event			;Master program to read data and loop through processing for cluster
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
+common BG_subtraction, Subtract_BG, BG_FileName, BG_signal
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -900,7 +942,6 @@ print, 'n_elements(npks_det):',n_elements(npks_det)
 print, 'total(npks_det):',total(npks_det)
 print, 'n_elements(RawFilenames):',n_elements(RawFilenames)
 
-
 if NOT UseGlobIni_mTIFFs then begin
 ; stnadard procedure - no globs
 	SumFilename = pth+'/PALM_data_IDL.sav'
@@ -926,6 +967,7 @@ end
 ;------------------------------------------------------------------------------------
 ;
 Pro	ReadRawWorker_mTIFFs,nlps,data_dir,temp_dir						;spawn mulitple copies of this programs for cluster
+common BG_subtraction, Subtract_BG, BG_FileName, BG_signal
 Nlps=ulong((COMMAND_LINE_ARGS())[0])
 data_dir=(COMMAND_LINE_ARGS())[1]
 temp_dir=(COMMAND_LINE_ARGS())[2]
@@ -978,8 +1020,8 @@ endif else npks_det = 0uL
 image=float(loc)
 current_file = 	AddExtension(RawFilenames[nlps],'_IDL.pks')
 save,Apeakparams,image,xsz,ysz,totdat,filename=current_file
-spawn,'sync'
-spawn,'sync'
+;spawn,'sync'
+;spawn,'sync'
 print,'Wrote file '+ current_file +'   Peaks Detected:'+strtrim(npks_det,2)
 return
 end

@@ -15,7 +15,7 @@ end
 ;
 pro Initialize_TransformedFilenames, wWidget, _EXTRA=_VWBExtra_			; Initialize initial guess values for filenames
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common transformfilenames, lab_filenames, sum_filename
 if (size(RawFilenames))[2] le 0 then return
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
@@ -88,7 +88,7 @@ end
 ;
 pro StartSaveTransformed, Event			; Starts the transforms
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common transformfilenames, lab_filenames, sum_filename
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 
@@ -144,7 +144,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro TransformRaw_Save_SaveSum, sum_filename, filenames, RawDataFiles, GStarDrifts, FidCoeffs, FlipRot		; Transformation core called by TransformRaw_Save_SaveSum_MenuItem
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 	Start_Time= SYSTIME(/SECONDS)
 	sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
@@ -235,8 +235,9 @@ common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 	endif else begin
 		TransformLocal=0
 		if !VERSION.OS_family eq 'unix' then begin
-			if (scope_varfetch('HAVECUDAPOLY3D', LEVEL=1)) then TransformLocal=1
-			if (scope_varfetch('haveGPUlib', LEVEL=1)) then TransformLocal=2
+			; for some reason currently (11.2020) IDL deos not accept these commands, so skip that check
+			;if (scope_varfetch('HAVECUDAPOLY3D', LEVEL=1)) then TransformLocal=1
+			;if (scope_varfetch('haveGPUlib', LEVEL=1)) then TransformLocal=2
 		endif
 		case TransformLocal of
 			0: print, "Local Transformation Started"
@@ -334,7 +335,7 @@ end
 ;------------------------------------------------------------------------------------
 ;
 Pro TransformRaw_Save_SaveSum_Cluster			;Read data and loop through transforming for cluster
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 restore,'temp/temp.sav'
 pos=intarr(nlabels)
@@ -459,8 +460,8 @@ if do_save_sum then writeu,15+nlabels,SumData
 for i=5,(15+nlabels) do close,i
 print, 'Finished the data transformation, closed data files'
 
-spawn,'sync'
-spawn,'sync'
+;spawn,'sync'
+;spawn,'sync'
 print,'Wrote file '+tempfiles[0]
 end
 ;
@@ -468,7 +469,7 @@ end
 ;
 pro ApplyTransforms, Event			;Manual File Select & apply saved transforms to Selected Raw file (-.dat)
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 if n_elements(CGroupParams) lt 1 then begin
 	z=dialog_message('Please load a data file')
 	return      ; if data not loaded return
@@ -500,7 +501,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro TransformRaw_Save, filename, RawDataFile, GStarDrift, FidCoeff, FlipRot		; Transformation core called by ApplyTransforms
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 	sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 	close,5
 	close,6
@@ -619,7 +620,7 @@ end
 pro StartTransformAndReExtract, Event
 
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster, transformengine, grouping_gap,grouping_radius
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster, transformengine, grouping_gap,grouping_radius
 common transformfilenames, lab_filenames, sum_filename
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier

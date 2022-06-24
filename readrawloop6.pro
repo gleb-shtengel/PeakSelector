@@ -49,7 +49,7 @@
 ;CGroupParametersGP[48,*] - Group Z Position Error
 ;
 pro WriteInfoFile					;Template for *.txt file descibing datafile.dat
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 ref_filename=pth+filen+'.txt'
 openw,1,ref_filename
 printf,1,pth
@@ -89,7 +89,7 @@ end
 ;-----------------------------------------------------------------------------------
 ;
 pro ReadInfoFile	;Read *.txt file for basic file processing info
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 if (size(thisfitcond))[2] ne 8 then LoadThiFitCond,ini_filename,thisfitcond
 reffilename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sif', '*.tif', '*.txt','*.dat'],title='Select *.sif, *.tif, *.txt or *.dat data/info file')
 if reffilename eq '' then return
@@ -171,6 +171,7 @@ end
 ;------------------------------------------------------------------------------------
 ;
 function ReadData,thefile_no_exten,thisfitcond,framefirst,Nframes	;Reads thefile & returns data (units of photons)
+common BG_subtraction, Subtract_BG, BG_FileName, BG_signal
 framelast=framefirst+Nframes-1
 thefile = AddExtension(thefile_no_exten,'.dat')
 zerodark=thisfitcond.zerodark										;zero dark count in CCD counts
@@ -179,6 +180,8 @@ ysz=thisfitcond.ysz													;number of y pixels
 filetype=thisfitcond.filetype										;flag for special file read treatment
 counts_per_e=thisfitcond.cntpere									;counts per electron CCD sensitivity
 data=-1
+if n_elements(Subtract_BG) eq 0 then Subtract_BG = 0
+
 if (filetype eq 0) then begin						; *.dat file
 	data=uintarr(xsz,ysz,Nframes)
 	openr,1,thefile
@@ -189,16 +192,25 @@ if (filetype eq 0) then begin						; *.dat file
 
 endif
 if (filetype eq 1) then begin						; *.TIF file
-	data=uintarr(xsz,ysz,Nframes)
-
-	for j= 0,(Nframes-1) do data[*,*,j]=READ_TIFF((thefile_no_exten+'.tif'), IMAGE_INDEX=(j+framefirst))
-	if zerodark ne -1 then data = ((float(temporary(data))-zerodark)/counts_per_e)>0. else begin
-		;invert TIFF if zero level is set to -1
-		data = float(temporary(data))/counts_per_e
-		dmin=min(data)
-		dmax=max(data)
-		data=dmin+dmax-data
-	endelse
+	;data=uintarr(xsz,ysz,Nframes)
+	print,xsz,ysz,Nframes
+	data=fltarr(xsz,ysz,Nframes)
+	for j= 0,(Nframes-1) do begin
+		if Subtract_BG eq 0 then begin
+			data[*,*,j] = READ_TIFF((thefile_no_exten+'.tif'), IMAGE_INDEX=(j+framefirst))
+		endif else begin
+			data[*,*,j] = ((float(READ_TIFF((thefile_no_exten+'.tif'), IMAGE_INDEX=(j+framefirst))) - BG_signal)/counts_per_e)>0.
+		endelse
+	endfor
+	if Subtract_BG eq 0 then begin
+		if zerodark ne -1 then data = ((float(temporary(data))-zerodark)/counts_per_e)>0. else begin
+			;invert TIFF if zero level is set to -1
+			data = float(temporary(data))/counts_per_e
+			dmin=min(data)
+			dmax=max(data)
+			data=dmin+dmax-data
+		endelse
+	endif
 
 	if thisfitcond.fliphor then begin
 		data=transpose(temporary(data))
@@ -537,11 +549,11 @@ peakparams.A=A
 ;---------------- fit_model=0
 ;		F(x,y,z) = a0 + a1*EXP(-U/2)
 ;		where: U= (xp/WidX(z))^2 + (yp/WidY(z))^2
-;			xp = (x-a2)   and   yp = (y-a3)and
+;			xp = (x-a2)   and   yp = (y-a3) and
 ;       	WidX(z) = b0+b1*z+ ... +bN*z^N
 ;			WidY(z) = c0+c1*z+ ... +cN*z^N
 ;			z=a4
-;   The vector A = [a0, a1, a2, a3, a3, a4]
+;   The vector A = [a0, a1, a2, a3, a4, a5]
 ;
 ;---------------- fit_model=1
 ;		F(x,y,z) = a0 + a1*EXP(-U/2)
@@ -552,7 +564,7 @@ peakparams.A=A
 ;			ellipt(z) =  b0+b1*z+ ... +bN*z^N
 ;			sum(z) = c0+c1*z+ ... +cN*z^N
 ;			z=a4
-;   The vector A = [a0, a1, a2, a3, a3, a4]
+;   The vector A = [a0, a1, a2, a3, a4, a5]
 ;
 ;---------------- fit_model=2
 ;		F(x,y,z) = a0 + a1*EXP(-U/2)
@@ -561,7 +573,7 @@ peakparams.A=A
 ;       	WidX(z) = b0+b1*z+ ... +bN*z^N
 ;			WidY(z) = c0+c1*z+ ... +cN*z^N
 ;			z=a4
-;   The vector A = [a0, a1, a2, a3, a3, a4, a5]
+;   The vector A = [a0, a1, a2, a3, a4, a5, a6]
 ;
 fit_model = thisfitcond.SigmaSym - 2
 ; again, we only use fit_model=0 now
@@ -1387,7 +1399,7 @@ end
 ;------------------------------------------------------------------------------------
 ;
 Pro ReadRawLoopCluster			;Master program to read data and loop through processing for cluster
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 restore,(temp_dir+'/temp.sav')
 print,'sh '+idl_pwd+'/runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
 spawn,'sh '+idl_pwd+'/runme.sh '+strtrim(nloops,2)+' '+curr_pwd+' '+idl_pwd+' '+temp_dir		;Spawn workers in cluster
@@ -1494,8 +1506,8 @@ endif else npks_det = 0uL
 image=float(loc)
 current_file = temp_dir + filen + '_'+strtrim(framefirst,2)+'-'+strtrim(framelast,2)+'_IDL.pks'
 save, Apeakparams, image, xsz, ysz, totdat, filename=current_file
-spawn,'sync'
-spawn,'sync'
+;spawn,'sync'
+;spawn,'sync'
 print,'Wrote file ' + current_file + ',   Peaks Detected:'+strtrim(npks_det,2)
 return
 end
@@ -1503,7 +1515,7 @@ end
 ;------------------------------------------------------------------------------------
 ;
 Pro ReadRawLoop_Bridge_Top			;Master program to read data and loop through processing for cluster
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 
 restore,'temp'+sep+'temp.sav'
@@ -1651,7 +1663,7 @@ end
 pro ReadRawLoop6, DisplayType				;Master program to read data and loop through processing
 ;DisplayType set to 0 - min display while fitting 1 - some display, 2 - full display,  3 - Cluster, 4 - IDL Bridge
 ;DisplayType set to -1 - turn all the displays off (cluster)
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 										;use SigmaSym as a flag to indicate xsigma and ysigma are not independent and locked together in the fit
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -1721,6 +1733,7 @@ increment = (thisfitcond.LocalizationMethod gt 0) ?	min_frames_per_node	:	long((
 if (thisfitcond.LocalizationMethod eq 0) and (thisfitcond.FrmN le 500) then increment = thisfitcond.FrmN-thisfitcond.Frm0+1
 increment = long(round(increment * 125.0 / thisfitcond.maxcnt1)) > 1L
 if DisplayType eq 4 and (!CPU.HW_NCPU gt 1) then increment = (long((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/!CPU.HW_NCPU))>1L
+increment=10
 print,'increment=',increment
 wxsz=1024 & wysz=1024
 dsz=xsz>ysz
@@ -1729,7 +1742,8 @@ if mgw eq 0 then mgw=float(wxsz<wysz)/dsz
 mg_scl=2L		;	size reduction for frame display
 scl=4.			; 	brightness increase for frame display ;intensity scaling Range = scl* # electrons
 print,'DisplayType',DisplayType
-n_cluster_nodes_max = 512
+print, 'Max number of cluster nodes to be used:', n_cluster_nodes_max
+;n_cluster_nodes_max = 512
 nloops = long((thisfitcond.FrmN-thisfitcond.Frm0+1.0)/increment) < n_cluster_nodes_max			;nloops=long((framelast-framefirst)/increment)
 ;don't allow to use more then n_cluster_nodes_max cluster cores
 if (DisplayType eq 4) then begin
@@ -1868,7 +1882,7 @@ TotalRawData = totdat
 FlipRotate=replicate({frt,present:0B,transp:0B,flip_h:0B,flip_v:0B},3)
 NFrames=thisfitcond.Nframesmax    ;   long64(max(CGroupParams[9,*]))
 
-GuideStarDrift=replicate({present:0B,xdrift:dblarr(Nframes),ydrift:dblarr(Nframes),zdrift:dblarr(Nframes)},3)
+GuideStarDrift=replicate({present:0B,xdrift:fltarr(Nframes),ydrift:fltarr(Nframes),zdrift:fltarr(Nframes)},3)
 FiducialCoeff=replicate({fidcoef,present:0U,P:dblarr(2,2),Q:dblarr(2,2)},3)
 RawFilenames=strarr(3)
 RawFilenames[0]=thefile_no_exten

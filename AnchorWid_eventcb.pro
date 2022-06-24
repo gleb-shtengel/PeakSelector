@@ -448,7 +448,7 @@ endif
 ; reset the image size and transform TotalRaw in the case of a singe label
 if LTT le 1 then begin
 	x0=xydsz[0] & y0=xydsz[1]
-	if  (Transf_Meth eq 1) and (fid0_cnt ge 3) then begin
+	if  (Transf_Meth eq 2) and (fid0_cnt ge 3) then begin
 		X=[0,0,x0,x0]
 		X1=X*0.0
 		Y=[0,y0,0,y0]
@@ -475,6 +475,7 @@ if LTT le 1 then begin
 
 	xsz = max(X1)
 	ysz = max(Y1)
+
 	if Use_XYlimits then begin
 		xsz = XYlimits[1,0]
 		ysz = XYlimits[1,1]
@@ -695,6 +696,13 @@ pro OnButton_AddRedFiducial, Event				; Adds Red Fiducial values to the table (i
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+ZUnwrZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+ZUnwrZ_swap_state=widget_info(ZUnwrZ_swap_menue_ID,/button_set)
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -703,9 +711,21 @@ Y_ind = min(where(RowNames eq 'Y Position'))							; CGroupParametersGP[3,*] - P
 Xwid_ind = min(where(RowNames eq 'X Peak Width'))						; CGroupParametersGP[4,*] - Peak X Gaussian Width
 Ywid_ind = min(where(RowNames eq 'Y Peak Width'))						; CGroupParametersGP[5,*] - Peak Y Gaussian Width
 Nph_ind = min(where(RowNames eq '6 N Photons'))							; CGroupParametersGP[6,*] - Number of Photons in the Peak
+GrX_ind = min(where(RowNames eq 'Group X Position'))					; CGroupParametersGP[19,*] - average x - position in the group
+GrY_ind = min(where(RowNames eq 'Group Y Position'))					; CGroupParametersGP[20,*] - average y - position in the group
+GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))				; CGroupParametersGP[21,*] - new x - position sigma
+GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))				; CGroupParametersGP[22,*] - new y - position sigma
+GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[23,*] - total Photons in the group
 LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
 Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
 GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
+UseUnwZ_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseUnwZ')
+UseUnwZ=widget_info(UseUnwZ_button_id,/button_set)
+Z_ind = UseUnwZ ? UnwZ_ind : Z_ind
+GrZ_ind = UseUnwZ ? UnwGrZ_ind : GrZ_ind
 
 FidSource_WidID = widget_info(Event.top, FIND_BY_UNAME='WID_DROPLIST_Fiducial_Source')
 FidSource = widget_info(FidSource_WidID,/DropList_Select)
@@ -722,7 +742,13 @@ endif else begin
 	if (size(indecis))[0] eq 0 then return
 	xposition=total(CGroupParams[X_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
 	yposition=total(CGroupParams[Y_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
-	zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+
+	if UseUnwZ then begin
+		Zcoords = Phase_Unwrap(CGroupParams[Z_ind,indecis], wind_range[0])
+		zposition = total(Zcoords*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
+	endif else begin
+		zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+	endelse
 endelse
 AnchorInd=min(where(AnchorPnts[0,*] eq 0))
 if AnchorInd eq -1 then AnchorInd=99
@@ -754,6 +780,14 @@ pro OnButton_AddGreenFiducial, Event					; Adds Green Fiducial values to the tab
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+ZUnwrZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+ZUnwrZ_swap_state=widget_info(ZUnwrZ_swap_menue_ID,/button_set)
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -762,9 +796,21 @@ Y_ind = min(where(RowNames eq 'Y Position'))							; CGroupParametersGP[3,*] - P
 Xwid_ind = min(where(RowNames eq 'X Peak Width'))						; CGroupParametersGP[4,*] - Peak X Gaussian Width
 Ywid_ind = min(where(RowNames eq 'Y Peak Width'))						; CGroupParametersGP[5,*] - Peak Y Gaussian Width
 Nph_ind = min(where(RowNames eq '6 N Photons'))							; CGroupParametersGP[6,*] - Number of Photons in the Peak
+GrX_ind = min(where(RowNames eq 'Group X Position'))					; CGroupParametersGP[19,*] - average x - position in the group
+GrY_ind = min(where(RowNames eq 'Group Y Position'))					; CGroupParametersGP[20,*] - average y - position in the group
+GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))				; CGroupParametersGP[21,*] - new x - position sigma
+GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))				; CGroupParametersGP[22,*] - new y - position sigma
+GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[23,*] - total Photons in the group
 LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
 Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
 GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
+UseUnwZ_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseUnwZ')
+UseUnwZ=widget_info(UseUnwZ_button_id,/button_set)
+Z_ind = UseUnwZ ? UnwZ_ind : Z_ind
+GrZ_ind = UseUnwZ ? UnwGrZ_ind : GrZ_ind
 
 FidSource_WidID = widget_info(Event.top, FIND_BY_UNAME='WID_DROPLIST_Fiducial_Source')
 FidSource = widget_info(FidSource_WidID,/DropList_Select)
@@ -781,7 +827,12 @@ endif else begin
 	if (size(indecis))[0] eq 0 then return
 	xposition=total(CGroupParams[X_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
 	yposition=total(CGroupParams[Y_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
-	zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+	if UseUnwZ then begin
+		Zcoords = Phase_Unwrap(CGroupParams[Z_ind,indecis], wind_range[1])
+		zposition = total(Zcoords*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
+	endif else begin
+		zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+	endelse
 endelse
 AnchorInd=min(where(AnchorPnts[2,*] eq 0))
 if AnchorInd eq -1 then AnchorInd=99
@@ -813,6 +864,37 @@ pro OnButton_AddBlueFiducial, Event			; Adds Blue Fiducial values to the table (
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
+
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+ZUnwrZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+ZUnwrZ_swap_state=widget_info(ZUnwrZ_swap_menue_ID,/button_set)
+
+Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
+Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
+X_ind = min(where(RowNames eq 'X Position'))							; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))							; CGroupParametersGP[3,*] - Peak Y  Position
+Xwid_ind = min(where(RowNames eq 'X Peak Width'))						; CGroupParametersGP[4,*] - Peak X Gaussian Width
+Ywid_ind = min(where(RowNames eq 'Y Peak Width'))						; CGroupParametersGP[5,*] - Peak Y Gaussian Width
+Nph_ind = min(where(RowNames eq '6 N Photons'))							; CGroupParametersGP[6,*] - Number of Photons in the Peak
+GrX_ind = min(where(RowNames eq 'Group X Position'))					; CGroupParametersGP[19,*] - average x - position in the group
+GrY_ind = min(where(RowNames eq 'Group Y Position'))					; CGroupParametersGP[20,*] - average y - position in the group
+GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))				; CGroupParametersGP[21,*] - new x - position sigma
+GrSigY_ind = min(where(RowNames eq 'Group Sigma Y Pos'))				; CGroupParametersGP[22,*] - new y - position sigma
+GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[23,*] - total Photons in the group
+LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
+Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
+GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
+UseUnwZ_button_id=widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_UseUnwZ')
+UseUnwZ=widget_info(UseUnwZ_button_id,/button_set)
+Z_ind = UseUnwZ ? UnwZ_ind : Z_ind
+GrZ_ind = UseUnwZ ? UnwGrZ_ind : GrZ_ind
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -840,7 +922,12 @@ endif else begin
 	if (size(indecis))[0] eq 0 then return
 	xposition=total(CGroupParams[X_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
 	yposition=total(CGroupParams[Y_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
-	zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+	if UseUnwZ then begin
+		Zcoords = Phase_Unwrap(CGroupParams[Z_ind,indecis], wind_range[2])
+		zposition = total(Zcoords*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis])
+	endif else begin
+		zposition=(Z_ind ge 0) ? total(CGroupParams[Z_ind,indecis]*CGroupParams[Nph_ind,indecis])/total(CGroupParams[Nph_ind,indecis]) : 0
+	endelse
 endelse
 AnchorInd=min(where(AnchorPnts[4,*] eq 0))
 if AnchorInd eq -1 then AnchorInd=99
@@ -1300,6 +1387,12 @@ common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+ZUnwrZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+ZUnwrZ_swap_state=widget_info(ZUnwrZ_swap_menue_ID,/button_set)
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -1316,6 +1409,11 @@ GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[2
 LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
 Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
 GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
+Z_ind = ZUnwrZ_swap_state ? UnwZ_ind : Z_ind
+GrZ_ind = ZUnwrZ_swap_state ? UnwGrZ_ind : GrZ_ind
 
 ClearFiducials, Event
 clip=TotalRawData
@@ -1393,6 +1491,12 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+ZUnwrZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+ZUnwrZ_swap_state=widget_info(ZUnwrZ_swap_menue_ID,/button_set)
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -1409,6 +1513,11 @@ GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[2
 LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
 Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
 GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
+Z_ind = ZUnwrZ_swap_state ? UnwZ_ind : Z_ind
+GrZ_ind = ZUnwrZ_swap_state ? UnwGrZ_ind : GrZ_ind
 
 fid=where(AnchorPnts[0,*] gt 0.0,n_peaks)
 if n_peaks lt 1 then begin
@@ -1466,6 +1575,12 @@ common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set,
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+ZUnwrZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+ZUnwrZ_swap_state=widget_info(ZUnwrZ_swap_menue_ID,/button_set)
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -1482,6 +1597,11 @@ GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[2
 LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
 Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
 GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
+Z_ind = ZUnwrZ_swap_state ? UnwZ_ind : Z_ind
+GrZ_ind = ZUnwrZ_swap_state ? UnwGrZ_ind : GrZ_ind
 
 fid=where(AnchorPnts[0,*] gt 0.0,n_peaks)
 if n_peaks lt 1 then begin
@@ -1563,6 +1683,12 @@ pro OnButton_Remove_Unmatched, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+ZUnwrZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
+ZUnwrZ_swap_state=widget_info(ZUnwrZ_swap_menue_ID,/button_set)
 
 Off_ind = min(where(RowNames eq 'Offset'))								; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))							; CGroupParametersGP[1,*] - Peak Amplitude
@@ -1579,6 +1705,11 @@ GrNph_ind = min(where(RowNames eq 'Group N Photons'))					; CGroupParametersGP[2
 LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
 Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
 GrZ_ind = min(where(RowNames eq 'Group Z Position'))					; CGroupParametersGP[40,*] - Group Z Position
+UnwZ_ind = min(where(RowNames eq 'Unwrapped Z'))                        ; CGroupParametersGP[44,*] - Peak Z Position (Phase unwrapped)
+UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))                ; CGroupParametersGP[47,*] - Group Z Position (Phase unwrapped)
+
+Z_ind = ZUnwrZ_swap_state ? UnwZ_ind : Z_ind
+GrZ_ind = ZUnwrZ_swap_state ? UnwGrZ_ind : GrZ_ind
 
 fid=where(AnchorPnts[0,*] gt 0.0,n_peaks)
 if n_peaks lt 1 then begin
@@ -1925,7 +2056,8 @@ if Transf_Meth ne 4 then begin;   All but 3D affine transformation
 		endelse
 		if UnwGrZ_ind gt 0 then begin
 			WR=wind_range[LabelToTransform-1]
-			Z1 = (Zo + Zdelta + 4.0 * WR) mod WR
+			;Z1 = (Zo + Zdelta + 4.0 * WR) mod WR
+			Z1 = Zo + Zdelta
 		endif else Z1 = Zo + Zdelta
 		Transform_Error = sqrt(Transform_Error*Transform_Error + (Z1-Zi)*(Z1-Zi))
 	endif

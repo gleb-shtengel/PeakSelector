@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	12/14/2017 12:51.50
+; Generated on:	03/17/2022 16:04.21
 VERSION 1
 END
 
@@ -9,7 +9,7 @@ REALIZE "Initialization_PeakSelector_Main"
 SCROLLWIDTH = 1622
 SCROLLHEIGHT = 1070
 TLB
-CAPTION "Peak Selector v9.6© 2017, Howard Hughes Medical Institute.  All rights reserved."
+CAPTION "Peak Selector v9.75© 2019, Howard Hughes Medical Institute.  All rights reserved."
 XPAD = 3
 YPAD = 3
 SPACE = 3
@@ -62,7 +62,7 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnPeakCentersButton"
   END
-  WID_DRAW_0 DRAW 567 0 1024 1024
+  WID_DRAW_0 DRAW 565 -30 1024 1024
   FRAME = 1
   REALIZE "OnDraw0Realize"
   ONBUTTON "OnButtonDraw0"
@@ -277,6 +277,11 @@ BEGIN
       W_MENU_Convert_Pixels_to_NM PUSHBUTTON 0 0 0 0
       VALUE "Convert X-Y data to Wavelength-Y data"
       ONACTIVATE "Convert_X_to_wavelength"
+      END
+      W_MENU_Check_Recenter PUSHBUTTON 0 0 0 0
+      VALUE "Re-center when adding new label"
+      CHECKED_MENU
+      ONACTIVATE "Check_Recenter"
       END
     END
     W_MENU_11 PUSHBUTTON 0 0 0 0
@@ -704,10 +709,10 @@ BEGIN
   ALIGNCENTER
   ONACTIVATE "OnPlotFrameZX"
   END
-  WID_BUTTON_Stat3DViewer PUSHBUTTON 310 742 130 30
-  VALUE "Static 3D Viewer"
+  WID_BUTTON_PurgeSelected PUSHBUTTON 310 742 130 30
+  VALUE "Purge Selected"
   ALIGNCENTER
-  ONACTIVATE "OnStatic3DViewer"
+  ONACTIVATE "Purge_selected_peaks"
   END
   WID_LABEL_0 TEXT 5 5 540 45
   FRAME = 1
@@ -717,30 +722,10 @@ BEGIN
   WIDTH = 20
   HEIGHT = 3
   END
-  WID_TABLE_StartReadSkip TABLE 175 667 211 70
-  COLUMNMAJOR
-  N_ROWS = 1
-  N_COLS = 3
-  NUMCOLLABELS = 3
-  COLLABEL "Start"
-  COLLABEL "Read"
-  COLLABEL "Skip"
-  EDITABLE
-  END
   WID_BUTTON_Reload_Paramlimits PUSHBUTTON 160 742 140 30
   VALUE "Reload Limits Table"
   ALIGNCENTER
   ONACTIVATE "ReloadParamlists"
-  END
-  WID_BASE_0 BASE 395 705 150 22
-  COLUMNS = 1
-  NONEXCLUSIVE
-  CAPTION "IDL"
-  BEGIN
-    WID_BUTTON_StartReadSkip PUSHBUTTON -1 -1 148 22
-    VALUE "Apply Read/Skip Filter"
-    ALIGNLEFT
-    END
   END
   WID_BUTTON_Plot_XgrUnwZgrYgr PUSHBUTTON 85 842 100 25
   VALUE "Xgr,UnwZgr,Ygr"
@@ -860,5 +845,15 @@ BEGIN
     ALIGNLEFT
     ONACTIVATE "Set_Tie_RGB"
     END
+  END
+  WID_BUTTON_Apply_Filter1 PUSHBUTTON 170 700 75 25
+  VALUE "Apply Filter 1"
+  ALIGNCENTER
+  ONACTIVATE "On_ApplyFilter1_Button"
+  END
+  WID_BUTTON_Apply_Filter2 PUSHBUTTON 255 700 75 25
+  VALUE "Apply Filter 2"
+  ALIGNCENTER
+  ONACTIVATE "On_ApplyFilter2_Button"
   END
 END

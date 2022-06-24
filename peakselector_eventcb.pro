@@ -24,6 +24,35 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+function interpol_gs, V, X, U		; this function is the same as IDL's own interpol except
+                                    ; that returns the edge values for the elements with U outside th range of X
+F = interpol(V, X, U)
+Xi =  min(X, Indi)
+ind_low = where(U lt Xi, cnt_low)
+if cnt_low gt 0 then F[ind_low] = V[Indi]
+Xa =  max(X, Inda)
+ind_high = where(U gt Xa, cnt_high)
+if cnt_high gt 0 then F[ind_high] = V[Inda]
+return,F
+end
+;
+;-----------------------------------------------------------------
+;
+FUNCTION Phase_Unwrap, Y, T
+	; Y is array to be phase-unwrapped for period T
+	; That is if for any point Y[i] in array Y, the next point Y[i+1] differs by more than 0.5*T, that difference is reduced by integer number of T's
+	;dY = Y - shift(Y,1)
+	;dY[0]=0.0
+	;dYunw = dY - round(dY/T)*T
+	;Yunw = TOTAL(dYunw, /CUMULATIVE) + Y[0]
+	Ym = median(Y)
+	dY = Y - Ym
+	Yunw = Y - round(dY/T)*T
+	return, Yunw
+end
+;
+;-----------------------------------------------------------------
+;
 function StripExtension, filename		; checks if the filename has the extension (caracters after dot in "extension" variable. If it does not, adds the extension.
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 file_sep_pos=strpos(filename,sep,/REVERSE_OFFSET,/REVERSE_SEARCH)
@@ -69,164 +98,141 @@ end
 function FilterByParameter, CGroupParams, ParamLimits, indices, params
     compile_opt idl2, logical_predicate
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
-doIDL=0
 sz = size(CGroupParams)
 CGrpSize = sz[1]
 npk_tot = sz[2]
 
-if (!VERSION.OS_family eq 'unix') then have_CUDA = scope_varfetch('haveCUDAFilterIt', LEVEL=1) else have_CUDA = 0
+	if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge then begin
+		print,'Starting Bridge filtering'
+		if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR')	else	idl_pwd=pref_get('IDL_WDE_START_DIR')
+		cd,current=curr_pwd
 
-   	if have_CUDA and (doIDL ne 1) then begin
-			; Use CUDA
-        	if (size(CGroupParams, /TYPE) eq 4) then begin
-	    		print,'starting CUDA filter float'
-            	filter = cu_FilterIt_f(CGroupParams, float(ParamLimits), byte(indices)) ne 0 ;  float
-        	endif else begin
-				CGPsz=size(CGroupParams)
-				npk = CGPsz[2]
-				chunk_size = 6000000
-				nl = ceil(npk / chunk_size)
-				for i=0,nl do begin
-					istart = i * chunk_size
-					istop = ((istart + chunk_size)<npk) - 1
-					CGP=float(CGroupParams[*,istart:istop])
-					if i eq 0 then begin
-						filter = cu_FilterIt_f(CGP, float(ParamLimits), byte(indices)) ne 0;  float any double
-					endif else begin
-						filter = [filter,  (cu_FilterIt_f(CGP, float(ParamLimits), byte(indices)) ne 0)]
-					endelse
-				endfor
-			endelse
-    endif else begin
-        	if (NOT LMGR(/VM)) and (NOT LMGR(/DEMO)) and (NOT LMGR(/TRIAL)) and allow_bridge then begin
-				print,'Starting Bridge filtering'
-				if !VERSION.OS_family eq 'unix' then	idl_pwd=pref_get('IDL_MDE_START_DIR')	else	idl_pwd=pref_get('IDL_WDE_START_DIR')
-				cd,current=curr_pwd
+		; ************** check if the bridge data is of a proper size. If not - unmap it and start anew
+		if bridge_exists then begin
+			print,'comparing structures',n_elements(CGroupParams),n_elem_CGP
+			if (n_elements(CGroupParams) ne n_elem_CGP) then begin
+				print,'Existing Bridge data structure does not agree with the data. Resetting'
+				CATCH, Error_status
+				SHMUnmap, shmName_data
+				SHMUnmap, shmName_filter
+				for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
+				IF Error_status NE 0 THEN BEGIN
+					PRINT, 'Filtering: Error :',!ERROR_STATE.MSG
+					CATCH,/CANCEL
+				ENDIF
+				bridge_exists = 0
+			endif
+		endif
 
-				; ************** check if the bridge data is of a proper size. If not - unmap it and start anew
-				if bridge_exists then begin
-					print,'comparing structures',n_elements(CGroupParams),n_elem_CGP
-					if (n_elements(CGroupParams) ne n_elem_CGP) then begin
-						print,'Existing Bridge data structure does not agree with the data. Resetting'
-						CATCH, Error_status
-						SHMUnmap, shmName_data
-						SHMUnmap, shmName_filter
-						for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
-						IF Error_status NE 0 THEN BEGIN
-							PRINT, 'Filtering: Error :',!ERROR_STATE.MSG
-							CATCH,/CANCEL
-						ENDIF
-						bridge_exists = 0
-					endif
-				endif
+		;***************** If bridge had not been started, start IDL bridge workers
+		if bridge_exists eq 0 then begin
+			;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 
-				;***************** If bridge had not been started, start IDL bridge workers
-				if bridge_exists eq 0 then begin
-					;common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
-					n_br_loops = !CPU.HW_NCPU < n_br_max
-					print,'Bridge structure not set.    ',!CPU.HW_NCPU,'CPU cores are present
-					print, 'Will set up',n_br_loops,' bridge child processes'
-					CATCH, Error_status
-					IF Error_status NE 0 THEN BEGIN
-						SHMUnmap, shmName_data
-						SHMUnmap, shmName_filter
-						for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
-						PRINT, 'Starting: Error:',!ERROR_STATE.MSG
-						CATCH,/CANCEL
-					ENDIF
-					i=0
-					;fbr_arr=obj_new("IDL_IDLBridge", output=('Z:\IDL\PeakSelector_V9.6\debug\Bridge_output'+strtrim(i,2)+'.txt'))
-					;for i=1, n_br_loops-1 do fbr_arr=[fbr_arr, obj_new("IDL_IDLBridge", output=('Z:\IDL\PeakSelector_V9.6\debug\Bridge_output'+strtrim(i,2)+'.txt'))]
-					fbr_arr=obj_new("IDL_IDLBridge", output='')
-					for i=1, n_br_loops-1 do fbr_arr=[fbr_arr, obj_new("IDL_IDLBridge", output='')]
-					npk_sub = ceil(npk_tot/n_br_loops)
-					sec_st = strtrim(ulong(SYSTIME(/seconds)),2)
-					shmName_data='PALM_data_' + sec_st
-					SHMMAP , shmName_data, /FLOAT, /DESTROY_SEGMENT, Dimension=[CGrpSize,npk_tot], GET_OS_HANDLE=OS_handle_val1
-					CGroupParams_bridge = SHMVAR(shmName_data)
-					CGroupParams_bridge[0,0] = CGroupParams
-					n_elem_CGP = n_elements(CGroupParams_bridge)
-					shmName_filter='PALM_filter_' + sec_st
-					SHMMAP,shmName_filter, /LONG, /DESTROY_SEGMENT, Dimension=[npk_tot], GET_OS_HANDLE=OS_handle_val2
-					n_elem_fbr = npk_tot
-					imin = ulindgen(n_br_loops) * npk_sub
-					imax = ((imin + npk_sub)  < npk_tot)-1
- 			   		for i=0, n_br_loops-1 do begin
-						fbr_arr[i]->setvar, 'nlps',i
-						fbr_arr[i]->setvar, 'CGrpSize',	CGrpSize
-						fbr_arr[i]->setvar, 'npk_sub',npk_sub
-						fbr_arr[i]->setvar, 'npk_tot',npk_tot
-						fbr_arr[i]->setvar, 'OS_handle_val',OS_handle_val1
-						fbr_arr[i]->setvar, 'OS_handle_val',OS_handle_val2
-						fbr_arr[i]->setvar, 'shmName_data',shmName_data
-						fbr_arr[i]->setvar, 'shmName_filter',shmName_filter
-						fbr_arr[i]->setvar, 'istart',imin[i]
-						fbr_arr[i]->setvar, 'istop',imax[i]
-            			fbr_arr[i]->execute,'di = istop - istart +1'
-            			fbr_arr[i]->execute,'SHMMAP,shmName_data,/FLOAT, Dimension=[CGrpSize,npk_tot],OS_Handle=OS_handle_val1'
-            			fbr_arr[i]->execute,'SHMMAP,shmName_filter,/LONG, Dimension=[npk_tot],OS_Handle=OS_handle_val2
-            			fbr_arr[i]->setvar, 'IDL_dir', IDL_pwd
-			        	fbr_arr[i]->execute,'cd, IDL_dir'
-            			fbr_arr[i]->execute,"restore,'Peakselector.sav'"
-					endfor
-					bridge_exists = 1
-				endif
+			ncores_cluster = fix(strtrim(GETENV('LSB_DJOB_NUMPROC'),2))
+			n_br_loops = ncores_cluster gt 0 ? ncores_cluster : !CPU.HW_NCPU
+			print, 'Bridge structure not set.    ', n_br_loops, '  CPU cores are present'
+			n_br_loops = n_br_loops < n_br_max
+			print, 'Will set up',n_br_loops,' bridge child processes'
+			CATCH, Error_status
+			IF Error_status NE 0 THEN BEGIN
+				SHMUnmap, shmName_data
+				SHMUnmap, shmName_filter
+				for nlps=0L,n_br_loops-1 do	obj_destroy, fbr_arr[nlps]
+				PRINT, 'Starting: Error:',!ERROR_STATE.MSG
+				CATCH,/CANCEL
+			ENDIF
+			i=0
+			;fbr_arr=obj_new("IDL_IDLBridge", output=('Z:\IDL\PeakSelector_V9.6\debug\Bridge_output'+strtrim(i,2)+'.txt'))
+			;for i=1, n_br_loops-1 do fbr_arr=[fbr_arr, obj_new("IDL_IDLBridge", output=('Z:\IDL\PeakSelector_V9.6\debug\Bridge_output'+strtrim(i,2)+'.txt'))]
+			fbr_arr=obj_new("IDL_IDLBridge", output='')
+			for i=1, n_br_loops-1 do fbr_arr=[fbr_arr, obj_new("IDL_IDLBridge", output='')]
+			npk_sub = ceil(npk_tot/n_br_loops)
+			sec_st = strtrim(ulong(SYSTIME(/seconds)),2)
+			shmName_data='PALM_data_' + sec_st
+			SHMMAP , shmName_data, /FLOAT, /DESTROY_SEGMENT, Dimension=[CGrpSize,npk_tot], GET_OS_HANDLE=OS_handle_val1
+			CGroupParams_bridge = SHMVAR(shmName_data)
+			CGroupParams_bridge[0,0] = CGroupParams
+			n_elem_CGP = n_elements(CGroupParams_bridge)
+			shmName_filter='PALM_filter_' + sec_st
+			SHMMAP,shmName_filter, /LONG, /DESTROY_SEGMENT, Dimension=[npk_tot], GET_OS_HANDLE=OS_handle_val2
+			n_elem_fbr = npk_tot
+			imin = ulindgen(n_br_loops) * npk_sub
+			imax = ((imin + npk_sub)  < npk_tot)-1
+ 			for i=0, n_br_loops-1 do begin
+				fbr_arr[i]->setvar, 'nlps',i
+				fbr_arr[i]->setvar, 'CGrpSize',	CGrpSize
+				fbr_arr[i]->setvar, 'npk_sub',npk_sub
+				fbr_arr[i]->setvar, 'npk_tot',npk_tot
+				fbr_arr[i]->setvar, 'OS_handle_val',OS_handle_val1
+				fbr_arr[i]->setvar, 'OS_handle_val',OS_handle_val2
+				fbr_arr[i]->setvar, 'shmName_data',shmName_data
+				fbr_arr[i]->setvar, 'shmName_filter',shmName_filter
+				fbr_arr[i]->setvar, 'istart',imin[i]
+				fbr_arr[i]->setvar, 'istop',imax[i]
+				fbr_arr[i]->execute, 'CPU,TPOOL_NTHREADS=1'
+            	fbr_arr[i]->execute,'di = istop - istart +1'
+            	fbr_arr[i]->execute,'SHMMAP,shmName_data,/FLOAT, Dimension=[CGrpSize,npk_tot],OS_Handle=OS_handle_val1'
+            	fbr_arr[i]->execute,'SHMMAP,shmName_filter,/LONG, Dimension=[npk_tot],OS_Handle=OS_handle_val2
+            	fbr_arr[i]->setvar, 'IDL_dir', IDL_pwd
+			    fbr_arr[i]->execute,'cd, IDL_dir'
+            	fbr_arr[i]->execute,"restore,'Peakselector.sav'"
+			endfor
+			bridge_exists = 1
+		endif
 
-				filter_bridge=SHMVAR(shmName_filter)
-				filter_bridge[0]=LONG(npk_tot)
-				;filter = LONG(npk_tot)
+		filter_bridge=SHMVAR(shmName_filter)
+		filter_bridge[0]=LONG(npk_tot)
 
-				for i=0, n_br_loops-1 do begin
-					fbr_arr[i]->execute,'CGroupParams_bridge=SHMVAR(shmName_data)'
-					fbr_arr[i]->execute,'filter_bridge=SHMVAR(shmName_filter)'
-					fbr_arr[i]->setvar, 'params',params
-					fbr_arr[i]->setvar, 'ParamLimits',ParamLimits
-            		fbr_arr[i]->execute,'low  = ParamLimits[params,0]#replicate(1,di)'
-            		fbr_arr[i]->execute,'high = ParamLimits[params,1]#replicate(1,di)'
-            		fbr_arr[i]->execute,'filter_subset = (CGroupParams_bridge[params,istart:istop] ge low) and (CGroupParams_bridge[params,istart:istop] le high)',/NOWAIT
-				endfor
+		for i=0, n_br_loops-1 do begin
+			fbr_arr[i]->execute,'CGroupParams_bridge=SHMVAR(shmName_data)'
+			fbr_arr[i]->execute,'filter_bridge=SHMVAR(shmName_filter)'
+			fbr_arr[i]->setvar, 'params',params
+			fbr_arr[i]->setvar, 'ParamLimits',ParamLimits
+          	fbr_arr[i]->execute,'low  = ParamLimits[params,0]#replicate(1,di)'
+        	fbr_arr[i]->execute,'high = ParamLimits[params,1]#replicate(1,di)'
+            fbr_arr[i]->execute,'filter_subset = (CGroupParams_bridge[params,istart:istop] ge low) and (CGroupParams_bridge[params,istart:istop] le high)',/NOWAIT
+		endfor
 
-				Alldone = 0
-				while alldone EQ 0 do begin
-					wait,0.5
-					Alldone = 1
-					for i=0, n_br_loops-1 do begin
-						bridge_done=fbr_arr[i]->Status()
-						print,'Bridge',i,'  status0:',bridge_done
-						Alldone = Alldone * (bridge_done ne 1)
-					endfor
-				endwhile
+		Alldone = 0
+		while alldone EQ 0 do begin
+			wait,0.5
+			Alldone = 1
+			for i=0, n_br_loops-1 do begin
+				bridge_done=fbr_arr[i]->Status()
+				print,'Bridge',i,'  status0:',bridge_done
+				Alldone = Alldone * (bridge_done ne 1)
+			endfor
+		endwhile
 
-				for i=0, n_br_loops-1 do begin
-					fbr_arr[i]->setvar, 'nlps',i
-				    fbr_arr[i]->execute,'istart = nlps * npk_sub'
-            		fbr_arr[i]->execute,'istop = ((istart + npk_sub) < npk_tot)-1'
-				    ;fbr_arr[i]->execute, 'filter_bridge[istart:istop] = floor(total(temporary(filter_subset), 1) / n_elements(params))',/NOWAIT
-				    fbr_arr[i]->execute, 'filter_bridge[istart] = floor(total(temporary(filter_subset), 1) / n_elements(params))',/NOWAIT
-				endfor
+		for i=0, n_br_loops-1 do begin
+			fbr_arr[i]->setvar, 'nlps',i
+		    fbr_arr[i]->execute,'istart = nlps * npk_sub'
+          	fbr_arr[i]->execute,'istop = ((istart + npk_sub) < npk_tot)-1'
+		    fbr_arr[i]->execute, 'filter_bridge[istart] = floor(total(temporary(filter_subset), 1) / n_elements(params))',/NOWAIT
+		endfor
 
-				Alldone = 0
-				while alldone EQ 0 do begin
-					wait,0.5
-					Alldone = 1
-					for i=0, n_br_loops-1 do begin
-						bridge_done=fbr_arr[i]->Status()
-						print,'Bridge',i,'  status1:',bridge_done
-						Alldone = Alldone * (bridge_done ne 1)
-					endfor
-				endwhile
+		Alldone = 0
+		while alldone EQ 0 do begin
+			wait,0.5
+			Alldone = 1
+			for i=0, n_br_loops-1 do begin
+				bridge_done=fbr_arr[i]->Status()
+				print,'Bridge',i,'  status1:',bridge_done
+				Alldone = Alldone * (bridge_done ne 1)
+			endfor
+		endwhile
 
-				filter = filter_bridge
+		filter = filter_bridge
 
-        	endif else begin
- 				;Use plain IDL
-            	CGPsz = size(CGroupParams)
-            	low  = ParamLimits[params,0]#replicate(1,CGPsz[2])
-            	high = ParamLimits[params,1]#replicate(1,CGPsz[2])
-            	filter = (CGroupParams[params,*] ge low) and (CGroupParams[params,*] le high)
-            	filter = floor(total(temporary(filter), 1) / n_elements(params))
-			endelse
-    endelse
+	endif else begin
+		;Use plain IDL
+		CGPsz = size(CGroupParams)
+		low  = ParamLimits[params,0]#replicate(1,CGPsz[2])
+		high = ParamLimits[params,1]#replicate(1,CGPsz[2])
+		filter = (CGroupParams[params,*] ge low) and (CGroupParams[params,*] le high)
+		filter = floor(total(temporary(filter), 1) / n_elements(params))
+	endelse
+
     CATCH,/CANCEL
     return, filter
 end
@@ -296,6 +302,7 @@ LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,
 AmpL1_ind = min(where(RowNames eq 'Amplitude L1'))						; CGroupParametersGP[27,*] - Label 1 Amplitude
 AmpL2_ind = min(where(RowNames eq 'Amplitude L2'))						; CGroupParametersGP[28,*] - Label 2 Amplitude
 AmpL3_ind = min(where(RowNames eq 'Amplitude L3'))						; CGroupParametersGP[29,*] - Label 3 Amplitude
+ZState_ind = min(where(RowNames eq 'Z State'))							; CGroupParametersGP[32,*] - Z State
 SigL1_ind = min(where(RowNames eq 'Zeta0'))								; CGroupParametersGP[31,*] - Label 1 Amplitude Sigma
 SigL2_ind = min(where(RowNames eq 'Sigma Amp L2'))						; CGroupParametersGP[32,*] - Label 2 Amplitude Sigma
 SigL3_ind = min(where(RowNames eq 'Sigma Amp L3'))						; CGroupParametersGP[33,*] - Label 3 Amplitude Sigma
@@ -339,6 +346,7 @@ allind1 = [Off_ind, $
 		AmpL2_ind, $
 		AmpL3_ind, $
 		SigL1_ind, $
+		ZState_ind, $
 		SigL2_ind, $
 		SigL3_ind, $
 		Z_ind, $
@@ -375,15 +383,6 @@ allind1 = [Off_ind, $
     indices[params]=1
     ;print,'Starting FilterByParameter'
     filter = FilterByParameter(CGroupParams, ParamLimits, indices, params)
-
-    WidID_BUTTON_StartReadSkip = Widget_Info(topID, find_by_uname='WID_BUTTON_StartReadSkip')
-	if widget_info(WidID_BUTTON_StartReadSkip,/BUTTON_SET) then begin
-		WidID_StartReadSkip = Widget_Info(topID, find_by_uname='WID_TABLE_StartReadSkip')
-		filter_SRS=filter
-		widget_control,WidID_StartReadSkip,get_value=SRS
-		if SRS[1]*SRS[2] ne 0 then filter_SRS[where((CGroupParams[FrNum_ind,*]-SRS[0]+SRS[1]+SRS[2]) mod (SRS[1]+SRS[2]) ge SRS[1])]=0
-		filter=temporary(filter)*filter_SRS
-	endif
 
     if filter_select then begin
     	filter1=filter
@@ -524,16 +523,6 @@ allind1 = [FrNum_ind, $
     endif
     wlabel = Widget_Info(TopID, find_by_uname='WID_LABEL_NumberSelected')
 
-
-    WidID_BUTTON_StartReadSkip = Widget_Info(topID, find_by_uname='WID_BUTTON_StartReadSkip')
-	if widget_info(WidID_BUTTON_StartReadSkip,/BUTTON_SET) then begin
-		WidID_StartReadSkip = Widget_Info(topID, find_by_uname='WID_TABLE_StartReadSkip')
-		widget_control,WidID_StartReadSkip,get_value=SRS
-		filter_SRS=filter
-		if SRS[1]*SRS[2] ne 0 then filter_SRS[where((CGroupParams[FrNum_ind,*]-SRS[0]+SRS[1]+SRS[2]) mod (SRS[1]+SRS[2]) ge SRS[1])]=0
-		filter=temporary(filter)*filter_SRS
-	endif
-
     if filter_select then begin
     	filter1=filter or (CGroupParams[LabelSet_ind,*] ne selectedlabel)
     	filter=filter0*filter1
@@ -655,6 +644,7 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 	AmpL3_ind = min(where(RowNames eq 'Amplitude L3'))						; CGroupParametersGP[29,*] - Label 3 Amplitude
 	SigL1_ind = min(where(RowNames eq 'Zeta0'))								; CGroupParametersGP[31,*] - Label 1 Amplitude Sigma
 	SigL2_ind = min(where(RowNames eq 'Sigma Amp L2'))						; CGroupParametersGP[32,*] - Label 2 Amplitude Sigma
+	ZState_ind = max(where(RowNames eq 'Z State'))
 	SigL3_ind = min(where(RowNames eq 'Sigma Amp L3'))						; CGroupParametersGP[33,*] - Label 3 Amplitude Sigma
 	Z_ind = min(where(RowNames eq 'Z Position'))							; CGroupParametersGP[34,*] - Peak Z Position
 	SigZ_ind = min(where(RowNames eq 'Sigma Z'))							; CGroupParametersGP[35,*] - Sigma Z
@@ -715,7 +705,7 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 
 	fri1 = [Off_ind, Amp_ind, Nph_ind, Chi_ind, FrNum_ind, Par12_ind, GrInd_ind,  $
 			AmpL1_ind, AmpL2_ind, AmpL3_ind, SigL1_ind, SigL2_ind, SigL3_ind,     $
-			Z_ind, GrAmpL1_ind, GrAmpL2_ind, GrAmpL3_ind, GrZ_ind]
+			ZState_ind, Z_ind, GrAmpL1_ind, GrAmpL2_ind, GrAmpL3_ind, GrZ_ind]
 	fri1 = fri1[where(fri1 ge 0)]
 
 	fri2 = [Off_ind, Amp_ind, Nph_ind, Chi_ind, FrNum_ind, Par12_ind, Gr_ind,  $
@@ -735,10 +725,27 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 			ParamLimits[ip,3]=(ParamLimits[ip,1]-ParamLimits[ip,0]-1)
 		endif
 	endfor
+
 	xmin= 0 > ParamLimits[X_ind,0]
 	xmax= (xydsz[0]-1) < ParamLimits[X_ind,1]
 	ymin= 0 > ParamLimits[Y_ind,0]
 	ymax= (xydsz[1]-1) < ParamLimits[Y_ind,1]
+
+	XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
+	XZ_swapped=Widget_Info(XZ_swap_menue_ID,/button_set)
+
+	YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
+	YZ_swapped=Widget_Info(YZ_swap_menue_ID,/button_set)
+
+	if XZ_swapped then begin
+		xmin= ParamLimits[X_ind,0]
+		xmax= ParamLimits[X_ind,1]
+	endif
+	if YZ_swapped then begin
+		ymin= ParamLimits[Y_ind,0]
+		ymax= ParamLimits[Y_ind,1]
+	endif
+
 	ParamLimits[X_ind,0]=xmin
 	ParamLimits[X_ind,1]=xmax
 	ParamLimits[X_ind,2]=(xmin+xmax)/2.
@@ -1029,7 +1036,7 @@ end
 ;
 Pro SetRawSliders,Event				; Resets the WID_SLIDER_RawFrameNumber and WID_SLIDER_RawPeakIndex
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
@@ -1203,7 +1210,7 @@ end
 ;-----------------------------------------------------------------
 ;
 pro OnExtractPeaks, Event			;Fit data & converts into PKS files, display fitting steps std x,y gaussian
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 Initialization_PeakSelector, Event.top
 filen=''
@@ -1347,7 +1354,7 @@ RawFilenames[0]=strmid(dataFile,0,pos)
 FlipRotate={frt,present:0B,transp:0B,flip_h:0B,flip_v:0B}
 NFrames=long64(max(CGroupParams[FrNum_ind,*]))+1
 ;NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[FrNum_ind,*])+1))	: long64(max(CGroupParams[FrNum_ind,*])+1)
-GuideStarDrift={present:0B,xdrift:dblarr(Nframes),ydrift:dblarr(Nframes),zdrift:dblarr(Nframes)}
+GuideStarDrift={present:0B,xdrift:fltarr(Nframes),ydrift:fltarr(Nframes),zdrift:fltarr(Nframes)}
 FiducialCoeff={fidcoef,present:0U,P:dblarr(2,2),Q:dblarr(2,2)}
 
 OnUnZoomButton, Event
@@ -1447,9 +1454,9 @@ FCGroupParams=CGroupParams[*,FilteredPeakIndex]
 
 Title_String=RowNames[0]
 for i=1,(CGrpSize-1) do Title_String=Title_String+'	'+RowNames[i]
-openw,1,ParamsFile,width=1024
-printf,1,Title_String
-printf,1,FCGroupParams,FORMAT='('+strtrim((CGrpSize-1),2)+'(E13.5,"'+string(9B)+'"),E13.5)'
+	openw,1,ParamsFile,width=1024
+	printf,1,Title_String
+	printf,1,FCGroupParams,FORMAT='('+strtrim((CGrpSize-1),2)+'(E13.5,"'+string(9B)+'"),E13.5)'
 close,1
 end
 ;
@@ -1554,7 +1561,7 @@ end
 ;
 pro SavetheCommon, Event			;Save the presently loaded & modified parameters into an idl .sav file
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
@@ -1562,6 +1569,7 @@ common Offset, PkWidth_offset
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
+common Multy_Z_Slabs, Rundat_Filename, State_Voltages, State_Frames, Transition_Frames, State_Zs, ZvsV_Slope
 
 if n_elements(CGroupParams) le 1 then begin
 	z=dialog_message('Please load a data file')
@@ -1580,6 +1588,7 @@ save, CGroupParams, CGrpSize, ParamLimits, Image, b_set, xydsz, TotalRawData, DI
 		GuideStarDrift, FiducialCoeff, FlipRotate, thisfitcond, RowNames, $
 		lambda_vac,nd_water, nd_oil, nmperframe, wind_range, aa, z_unwrap_coeff, cal_lookup_data, ellipticity_slopes, $
 		nm_per_pixel, wfilename, PkWidth_offset, Z_scale_multiplier, grouping_gap, grouping_radius100, $
+		Rundat_Filename, State_Voltages, State_Frames, Transition_Frames, State_Zs, ZvsV_Slope, $
 		lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames, sp_dispersion,  sp_offset, filename=filename
 
 wlabel = Widget_Info(Event.Top, find_by_uname='WID_LABEL_0')
@@ -1597,7 +1606,7 @@ end
 ;
 pro ImportZeissTXt, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
@@ -1646,7 +1655,7 @@ end
 ;
 pro RecalltheCommon, Event			;Recall fitted parameters from either an ascii file or an idl .sav file
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Zdisplay, Z_scale_multiplier, vbar_top
@@ -1656,6 +1665,7 @@ common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
+common Multy_Z_Slabs, Rundat_Filename, State_Voltages, State_Frames, Transition_Frames, State_Zs, ZvsV_Slope
 
 filename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav','*.prm'],title='Select *IDL.sav file to open')
 if filename eq '' then begin
@@ -1686,10 +1696,11 @@ RowNames = ['']
 FlipRotate={frt,present:0B,transp:0B,flip_h:0B,flip_v:0B}
 FiducialCoeff={fidcoef,present:0U,P:dblarr(2,2),Q:dblarr(2,2)}
 cd,fpath
+
 if strpos(filename,'IDL.sav') ne -1 then begin
 	restore,filename=filename
 endif
-print,'after   ',nm_per_pixel
+;print,'after   ',nm_per_pixel
 if strpos(filename,'CGP.prm') ne -1 then begin
 	openr,1,filename
 	readu,1,CGroupParams
@@ -1751,7 +1762,7 @@ UnwGrZ_ind = min(where(RowNames eq 'Unwrapped Group Z'))				; CGroupParametersGP
 UnwGrZErr_ind = min(where(RowNames eq 'Unwrapped Group Z Error'))		; CGroupParametersGP[48,*] - Group Z Position Error
 
 NFrames = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[FrNum_ind,*])+1))	: long64(max(CGroupParams[FrNum_ind,*])+1)
-if (size(GuideStarDrift))[0] eq 0 then GuideStarDrift={present:0B,xdrift:dblarr(Nframes),ydrift:dblarr(Nframes),zdrift:dblarr(Nframes)}
+if (size(GuideStarDrift))[0] eq 0 then GuideStarDrift={present:0B,xdrift:fltarr(Nframes),ydrift:fltarr(Nframes),zdrift:fltarr(Nframes)}
 sz=size(CGroupParams)
 if n_elements(CGroupParams) le 2 then begin
 	z=dialog_message('Invalid data file')
@@ -1790,15 +1801,20 @@ SetRawSliders,Event
 
 ; check if the "RawFileName" points to a non-local file
 ; if the local file with the same name exists, change RawFileName to point to it
+; same with other files and pth
+
+pth=fpath
+
+pos_filename_wind=strpos(filename,'\',/reverse_search,/reverse_offset)
+pos_filename_unix=strpos(filename,'/',/reverse_search,/reverse_offset)
+pos_filename=max([pos_filename_wind,pos_filename_unix])
+
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 raw_file_extension = thisfitcond.filetype ? '.tif' : '.dat'
 for i=0,n_elements(RawFileNames)-1 do begin
 	pos_rawfilename_wind=strpos(RawFileNames[i],'\',/reverse_search,/reverse_offset)
 	pos_rawfilename_unix=strpos(RawFileNames[i],'/',/reverse_search,/reverse_offset)
 	pos_rawfilename=max([pos_rawfilename_wind,pos_rawfilename_unix])
-	pos_filename_wind=strpos(filename,'\',/reverse_search,/reverse_offset)
-	pos_filename_unix=strpos(filename,'/',/reverse_search,/reverse_offset)
-	pos_filename=max([pos_filename_wind,pos_filename_unix])
 	if (pos_rawfilename gt 0) and (pos_filename gt 0) then begin
 		local_rawfilename=strmid(filename,0,pos_filename)+sep+strmid(RawFileNames[i],pos_rawfilename+1,strlen(RawFileNames[i])-pos_rawfilename-1)
 		;conf_info=file_info(local_rawfilename+raw_file_extension)
@@ -1810,9 +1826,6 @@ for i=0,n_elements(MLRawFilenames)-1 do begin
 	pos_MLRawFilename_wind=strpos(MLRawFilenames[i],'\',/reverse_search,/reverse_offset)
 	pos_MLRawFilename_unix=strpos(MLRawFilenames[i],'/',/reverse_search,/reverse_offset)
 	pos_MLRawFilename=max([pos_MLRawFilename_wind,pos_MLRawFilename_unix])
-	pos_filename_wind=strpos(filename,'\',/reverse_search,/reverse_offset)
-	pos_filename_unix=strpos(filename,'/',/reverse_search,/reverse_offset)
-	pos_filename=max([pos_filename_wind,pos_filename_unix])
 	if (pos_MLRawFilename gt 0) and (pos_filename gt 0) then begin
 		local_MLRawFilename=strmid(filename,0,pos_filename)+sep+strmid(MLRawFilenames[i],pos_MLRawFilename+1,strlen(MLRawFilenames[i])-pos_MLRawFilename-1)
 		conf_info=file_info(AddExtension(local_MLRawFilename,'.dat'))
@@ -1823,15 +1836,21 @@ for i=0,n_elements(SavFilenames)-1 do begin
 	pos_SavFilename_wind=strpos(SavFilenames[i],'\',/reverse_search,/reverse_offset)
 	pos_SavFilename_unix=strpos(SavFilenames[i],'/',/reverse_search,/reverse_offset)
 	pos_SavFilename=max([pos_SavFilename_wind,pos_SavFilename_unix])
-	pos_filename_wind=strpos(filename,'\',/reverse_search,/reverse_offset)
-	pos_filename_unix=strpos(filename,'/',/reverse_search,/reverse_offset)
-	pos_filename=max([pos_filename_wind,pos_filename_unix])
 	if (pos_SavFilename gt 0) and (pos_filename gt 0) then begin
 		local_SavFilename=strmid(filename,0,pos_filename)+sep+strmid(SavFilenames[i],pos_SavFilename+1,strlen(SavFilenames[i])-pos_SavFilename-1)
 		conf_info=file_info(local_SavFilename)
 		if conf_info.exists then SavFilenames[i]=local_SavFilename
 	endif
 endfor
+pos_wfilename_wind = strpos(wfilename,'\',/reverse_search,/reverse_offset)
+pos_wfilename_unix = strpos(wfilename,'/',/reverse_search,/reverse_offset)
+pos_wfilename = max([pos_wfilename_wind, pos_wfilename_unix])
+if (pos_wfilename gt 0) and (pos_filename gt 0) then begin
+	local_wfilename = strmid(filename,0,pos_filename)+sep+strmid(wfilename,pos_wfilename+1,strlen(wfilename)-pos_wfilename-1)
+	conf_info=file_info(AddExtension(local_wfilename, '_WND.sav'))
+	if conf_info.exists then wfilename =local_wfilename
+endif
+
 ReloadMainTableColumns, Event.top
 peak_index=0L
 ReloadPeakColumn,peak_index
@@ -1844,7 +1863,7 @@ end
 ;
 pro AddNextLabelData, Event			;Append more fit parameters from a idl .sav file but assign new label number/color
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common Offset, PkWidth_offset
@@ -1855,8 +1874,12 @@ if n_elements(CGroupParams) le 2 then begin
 	return      ; if data not loaded return
 endif
 
+X_ind = min(where(RowNames eq 'X Position'))							; CGroupParametersGP[2,*] - Peak X  Position
+Y_ind = min(where(RowNames eq 'Y Position'))							; CGroupParametersGP[3,*] - Peak Y  Position
 FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
 LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
+GrX_ind = min(where(RowNames eq 'Group X Position'))					; CGroupParametersGP[19,*] - average x - position in the group
+GrY_ind = min(where(RowNames eq 'Group Y Position'))					; CGroupParametersGP[20,*] - average y - position in the group
 
 filename = Dialog_Pickfile(/read,get_path=fpath,filter=['*.sav','*.prm','*.pks'],title='Select *IDL.sav file to open')
 if filename eq '' then return
@@ -1865,7 +1888,6 @@ cd,fpath
 existing_ind=where(RawFilenames ne '')  ; normally would not need this, but in case of loading older files with extra empty filenames - get rid of empty overheads
 TotalRawData0=TotalRawData
 RawFilenames0=RawFilenames[existing_ind]
-
 
 wlabel = Widget_Info(Event.Top, find_by_uname='WID_LABEL_0')
 widget_control,wlabel,get_value=filename0
@@ -1877,13 +1899,15 @@ n_frames_c1=((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max
 P1=ParamLimits
 C1=CGroupParams
 C1sz=size(C1)
+xydsz1=xydsz
+TotalRawData1=TotalRawData
 WR1=wind_range
 C1[LabelSet_ind,*]=C1[LabelSet_ind,*] > 1
 NLabels=C1[LabelSet_ind,C1sz[2]-1]			; label of last data point
 
-if (size(FlipRotate))[2] ne 0 then FlipRotate0=FlipRotate[existing_ind]
-if (size(GuideStarDrift))[2] ne 0 then GuideStarDrift0=GuideStarDrift[existing_ind]
-if (size(FiducialCoeff))[2] ne 0 then FiducialCoeff0=FiducialCoeff[existing_ind]
+;if (size(FlipRotate))[2] ne 0 then FlipRotate0=FlipRotate[existing_ind]
+;if (size(GuideStarDrift))[2] ne 0 then GuideStarDrift0=GuideStarDrift[existing_ind]
+;if (size(FiducialCoeff))[2] ne 0 then FiducialCoeff0=FiducialCoeff[existing_ind]
 
 if strpos(filename,'IDL.sav') ne -1 then begin
 	restore,filename=filename
@@ -1891,13 +1915,15 @@ if strpos(filename,'IDL.sav') ne -1 then begin
 		z=dialog_message('Invalid data file')
 		return      ; if data not loaded return
 	endif
+	CGPsz=size(CGroupParams)
+	Nframes = (CGPsz[2]+C1sz[2])
 	existing_ind=where(RawFilenames ne '')  ; normally would not need this, but in case of loading older files with extra empty filenames - get rid of empty overheads
 	SavFilenames = [SavFilenames0, filename]
 	sz=size(CGroupParams)
 	;TotalRawData = TotalRawData0
 
 	; check if the "RawFileName" points to a non-local file
-	; if the local file with the same name exists, chasnge RawFileName to point to it
+	; if the local file with the same name exists, change RawFileName to point to it
 	sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 	for i=0,n_elements(RawFileNames)-1 do begin
 		pos_rawfilename_wind=strpos(RawFileNames[i],'\',/reverse_search,/reverse_offset)
@@ -1916,16 +1942,21 @@ if strpos(filename,'IDL.sav') ne -1 then begin
 	n_frames_cgr = ((size(thisfitcond))[2] eq 8)	?	(thisfitcond.Nframesmax > long64(max(CGroupParams[FrNum_ind,*])+1))	: long64(max(CGroupParams[FrNum_ind,*])+1)
 
 	RawFilenames=[RawFilenames0,RawFilenames[existing_ind]]
-	if (size(FlipRotate0))[2] ne 0 then begin
-		if (size(FlipRotate))[2] ne 0 then FlipRotate=[FlipRotate0,FlipRotate[existing_ind]] else FlipRotate=FlipRotate0
-	endif
-	if ((size(GuideStarDrift0))[2] ne 0) and (n_frames_c1 eq n_frames_cgr) then begin
-		if ((size(GuideStarDrift))[2] ne 0) and (n_elements(GuideStarDrift0.xdrift) eq n_elements(GuideStarDrift.xdrift)) then GuideStarDrift=[GuideStarDrift0,GuideStarDrift[existing_ind]] else GuideStarDrift=GuideStarDrift0
-	endif
-	if (size(FiducialCoeff0))[2] ne 0 then begin
-		if (size(FiducialCoeff))[2] ne 0 then FiducialCoeff=[FiducialCoeff0,FiducialCoeff[existing_ind]] else FiducialCoeff=FiducialCoeff0
-	endif
 	wind_range=[WR1,wind_range]
+
+	;if (size(FlipRotate0))[2] ne 0 then begin
+	;	if (size(FlipRotate))[2] ne 0 then FlipRotate=[FlipRotate0,FlipRotate[existing_ind]] else FlipRotate=FlipRotate0
+	;endif
+	;if ((size(GuideStarDrift0))[2] ne 0) and (n_frames_c1 eq n_frames_cgr) then begin
+	;	if ((size(GuideStarDrift))[2] ne 0) and (n_elements(GuideStarDrift0.xdrift) eq n_elements(GuideStarDrift.xdrift)) then GuideStarDrift=[GuideStarDrift0,GuideStarDrift[existing_ind]] else GuideStarDrift=GuideStarDrift0
+	;endif
+	;if (size(FiducialCoeff0))[2] ne 0 then begin
+	;	if (size(FiducialCoeff))[2] ne 0 then FiducialCoeff=[FiducialCoeff0,FiducialCoeff[existing_ind]] else FiducialCoeff=FiducialCoeff0
+	;endif
+	FlipRotate=replicate({frt,present:0B,transp:0B,flip_h:0B,flip_v:0B},3)
+	GuideStarDrift=replicate({present:0B,xdrift:fltarr(Nframes),ydrift:fltarr(Nframes),zdrift:fltarr(Nframes)},3)
+	FiducialCoeff=replicate({fidcoef,present:0U,P:dblarr(2,2),Q:dblarr(2,2)},3)
+
 endif else begin
 			if strpos(filename,'CGP.prm') ne -1 then begin
 				openr,1,filename
@@ -1934,9 +1965,50 @@ endif else begin
 			endif else return
 endelse
 
+Wid_Check_Recenter_ID = Widget_Info(event.top, find_by_uname='W_MENU_Check_Recenter')
+Recenter_XY = widget_info(Wid_Check_Recenter_ID,/BUTTON_SET)
+if Recenter_XY and (total(xydsz1 ne xydsz) ne 0) then begin
+	print,'recentering the arrays'
+	xydsz_new = xydsz1 > xydsz
+	TotalRawData_new = fltarr(xydsz_new)
+	dxy = (xydsz1 - xydsz)/2.0
+	xi = (xydsz_new[0] - xydsz1[0])/2
+	xa = xi + xydsz1[0]-1
+	yi = (xydsz_new[1] - xydsz1[1])/2
+	ya = yi + xydsz1[1]-1
+	TotalRawData_new[xi:xa,yi:ya] = TotalRawData1
+	xi = (xydsz_new[0] - xydsz[0])/2
+	xa = xi + xydsz[0]-1
+	yi = (xydsz_new[1] - xydsz[1])/2
+	ya = yi + xydsz[1]-1
+	TotalRawData_new[xi:xa,yi:ya] = TotalRawData
+	if 	dxy[0] lt 0 then begin
+		C1[X_ind,*]-=dxy[0]
+		C1[GrX_ind,*]-=dxy[0]
+		;if dxy[1] lt 0 then TotalRawData_new = TotalRawData
+	endif else begin
+		if 	dxy[0] gt 0 then begin
+			CGroupParams[X_ind,*]+=dxy[0]
+			CGroupParams[GrX_ind,*]+=dxy[0]
+			;if dxy[1] gt 0 then TotalRawData_new = TotalRawData1
+		endif
+	endelse
+	if 	dxy[1] lt 0 then begin
+		C1[Y_ind,*]-=dxy[1]
+		C1[GrY_ind,*]-=dxy[1]
+	endif else begin
+		if 	dxy[1] gt 0 then begin
+			CGroupParams[Y_ind,*]+=dxy[1]
+			CGroupParams[GrY_ind,*]+=dxy[1]
+		endif
+	endelse
+	xydsz = xydsz_new
+	TotalRawData = TotalRawData_new
+endif
 
 CGroupParams[LabelSet_ind,*]=NLabels+1						;write in next label index
-CGroupParams=transpose([transpose(temporary(C1)),transpose(temporary(CgroupParams))])					;append data of next label (fluorescent label)
+CGroupParams = [[C1],[CGroupParams]]
+C1=0
 sz=size(CGroupParams)
 
 WidFrameNumber = Widget_Info(Event.Top, find_by_uname='WID_SLIDER_RawFrameNumber')
@@ -1975,7 +2047,10 @@ LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,
 
 max_label=max(CGroupParams[LabelSet_ind,*])
 min_label=min(CGroupParams[LabelSet_ind,*])
-if max_label eq min_label then return
+if max_label eq min_label then begin
+	CGroupParams[LabelSet_ind,*]=0
+	return
+endif
 
 prior_peak_ind=where(CGroupParams[LabelSet_ind,*] eq min_label,prior_cnt)
 prior_frms = max(CGroupParams[FrNum_ind,prior_peak_ind])
@@ -1996,7 +2071,7 @@ if n_elements(wind_range) ge 1 then wind_range=wind_range[0]
 CGroupParams[LabelSet_ind,*]=0
 ReloadParamlists, Event
 
-GuideStarDrift={present:0B,xdrift:dblarr(prior_frms+1),ydrift:dblarr(prior_frms+1),zdrift:dblarr(prior_frms+1)}
+GuideStarDrift={present:0B,xdrift:fltarr(prior_frms+1),ydrift:fltarr(prior_frms+1),zdrift:fltarr(prior_frms+1)}
 OnUnZoomButton, Event
 
 end
@@ -2134,6 +2209,40 @@ if cnt lt 1 then begin
 endif
 CGroupParams = temporary(CGroupParams[*,pk_indecis])
 ReloadParamlists, Event
+end
+;
+;-----------------------------------------------------------------
+;
+pro On_ApplyFilter1_Button, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+	SigX_ind = min(where(RowNames eq 'Sigma X Pos Full'))					; CGroupParametersGP[16,*] - x - sigma
+	SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
+	SigZ_ind = min(where(RowNames eq 'Sigma Z'))                            ; CGroupParametersGP[35,*] - Sigma Z
+	ParamLimits[SigX_ind,1]=0.2
+	ParamLimits[SigY_ind,1]=0.2
+	ParamLimits[SigZ_ind,1]=15
+	TopIndex = (CGrpSize-1)
+	wtable = Widget_Info(Event.top, find_by_uname='WID_TABLE_0')
+	widget_control,wtable,set_value=transpose(ParamLimits[0:TopIndex,0:3]), use_table_select=[0,0,3,TopIndex]
+	OnPeakCentersButton, Event
+end
+;
+;-----------------------------------------------------------------
+;
+pro On_ApplyFilter2_Button, Event
+common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
+common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
+	SigX_ind = min(where(RowNames eq 'Sigma X Pos Full'))					; CGroupParametersGP[16,*] - x - sigma
+	SigY_ind = min(where(RowNames eq 'Sigma Y Pos Full'))					; CGroupParametersGP[17,*] - y - sigma
+	SigZ_ind = min(where(RowNames eq 'Sigma Z'))                            ; CGroupParametersGP[35,*] - Sigma Z
+	ParamLimits[SigX_ind,1]=0.15
+	ParamLimits[SigY_ind,1]=0.15
+	ParamLimits[SigZ_ind,1]=10
+	TopIndex = (CGrpSize-1)
+	wtable = Widget_Info(Event.top, find_by_uname='WID_TABLE_0')
+	widget_control,wtable,set_value=transpose(ParamLimits[0:TopIndex,0:3]), use_table_select=[0,0,3,TopIndex]
+	OnPeakCentersButton, Event
 end
 ;
 ;-----------------------------------------------------------------
@@ -2380,7 +2489,7 @@ end
 ;
 pro StopthePeakSelect, Event		;Stop program for debugging and accessing parameters
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
@@ -2399,6 +2508,8 @@ common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr,
 Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
 	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+common Glob, UseGlobIni_mTIFFs, GlobINI_FileName, Glob_lines
+common Multy_Z_Slabs, Rundat_Filename, State_Voltages, State_Frames, Transition_Frames, State_Zs, ZvsV_Slope
 COMMON managed,	ids, $		; IDs of widgets being managed
   			names, $	; and their names
 			modalList	; list of active modal widgets
@@ -2591,9 +2702,18 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
+pro Check_Recenter, Event
+	wID = Widget_Info(event.top, find_by_uname='W_MENU_Check_Recenter')
+	state=widget_info(wID,/BUTTON_SET)
+	switched_state=1-state
+	widget_control,wID,set_button=switched_state
+end
+;
+;-----------------------------------------------------------------
+;
 pro DisplayThisFitCond, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 print,'Thisfitcond:   ',thisfitcond
 if n_elements(RawFilenames) gt 0 then print,'RawFilenames:  ',RawFilenames[*]
 end
@@ -2697,7 +2817,7 @@ end
 pro Reprocess_Palm_Set, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common Offset, PkWidth_offset
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr, n_elem_CGP, n_elem_fbr, npk_tot, imin, imax, shmName_data, OS_handle_val1, shmName_filter, OS_handle_val2
 sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
@@ -3715,6 +3835,22 @@ GrY_ind = min(where(RowNames eq 'Group Y Position'))					; CGroupParametersGP[20
 Gr_size_ind = min(where(RowNames eq '24 Group Size'))					; CGroupParametersGP[24,*] - total peaks in the group
 LabelSet_ind = min(where(RowNames eq 'Label Set'))						; CGroupParametersGP[26,*] - Label Number
 
+XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
+XZ_swapped=Widget_Info(XZ_swap_menue_ID,/button_set)
+
+YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
+YZ_swapped=Widget_Info(YZ_swap_menue_ID,/button_set)
+
+if XZ_swapped then begin
+	X_ind = min(where(RowNames eq 'Z Position'))
+	GrX_ind = min(where(RowNames eq 'Group Z Position'))
+endif
+if YZ_swapped then begin
+	Y_ind = min(where(RowNames eq 'Z Position'))
+	GrY_ind = min(where(RowNames eq 'Group Z Position'))
+endif
+
+
 if n_elements(CGroupParams) le 1 then begin
 	z=dialog_message('Please load a data file')
 	return      ; if data not loaded return
@@ -3974,15 +4110,36 @@ pro OnUnZoomButton, Event			;Zoom out to show full range of data
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common PreviousStep, PrevParamLimits, PrevGRP
+COMMON managed,	ids, $		; IDs of widgets being managed
+  			names, $	; and their names
+			modalList	; list of active modal widgets
+
 if n_elements(CGroupParams) le 2 then begin
           z=dialog_message('Please load a data file')
           return      ; if data not loaded return
 endif
+
 X_ind = min(where(RowNames eq 'X Position'))							; CGroupParametersGP[2,*] - Peak X  Position
 Y_ind = min(where(RowNames eq 'Y Position'))							; CGroupParametersGP[3,*] - Peak Y  Position
 GrX_ind = min(where(RowNames eq 'Group X Position'))					; CGroupParametersGP[19,*] - average x - position in the group
 GrY_ind = min(where(RowNames eq 'Group Y Position'))					; CGroupParametersGP[20,*] - average y - position in the group
 GrSigX_ind = min(where(RowNames eq 'Group Sigma X Pos'))				; CGroupParametersGP[21,*] - new x - position sigma
+
+
+TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
+XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
+XZ_swapped=Widget_Info(XZ_swap_menue_ID,/button_set)
+YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
+YZ_swapped=Widget_Info(YZ_swap_menue_ID,/button_set)
+
+if XZ_swapped then begin
+	X_ind = min(where(RowNames eq 'Z Position'))
+	GrX_ind = min(where(RowNames eq 'Group Z Position'))
+endif
+if YZ_swapped then begin
+	Y_ind = min(where(RowNames eq 'Z Position'))
+	GrY_ind = min(where(RowNames eq 'Group Z Position'))
+endif
 
 if GrX_ind gt 0 then PALM_with_groups = (ParamLimits[GrSigX_ind,1] gt 0) else PALM_with_groups = 0
 
@@ -4710,13 +4867,13 @@ function build_fimage, CGroupParams, filter, ParamLimits, render_ind, render_par
 	mgw=(wxsz /(dxmx-dxmn))<(wysz /(dymx-dymn))			; # of display pixels per CCD pixel = ratio of the display window size to th ethe image size (magnification)
 	wd=fix(mgw*1.5*133./nm_per_pixel) > 4.0									; scale "radius" of gaussian sub-window to ~ 150 nm
 
+	lbl_pos = CgroupParams[Label_ind,filterlist]-1
 	wxpkpos	= mgw * (CGroupParams[X_ind,filterlist]-dxmn)		;x peak positions in units of display window pixels - vector for filtered peaks
 	wypkpos	= mgw * (CGroupparams[Y_ind,filterlist]-dymn)
 	;wxofs_v	=(fix(wxpkpos)>0)
 	;wyofs_v	=(fix(wypkpos)>0)
 	wxofs_v	=floor(wxpkpos)
 	wyofs_v	=floor(wypkpos)
-
 	if FunctionItem gt 0 then begin
 		wdd=2*wd+1
 		wx = findgen(wdd)-wd									;wdd x vector of window pixels (zero is in middle of array)
@@ -4769,8 +4926,10 @@ function build_fimage, CGroupParams, filter, ParamLimits, render_ind, render_par
 					if (AccumItem eq 1) then fimage[wxofs<(wxsz-1),wyofs<(wysz-1)] += 1		;Sum
 					if (AccumItem eq 0) then fimage[wxofs<(wxsz-1),wyofs<(wysz-1)] >= 1		;Envelope
 				endif else	begin					; multiple labels
-					if (AccumItem eq 1) then fimage[wxofs<(wxsz-1),wyofs<(wysz-1),CgroupParams[Label_ind,j]-1] += 1		;Sum
-					if (AccumItem eq 0) then fimage[wxofs<(wxsz-1),wyofs<(wysz-1),CgroupParams[Label_ind,j]-1] >= 1		;Envelope
+					;if (AccumItem eq 1) then fimage[wxofs<(wxsz-1),wyofs<(wysz-1),CgroupParams[Label_ind,j]-1] += 1		;Sum
+					;if (AccumItem eq 0) then fimage[wxofs<(wxsz-1),wyofs<(wysz-1),CgroupParams[Label_ind,j]-1] >= 1		;Envelope
+					if (AccumItem eq 1) then fimage[wxofs<(wxsz-1),wyofs<(wysz-1),lbl_pos[j]] += 1		;Sum
+					if (AccumItem eq 0) then fimage[wxofs<(wxsz-1),wyofs<(wysz-1),lbl_pos[j]] >= 1		;Envelope
 				endelse
 			endif else begin
 				hue=hue_scale * (normZval[j]-fix(normZval[j]))
@@ -4793,8 +4952,10 @@ function build_fimage, CGroupParams, filter, ParamLimits, render_ind, render_par
 					if (AccumItem eq 1) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1)] += gausscenter; + q		;Sum
 					if (AccumItem eq 0) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1)] >= gausscenter; > q		;Envelope
 				endif else	begin					; multiple labels
-					if (AccumItem eq 1) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),CgroupParams[Label_ind,j]-1] += gausscenter; + q		;Sum
-					if (AccumItem eq 0) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),CgroupParams[Label_ind,j]-1] >= gausscenter; > q		;Envelope
+					;if (AccumItem eq 1) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),CgroupParams[Label_ind,j]-1] += gausscenter; + q		;Sum
+					;if (AccumItem eq 0) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),CgroupParams[Label_ind,j]-1] >= gausscenter; > q		;Envelope
+					if (AccumItem eq 1) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),lbl_pos[j]] += gausscenter; + q		;Sum
+					if (AccumItem eq 0) then fimage[(wxofs-wd)>0:(wxofs+wd)<(wxsz-1),(wyofs-wd)>0:(wyofs+wd)<(wysz-1),lbl_pos[j]] >= gausscenter; > q		;Envelope
 				endelse
 			endif else begin								; use Hue for z-coordinate ;multiply hue_scale * normalized z to range
 				hue=hue_scale * (normZval[j]-fix(normZval[j]))
@@ -4893,15 +5054,41 @@ xs_ind = FilterItem ? GrSigX_ind : SigX_ind
 ys_ind = FilterItem ? GrSigY_ind : SigY_ind
 
 Z_ind = FilterItem ? GrZ_ind : Z_ind
+Zs_ind = FilterItem ? GrSigZ_ind : SigZ_ind
 UnwZ_Ind = FilterItem ? UnwGrZ_ind : UnwZ_ind
 Z_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_65')
 Z_UnwZ_swap=Widget_Info(Z_swap_menue_ID,/button_set)
 if Z_UnwZ_swap and UnwZ_Ind ge 0 then Z_ind = UnwZ_Ind
 
+
+XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
+XZ_swapped = Widget_Info(XZ_swap_menue_ID,/button_set)
+YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
+YZ_swapped = Widget_Info(YZ_swap_menue_ID,/button_set)
+
 dxmn = paramlimits[x_ind,0]							; image size
 dymn = paramlimits[y_ind,0]
 dxmx = paramlimits[x_ind,1]
 dymx = paramlimits[y_ind,1]
+
+Z_ind0 = Z_ind
+Zs_ind0 = Zs_ind
+if XZ_swapped then begin
+	dxmn = paramlimits[Z_ind,0]							; image size
+	dxmx = paramlimits[Z_ind,1]
+	Z_ind = X_ind
+	X_ind = Z_ind0
+	Zs_ind = Xs_ind
+	Xs_ind = Zs_ind0
+endif
+if YZ_swapped then begin
+	dymn = paramlimits[Z_ind,0]							; image size
+	dymx = paramlimits[Z_ind,1]
+	Z_ind = Y_ind
+	Y_ind = Z_ind0
+	Zs_ind = Ys_ind
+	Ys_ind = Zs_ind0
+endif
 
 if FilterItem eq 0 then begin
 	FilterIt
@@ -4941,17 +5128,19 @@ if Label_ind ge 0 then begin
 	filterlist = where(filter eq 1)
 	lbl_mx = max(CGroupParams[Label_ind,filterlist])
 endif
-testXZ = 0
-testYZ = 0
-if rend_z_color then begin
-	XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
-	testXZ=Widget_Info(XZ_swap_menue_ID,/button_set)
-	YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
-	testYZ=Widget_Info(YZ_swap_menue_ID,/button_set)
-endif
 
+;YZ_swapped = 0
+;YZ_swapped = 0
+;if rend_z_color then begin
+;	XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
+;	YZ_swapped=Widget_Info(XZ_swap_menue_ID,/button_set)
+;	YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
+;	YZ_swapped=Widget_Info(YZ_swap_menue_ID,/button_set)
+;endif
+;print,'XZ_swapped, YZ_swapped', XZ_swapped, YZ_swapped
+;print,X_ind, Y_ind, Z_ind, Xs_ind, Ys_ind
 render_ind = [X_ind, Y_ind, Z_ind, Xs_ind, Ys_ind, Nph_ind, GrNph_ind, Frame_Number_ind, Label_ind]
-render_params = [FilterItem, FunctionItem, AccumItem, rend_z_color, lbl_mx, testXZ, testYZ]
+render_params = [FilterItem, FunctionItem, AccumItem, rend_z_color, lbl_mx, XZ_swapped, YZ_swapped]
 render_win = [cur_win, dxmn, dymn, dxmx, dymx, hue_scale, wxsz, wysz, vbar_top]
 
 start=DOUBLE(systime(2))
@@ -5182,9 +5371,10 @@ if sz_im[0] eq 3 then begin
 	YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
 	YZ_swap=widget_info(YZ_swap_menue_ID,/BUTTON_SET)
 
-	bar_row_peaks = XZ_swap ?	X_ind : (YZ_swap ? Y_ind : Z_ind)
-	bar_row_groups = XZ_swap ?	GrX_ind : (YZ_swap ?	GrY_ind : GrZ_ind)
-	bar_row = 	FilterItem ? bar_row_groups : bar_row_peaks
+	;bar_row_peaks = XZ_swap ?	X_ind : (YZ_swap ? Y_ind : Z_ind)
+	;bar_row_groups = XZ_swap ?	GrX_ind : (YZ_swap ?	GrY_ind : GrZ_ind)
+	;bar_row = 	FilterItem ? bar_row_groups : bar_row_peaks
+	bar_row = 	FilterItem ? GrZ_ind : Z_ind
 
 	hbar_min=ParamLimits[bar_row,0]
 	hbar_max=ParamLimits[bar_row,1]
@@ -5336,13 +5526,11 @@ COMMON managed,	ids, $		; IDs of widgets being managed
 			modalList	; list of active modal widgets
 TopID=ids[min(where(names eq 'WID_BASE_0_PeakSelector'))]
 
-SWXZ_swaped = 'Swap X-Z (now Z)'
 XZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapXZ')
-widget_control,XZ_swap_menue_ID,get_value=XZ_swap_state
-
-SWYZ_swaped = 'Swap Y-Z (now Z)'
+XZ_swapped = Widget_Info(XZ_swap_menue_ID,/button_set)
 YZ_swap_menue_ID = Widget_Info(TopID, find_by_uname='W_MENU_SwapYZ')
-widget_control,YZ_swap_menue_ID,get_value=YZ_swap_state
+YZ_swapped = Widget_Info(YZ_swap_menue_ID,/button_set)
+
 
 if Event.top eq TopID then begin						; if called from the main menu, the image size is 1024x1024, otherwise Cust_TIFF_Pix_X x Cust_TIFF_Pix_Y
 	wxsz=1024 & wysz=1024								; size of the display window
@@ -5377,22 +5565,22 @@ Frame_Number_ind = min(where(RowNames eq 'Frame Number'))
 Label_ind = min(where(RowNames eq 'Label Set'))
 
 if FilterItem then begin		; grouped parameters
-	SigX = (XZ_swap_state eq SWXZ_swaped) ? ParamLimits[GrSigX_ind,1]/nm_per_pixel  :  ParamLimits[GrSigX_ind,1]
-	SigY = (YZ_swap_state eq SWYZ_swaped) ? ParamLimits[GrSigY_ind,1]/nm_per_pixel  :  ParamLimits[GrSigY_ind,1]
+	SigX = XZ_swapped eq 1 ? ParamLimits[GrSigX_ind,1]/nm_per_pixel  :  ParamLimits[GrSigX_ind,1]
+	SigY = YZ_swapped eq 1 ? ParamLimits[GrSigY_ind,1]/nm_per_pixel  :  ParamLimits[GrSigY_ind,1]
 	xtext='Gr. !4'+ STRING("162B)+'!3!IX!N < ' + strtrim(string(SigX,FORMAT='(F10.3)'),2) + ' pix'
 	ytext='Gr. !4'+ STRING("162B)+'!3!IY!N < ' + strtrim(string(SigY,FORMAT='(F10.3)'),2) + ' pix'
 	if SigZ_ind ge 0 then begin
-		SigZ = ((XZ_swap_state eq SWXZ_swaped) or (YZ_swap_state eq SWYZ_swaped)) ? ParamLimits[GrSigZ_ind,1]*nm_per_pixel  :  ParamLimits[GrSigZ_ind,1]
+		SigZ = ((XZ_swapped) or (YZ_swapped)) ? ParamLimits[GrSigZ_ind,1]*nm_per_pixel  :  ParamLimits[GrSigZ_ind,1]
 		ztext0='Gr. !4'+ STRING("162B)+'!3!IZ!N < ' + strtrim(string(SigZ,FORMAT='(F10.3)'),2) + ' nm'
 		if UnwGrZ_Err_ind ge 0 then ztext1= strtrim(string(ParamLimits[UnwGrZ_Err_ind,0],FORMAT='(F10.1)'),2) + ' nm < Unwr.Gr.Z.Err < '+ strtrim(string(ParamLimits[UnwGrZ_Err_ind,1],FORMAT='(F10.1)'),2)
 	endif
 endif else begin
-	SigX = (XZ_swap_state eq SWXZ_swaped) ? ParamLimits[SigX_ind,1]/nm_per_pixel  :  ParamLimits[SigX_ind,1]
-	SigY = (YZ_swap_state eq SWYZ_swaped) ? ParamLimits[SigY_ind,1]/nm_per_pixel  :  ParamLimits[SigY_ind,1]
+	SigX = XZ_swapped eq 1 ? ParamLimits[SigX_ind,1]/nm_per_pixel  :  ParamLimits[SigX_ind,1]
+	SigY = YZ_swapped eq 1 ? ParamLimits[SigY_ind,1]/nm_per_pixel  :  ParamLimits[SigY_ind,1]
 	xtext='!4' + STRING("162B)+'!3!IX!N < ' + strtrim(string(SigX,FORMAT='(F10.3)'),2) + ' pix'
 	ytext='!4' + STRING("162B)+'!3!IY!N < ' + strtrim(string(SigY,FORMAT='(F10.3)'),2) + ' pix'
 	if SigZ_ind ge 0 then begin
-		SigZ = ((XZ_swap_state eq SWXZ_swaped) or (YZ_swap_state eq SWYZ_swaped)) ? ParamLimits[SigZ_ind,1]*nm_per_pixel  :  ParamLimits[SigZ_ind,1]
+		SigZ = ((XZ_swapped eq 1) or (XZ_swapped eq 1)) ? ParamLimits[SigZ_ind,1]*nm_per_pixel  :  ParamLimits[SigZ_ind,1]
 		ztext0='!4' + STRING("162B)+'!3!IZ!N < ' + strtrim(string(SigZ,FORMAT='(F10.3)'),2) + ' nm'
 		if UnwZ_Err_ind ge 0 then ztext1= strtrim(string(ParamLimits[UnwZ_Err_ind,0],FORMAT='(F10.1)'),2) + ' nm < Unwr.Z.Err < '+ strtrim(string(ParamLimits[UnwZ_Err_ind,1],FORMAT='(F10.1)'),2)
 	endif
@@ -5433,7 +5621,7 @@ end
 ;
 pro OnRawFrameNumber, Event			;Displays a frame (selected by WID_SLIDER_RawFrameNumber) of Raw Data
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 if n_elements(CGroupParams) le 2 then begin
@@ -5526,7 +5714,7 @@ end
 ;
 pro OnRawPeakIndex, Event			;Shows the peak location and runs FindnWackaPeak (including display of fit parameters) for a peak selected by WID_SLIDER_RawPeakIndex
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common XY_spectral, lab_filenames, sp_cal_file, cal_spectra, sp_d, Max_sp_num, sp_window, cal_frames
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common spectra_data, sp_win, sp_2D_data, sp_2D_image, spectra,  sp_dispersion,  sp_offset, sp_calc_method, BG_subtr_params,  RawFrameNumber, Peak_Indecis, RawPeakIndex, sp_filename
@@ -5697,7 +5885,7 @@ end
 ;
 pro OnPeakOverlayAllCentersButton, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 COMMON COLORS, R_orig, G_orig, B_orig, R_curr, G_curr, B_curr
 if n_elements(CGroupParams) le 2 then begin
           z=dialog_message('Please load a data file')
@@ -5730,7 +5918,7 @@ end
 ;
 pro OnPeakOverlayFrameCentersButton, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 COMMON COLORS, R_orig, G_orig, B_orig, R_curr, G_curr, B_curr
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 FrNum_ind = min(where(RowNames eq 'Frame Number'))						; CGroupParametersGP[9,*] - frame number
@@ -5793,7 +5981,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common Offset, PkWidth_offset
 common Zdisplay, Z_scale_multiplier, vbar_top
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir;
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max;
 ;TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 common SaveASCII, SaveASCII_Filename, SaveASCII_Filter, SaveASCII_units, SaveASCII_ParamChoice, SaveASCII_ParamList
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
@@ -5804,7 +5992,10 @@ common iPALM_macro_parameters, iPALM_MacroParameters_XY, iPALM_MacroParameters_R
 Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
 	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+common Multy_Z_Slabs, Rundat_Filename, State_Voltages, State_Frames, Transition_Frames, State_Zs, ZvsV_Slope
 
+CPU,TPOOL_NTHREADS=1
+help, /structure, !CPU
 ;WID_BASE_0_PeakSelector resizing to fit computer screen
 disp_xy=GET_SCREEN_SIZE()
 ;disp_xy[1]=600
@@ -5841,7 +6032,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common Offset, PkWidth_offset
 common Zdisplay, Z_scale_multiplier, vbar_top
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
 		Cust_TIFF_volume_image, Cust_TIFF_max,Cust_TIFF_Z_multiplier, Cust_TIFF_Z_start, Cust_TIFF_Z_stop, Cust_TIFF_XY_subvol_nm, Cust_TIFF_Z_subvol_nm
@@ -5851,6 +6042,10 @@ common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr,
 Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
 	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+common Multy_Z_Slabs, Rundat_Filename, State_Voltages, State_Frames, Transition_Frames, State_Zs, ZvsV_Slope
+
+
+Rundat_Filename = ''
 
 Wid_ID_allow_bridge = Widget_Info(wWidget, find_by_uname='WID_BUTTON_Allow_Bridge')
 allow_bridge = widget_info(Wid_ID_allow_bridge,/button_set)
@@ -5864,7 +6059,7 @@ hist_log_y = widget_info(Wid_ID_hist_log_Y,/button_set)
 Recalculate_Histograms_id=widget_info(wWidget,FIND_BY_UNAME='WID_BUTTON_Redraw')
 widget_control,Recalculate_Histograms_id,set_button=1
 
-if !VERSION.OS_family eq 'unix' then	ConfigureEnvironment			;loads dlms for Cuda
+;if !VERSION.OS_family eq 'unix' then	ConfigureEnvironment			;loads dlms for Cuda
 
 z_media_multiplier=1.00			; depends on objective NA and media index. This is ratio which determines by how much the focal plane of the (air) objective shifts in the media for a unit shift of the objective along the axis.
 lambda_vac=590.0
@@ -5872,7 +6067,8 @@ nd_water=1.33
 nd_oil=1.515
 wfilename=''
 wind_range=220.0
-nmperframe = 25.0			; nm per frame. calibration using piezo parameters
+nmperframe = 20.0			; nm per frame. calibration using piezo parameters
+
 z_unwrap_coeff = [0.0,0.0,0.0]
 ellipticity_slopes = [0.0,0.0,0.0,0.0]
 AnchorFile=''
@@ -5892,6 +6088,7 @@ Max_Prob_2DPALM=0.05	; molecular probability (for the color bar top value)
 
 n_br_max = 1024;
 hist_nbins = 128;  number of histogram bins
+n_cluster_nodes_max = 1024
 
 Cust_TIFF_Pix_X = 1024	; image window size for "Custom TIFF"
 Cust_TIFF_Pix_Y = 1024	; image window size for "Custom TIFF"
@@ -5962,23 +6159,16 @@ CGroupParams=[0]
 TotalRawData=[0]
 DIC=[0]
 
-	WID_TABLE_StartReadSkip_ID = Widget_Info(wWidget, find_by_uname='WID_TABLE_StartReadSkip')
-	widget_control,WID_TABLE_StartReadSkip_ID,COLUMN_WIDTH=[1,60,60,60],use_table_select = [ -1, 0, 2, 1 ]
+labelcontrast=intarr(3,5)			;stretch top, gamma, stretch bottom	rows x blank, red, green, blue, DIC columns
+for i =0, 3 do labelcontrast[*,i]=[500,500,0]
+labelcontrast[*,4]=[1000,1000,0]
 
-	labelcontrast=intarr(3,5)			;stretch top, gamma, stretch bottom	rows x blank, red, green, blue, DIC columns
-	for i =0, 3 do labelcontrast[*,i]=[500,500,0]
-	labelcontrast[*,4]=[1000,1000,0]
-	;
-	WidID_StartReadSkip = Widget_Info(wWidget, find_by_uname='WID_TABLE_StartReadSkip')
-	widget_control,WidID_StartReadSkip,set_value=transpose([0,0,0])
-	widget_control, WidID_StartReadSkip, /editable,/sensitive
-
-	WidDrFunct = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_Function')
-	widget_control,WidDrFunct, Set_Droplist_Select=1
-	WidDrFilter = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_Filter')
-	widget_control,WidDrFilter, Set_Droplist_Select=1
-	WidDrAccum = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_Accumulate')
-	widget_control,WidDrAccum, Set_Droplist_Select=1
+WidDrFunct = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_Function')
+widget_control,WidDrFunct, Set_Droplist_Select=1
+WidDrFilter = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_Filter')
+widget_control,WidDrFilter, Set_Droplist_Select=1
+WidDrAccum = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_Accumulate')
+widget_control,WidDrAccum, Set_Droplist_Select=1
 
 WidDL_LabelID = Widget_Info(wWidget, find_by_uname='WID_DROPLIST_Label')
 selectedlabel = widget_info(WidDL_LabelID,/DropList_Select)
@@ -5997,6 +6187,7 @@ widget_control,YZ_swap_menue_ID,set_button=0
 
 Z_unwrap_swap_menue_ID = Widget_Info(wWidget, find_by_uname='W_MENU_65')
 widget_control,Z_unwrap_swap_menue_ID,set_button=0,set_value='Swap Z with Unwrapped Z'
+ZvsV_Slope = nmperframe/0.040/2.0  ; nm per V sample movement sensitivity, need to divide by 2 because in calibration we measure the phase difference which is double the distance.
 
 end
 ;
@@ -6013,7 +6204,7 @@ common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hi
 common Offset, PkWidth_offset
 common Zdisplay, Z_scale_multiplier, vbar_top
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 common SaveASCII, SaveASCII_Filename, SaveASCII_Filter, SaveASCII_units, SaveASCII_ParamChoice, SaveASCII_ParamList
 common Custom_TIFF, Cust_TIFF_window,  Cust_TIFF_3D, Cust_TIFF_Accumulation, Cust_TIFF_Filter, Cust_TIFF_Function, cust_nm_per_pix, Cust_TIFF_Pix_X, Cust_TIFF_Pix_Y,$
@@ -6024,6 +6215,7 @@ common bridge_stuff, allow_bridge, bridge_exists, n_br_loops, n_br_max, fbr_arr,
 Common Multiple_PALM_TIFFs, DoPurge_mTIFFs, Purge_RowNames_mTIFFs, Purge_Params_mTIFFs
 Common Multiple_PALM_Slabs, mSlab_Filenames, DoFilter, DoAutoFindFiducials, DoDriftCottect, DoGrouping, DoPurge, DoScaffoldRegister, $
 	Filter_RowNames, Filter_Params, Purge_RowNames_mSlabs, Purge_Params_mSlabs, AutoFindFiducial_Params, Scaffold_Fid_FName, Scaffold_Fid, ZStep_mSlabs
+common Multy_Z_Slabs, Rundat_Filename, State_Voltages, State_Frames, Transition_Frames, State_Zs, ZvsV_Slope
 
 ini_file_info=FILE_INFO(ini_file)
 if ~(ini_file_info.exists) then return
@@ -6672,7 +6864,7 @@ end
 ;
 pro LoadRowNames
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
@@ -6793,8 +6985,6 @@ items_sensitivity = (UnwZ_ind gt 0) ? 1 : 0
 	widget_control,Wid_Plot_YgrUnwZgrXgr_ID, Sensitive=items_sensitivity
 	Wid_Plot_XgrUnwZgrLbl_ID = Widget_Info(wWidget, find_by_uname='WID_BUTTON_Plot_XgrUnwZgrLbl')
 	widget_control,Wid_Plot_XgrUnwZgrLbl_ID, Sensitive=items_sensitivity
-	Wid_Stat3DViewer_ID = Widget_Info(wWidget, find_by_uname='WID_BUTTON_Stat3DViewer')
-	widget_control,Wid_Stat3DViewer_ID, Sensitive=items_sensitivity
 
 	W_MENU_40_ID = Widget_Info(wWidget, find_by_uname='W_MENU_40')
 	widget_control,W_MENU_40_ID, Sensitive=items_sensitivity
@@ -6984,7 +7174,8 @@ end
 ;-----------------------------------------------------------------
 ;
 pro Process_Multiple_Palm_Slabs_call, Event ; Starts the macro to process and combine (register to scaffold) multiple PALM slabs
-Process_Multiple_Palm_Slabs, GROUP_LEADER=Event.top
+;Process_Multiple_Palm_Slabs, GROUP_LEADER=Event.top
+iPALM_Split_ZSlabs_into_Separate_Files, GROUP_LEADER=Event.top
 end
 ;
 ;-----------------------------------------------------------------
@@ -7062,9 +7253,13 @@ GrZ_ind = min(where(RowNames eq 'Group Z Position'))                    ; CGroup
 GrSigZ_ind = min(where(RowNames eq 'Group Sigma Z'))                    ; CGroupParametersGP[41,*] - Group Sigma Z
 sz=size(CGroupParams)
 
+XZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapXZ')
+XZ_swapped=Widget_Info(XZ_swap_menue_ID,/button_set)
+print,'Starting with XZ_swapped=', XZ_swapped
+
 YZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapYZ')
-YZ_swaped=Widget_Info(YZ_swap_menue_ID,/button_set)
-if YZ_swaped then OnSwapYZ, Event
+YZ_swapped=Widget_Info(YZ_swap_menue_ID,/button_set)
+if YZ_swapped then OnSwapYZ, Event
 
 nmperpix=nm_per_pixel / Z_scale_multiplier			;z is nm & x is pixels
 
@@ -7075,17 +7270,32 @@ plsq=ParamLimits[GrSigX_ind,0:3]
 RowNmGrX = RowNames[GrX_ind]
 RowNmGrSigX = RowNames[GrSigX_ind]
 
-CGroupParams[GrX_ind,*]=CGroupParams[GrZ_ind,*]/nmperpix	;assign group z to group x
-CGroupParams[GrSigX_ind,*]=CGroupParams[GrSigZ_ind,*]/nmperpix	;assign sigma group z to sigma group x
-ParamLimits[GrX_ind,0:3]=ParamLimits[GrZ_ind,0:3]/nmperpix
-ParamLimits[GrSigX_ind,0:3]=ParamLimits[GrSigZ_ind,0:3]/nmperpix
+if XZ_swapped eq 0  then begin; starting with NOT swapped
+	CGroupParams[GrX_ind,*]=CGroupParams[GrZ_ind,*]/nmperpix	;assign group z to group x
+	CGroupParams[GrSigX_ind,*]=CGroupParams[GrSigZ_ind,*]/nmperpix	;assign sigma group z to sigma group x
+	ParamLimits[GrX_ind,0:3]=ParamLimits[GrZ_ind,0:3]/nmperpix
+	ParamLimits[GrSigX_ind,0:3]=ParamLimits[GrSigZ_ind,0:3]/nmperpix
+endif else begin
+	CGroupParams[GrX_ind,*]=CGroupParams[GrZ_ind,*]*nmperpix	;assign group z to group x
+	CGroupParams[GrSigX_ind,*]=CGroupParams[GrSigZ_ind,*]*nmperpix	;assign sigma group z to sigma group x
+	ParamLimits[GrX_ind,0:3]=ParamLimits[GrZ_ind,0:3]*nmperpix
+	ParamLimits[GrSigX_ind,0:3]=ParamLimits[GrSigZ_ind,0:3]*nmperpix
+endelse
 RowNames[GrX_ind] = RowNames[GrZ_ind]
 RowNames[GrSigX_ind] = RowNames[GrSigZ_ind]
 
-CGroupParams[GrZ_ind,*]=q*nmperpix	;assign group x to group z
-CGroupParams[GrSigZ_ind,*]=sq*nmperpix	;assign sigma group x to sigma group z
-ParamLimits[GrZ_ind,0:3]=plq*nmperpix
-ParamLimits[GrSigZ_ind,0:3]=plsq*nmperpix
+if XZ_swapped eq 0  then begin; starting with NOT swapped
+	CGroupParams[GrZ_ind,*]=q*nmperpix	;assign group x to group z
+	CGroupParams[GrSigZ_ind,*]=sq*nmperpix	;assign sigma group x to sigma group z
+	ParamLimits[GrZ_ind,0:3]=plq*nmperpix
+	ParamLimits[GrSigZ_ind,0:3]=plsq*nmperpix
+endif else begin
+	CGroupParams[GrZ_ind,*]=q/nmperpix	;assign group x to group z
+	CGroupParams[GrSigZ_ind,*]=sq/nmperpix	;assign sigma group x to sigma group z
+	ParamLimits[GrZ_ind,0:3]=plq/nmperpix
+	ParamLimits[GrSigZ_ind,0:3]=plsq/nmperpix
+endelse
+
 RowNames[GrZ_ind] = RowNmGrX
 RowNames[GrSigZ_ind] = RowNmGrSigX
 
@@ -7096,17 +7306,33 @@ plsq=ParamLimits[SigX_ind,0:3]
 RowNmX = RowNames[X_ind]
 RowNmSigX = RowNames[SigX_ind]
 
-CGroupParams[X_ind,*]=CGroupParams[Z_ind,*]/nmperpix	;assign z to x
-CGroupParams[SigX_ind,*]=CGroupParams[SigZ_ind,*]/nmperpix	;assign sigma z to sigma x
-ParamLimits[X_ind,0:3]=ParamLimits[Z_ind,0:3]/nmperpix
-ParamLimits[SigX_ind,0:3]=ParamLimits[SigZ_ind,0:3]/nmperpix
+if XZ_swapped eq 0  then begin; starting with NOT swapped
+	CGroupParams[X_ind,*]=CGroupParams[Z_ind,*]/nmperpix	;assign z to x
+	CGroupParams[SigX_ind,*]=CGroupParams[SigZ_ind,*]/nmperpix	;assign sigma z to sigma x
+	ParamLimits[X_ind,0:3]=ParamLimits[Z_ind,0:3]/nmperpix
+	ParamLimits[SigX_ind,0:3]=ParamLimits[SigZ_ind,0:3]/nmperpix
+endif else begin
+	CGroupParams[X_ind,*]=CGroupParams[Z_ind,*]*nmperpix	;assign z to x
+	CGroupParams[SigX_ind,*]=CGroupParams[SigZ_ind,*]*nmperpix	;assign sigma z to sigma x
+	ParamLimits[X_ind,0:3]=ParamLimits[Z_ind,0:3]*nmperpix
+	ParamLimits[SigX_ind,0:3]=ParamLimits[SigZ_ind,0:3]*nmperpix
+endelse
+
 RowNames[X_ind] = RowNames[Z_ind]
 RowNames[SigX_ind] = RowNames[SigZ_ind]
 
-CGroupParams[Z_ind,*]=q*nmperpix			;assign x to z
-CGroupParams[SigZ_ind,*]=sq*nmperpix			;assign sigma x to sigma z
-ParamLimits[Z_ind,0:3]=plq*nmperpix
-ParamLimits[SigZ_ind,0:3]=plsq*nmperpix
+if XZ_swapped eq 0  then begin; starting with NOT swapped
+	CGroupParams[Z_ind,*]=q*nmperpix			;assign x to z
+	CGroupParams[SigZ_ind,*]=sq*nmperpix			;assign sigma x to sigma z
+	ParamLimits[Z_ind,0:3]=plq*nmperpix
+	ParamLimits[SigZ_ind,0:3]=plsq*nmperpix
+endif else begin
+	CGroupParams[Z_ind,*]=q/nmperpix			;assign x to z
+	CGroupParams[SigZ_ind,*]=sq/nmperpix			;assign sigma x to sigma z
+	ParamLimits[Z_ind,0:3]=plq/nmperpix
+	ParamLimits[SigZ_ind,0:3]=plsq/nmperpix
+endelse
+
 RowNames[Z_ind] = RowNmX
 RowNames[SigZ_ind] = RowNmSigX
 
@@ -7123,8 +7349,8 @@ WidDrZID = Widget_Info(Event.top, find_by_uname='WID_DROPLIST_Z')
 widget_control,WidDrZID, SET_VALUE=RowNames, Set_Droplist_Select=2
 
 XZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapXZ')
-XZ_swaped=Widget_Info(XZ_swap_menue_ID,/button_set)
-widget_control,XZ_swap_menue_ID,set_button=(1-XZ_swaped)
+XZ_swapped=Widget_Info(XZ_swap_menue_ID,/button_set)
+widget_control,XZ_swap_menue_ID,set_button=(1-XZ_swapped)
 
 	if bridge_exists then begin
 		print,'Reloading the Bridge Array'
@@ -7181,10 +7407,15 @@ if n_elements(CGroupParams) le 2 then begin
 	return      ; if data not loaded return
 endif
 
-XZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapXZ')
-XZ_swaped=Widget_Info(XZ_swap_menue_ID,/button_set)
-if XZ_swaped then OnSwapXZ, Event
+YZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapYZ')
+YZ_swapped=Widget_Info(YZ_swap_menue_ID,/button_set)
+print,'Starting with YZ_swapped=', YZ_swapped
 
+XZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapXZ')
+XZ_swapped=Widget_Info(XZ_swap_menue_ID,/button_set)
+if XZ_swapped then OnSwapXZ, Event
+
+print,'Swapping Y and Z axes, Z_scale_multiplier=', Z_scale_multiplier
 nmperpix=nm_per_pixel / Z_scale_multiplier			;z is nm & y is pixels
 
 q=CGroupParams[GrY_ind,*]		;group y
@@ -7194,17 +7425,31 @@ plsq=ParamLimits[GrSigY_ind,0:3]
 RowNmGrY = RowNames[GrY_ind]
 RowNmGrSigY = RowNames[GrSigY_ind]
 
-CGroupParams[GrY_ind,*]=CGroupParams[GrZ_ind,*]/nmperpix	;assign group z to group y
-CGroupParams[GrSigY_ind,*]=CGroupParams[GrSigZ_ind,*]/nmperpix	;assign sigma group z to sigma group y
-ParamLimits[GrY_ind,0:3]=ParamLimits[GrZ_ind,0:3]/nmperpix
-ParamLimits[GrSigY_ind,0:3]=ParamLimits[GrSigZ_ind,0:3]/nmperpix
+if YZ_swapped eq 0  then begin; starting with NOT swapped
+	CGroupParams[GrY_ind,*]=CGroupParams[GrZ_ind,*]/nmperpix	;assign group z to group y
+	CGroupParams[GrSigY_ind,*]=CGroupParams[GrSigZ_ind,*]/nmperpix	;assign sigma group z to sigma group y
+	ParamLimits[GrY_ind,0:3]=ParamLimits[GrZ_ind,0:3]/nmperpix
+	ParamLimits[GrSigY_ind,0:3]=ParamLimits[GrSigZ_ind,0:3]/nmperpix
+endif else begin
+	CGroupParams[GrY_ind,*]=CGroupParams[GrZ_ind,*]*nmperpix	;assign group z to group y
+	CGroupParams[GrSigY_ind,*]=CGroupParams[GrSigZ_ind,*]*nmperpix	;assign sigma group z to sigma group y
+	ParamLimits[GrY_ind,0:3]=ParamLimits[GrZ_ind,0:3]*nmperpix
+	ParamLimits[GrSigY_ind,0:3]=ParamLimits[GrSigZ_ind,0:3]*nmperpix
+endelse
 RowNames[GrY_ind] = RowNames[GrZ_ind]
 RowNames[GrSigY_ind] = RowNames[GrSigZ_ind]
 
-CGroupParams[GrZ_ind,*]=q*nmperpix	;assign group y to group z
-CGroupParams[GrSigZ_ind,*]=sq*nmperpix	;assign sigma group y to sigma group z
-ParamLimits[GrZ_ind,0:3]=plq*nmperpix
-ParamLimits[GrSigZ_ind,0:3]=plsq*nmperpix
+if YZ_swapped eq 0  then begin; starting with NOT swapped
+	CGroupParams[GrZ_ind,*]=q*nmperpix	;assign group y to group z
+	CGroupParams[GrSigZ_ind,*]=sq*nmperpix	;assign sigma group y to sigma group z
+	ParamLimits[GrZ_ind,0:3]=plq*nmperpix
+	ParamLimits[GrSigZ_ind,0:3]=plsq*nmperpix
+endif else begin
+	CGroupParams[GrZ_ind,*]=q/nmperpix	;assign group y to group z
+	CGroupParams[GrSigZ_ind,*]=sq/nmperpix	;assign sigma group y to sigma group z
+	ParamLimits[GrZ_ind,0:3]=plq/nmperpix
+	ParamLimits[GrSigZ_ind,0:3]=plsq/nmperpix
+endelse
 RowNames[GrZ_ind] = RowNmGrY
 RowNames[GrSigZ_ind] = RowNmGrSigY
 
@@ -7215,17 +7460,31 @@ plsq=ParamLimits[SigY_ind,0:3]
 RowNmY = RowNames[Y_ind]
 RowNmSigY = RowNames[SigY_ind]
 
-CGroupParams[Y_ind,*]=CGroupParams[Z_ind,*]/nmperpix	;assign z to y
-CGroupParams[SigY_ind,*]=CGroupParams[SigZ_ind,*]/nmperpix	;assign sigma z to sigma y
-ParamLimits[Y_ind,0:3]=ParamLimits[Z_ind,0:3]/nmperpix
-ParamLimits[SigY_ind,0:3]=ParamLimits[SigZ_ind,0:3]/nmperpix
+if YZ_swapped eq 0  then begin; starting with NOT swapped
+	CGroupParams[Y_ind,*]=CGroupParams[Z_ind,*]/nmperpix	;assign z to y
+	CGroupParams[SigY_ind,*]=CGroupParams[SigZ_ind,*]/nmperpix	;assign sigma z to sigma y
+	ParamLimits[Y_ind,0:3]=ParamLimits[Z_ind,0:3]/nmperpix
+	ParamLimits[SigY_ind,0:3]=ParamLimits[SigZ_ind,0:3]/nmperpix
+endif else begin
+	CGroupParams[Y_ind,*]=CGroupParams[Z_ind,*]*nmperpix	;assign z to y
+	CGroupParams[SigY_ind,*]=CGroupParams[SigZ_ind,*]*nmperpix	;assign sigma z to sigma y
+	ParamLimits[Y_ind,0:3]=ParamLimits[Z_ind,0:3]*nmperpix
+	ParamLimits[SigY_ind,0:3]=ParamLimits[SigZ_ind,0:3]*nmperpix
+endelse
 RowNames[Y_ind] = RowNames[Z_ind]
 RowNames[SigY_ind] = RowNames[SigZ_ind]
 
-CGroupParams[Z_ind,*]=q*nmperpix			;assign y to z
-CGroupParams[SigZ_ind,*]=sq*nmperpix			;assign sigma y to sigma z
-ParamLimits[Z_ind,0:3]=plq*nmperpix
-ParamLimits[SigZ_ind,0:3]=plsq*nmperpix
+if YZ_swapped eq 0  then begin; starting with NOT swapped
+	CGroupParams[Z_ind,*]=q*nmperpix			;assign y to z
+	CGroupParams[SigZ_ind,*]=sq*nmperpix			;assign sigma y to sigma z
+	ParamLimits[Z_ind,0:3]=plq*nmperpix
+	ParamLimits[SigZ_ind,0:3]=plsq*nmperpix
+endif else begin
+	CGroupParams[Z_ind,*]=q/nmperpix			;assign y to z
+	CGroupParams[SigZ_ind,*]=sq/nmperpix			;assign sigma y to sigma z
+	ParamLimits[Z_ind,0:3]=plq/nmperpix
+	ParamLimits[SigZ_ind,0:3]=plsq/nmperpix
+endelse
 RowNames[Z_ind] = RowNmY
 RowNames[SigZ_ind] = RowNmSigY
 
@@ -7241,9 +7500,8 @@ widget_control,WidDrYID, SET_VALUE=RowNames, Set_Droplist_Select=3
 WidDrZID = Widget_Info(Event.top, find_by_uname='WID_DROPLIST_Z')
 widget_control,WidDrZID, SET_VALUE=RowNames, Set_Droplist_Select=2
 
-YZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapYZ')
-YZ_swaped=Widget_Info(YZ_swap_menue_ID,/button_set)
-widget_control,YZ_swap_menue_ID,set_button=(1-YZ_swaped)
+
+widget_control,YZ_swap_menue_ID,set_button=(1-YZ_swapped)
 
 	if bridge_exists then begin
 		print,'Reloading the Bridge Array'
@@ -7299,12 +7557,12 @@ if n_elements(CGroupParams) le 2 then begin
 endif
 
 XZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapXZ')
-XZ_swaped=Widget_Info(XZ_swap_menue_ID,/button_set)
-if XZ_swaped then OnSwapXZ, Event
+XZ_swapped=Widget_Info(XZ_swap_menue_ID,/button_set)
+if XZ_swapped then OnSwapXZ, Event
 
 YZ_swap_menue_ID = Widget_Info(Event.top, find_by_uname='W_MENU_SwapYZ')
-YZ_swaped=Widget_Info(YZ_swap_menue_ID,/button_set)
-if YZ_swaped then OnSwapYZ, Event
+YZ_swapped=Widget_Info(YZ_swap_menue_ID,/button_set)
+if YZ_swapped then OnSwapYZ, Event
 
 Z = CGroupParams[Z_ind,*]
 GrZ = CGroupParams[GrZ_ind,*]
@@ -7635,7 +7893,7 @@ end
 ;
 pro OnAnalyze4, Event;	*************	Show iPALM PSF Raw and Fits
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max
 ; TransformEngine : 0=Local, 1=Cluster, TransformEngine, grouping_gap,grouping_radius100; TransformEngine : 0=Local, 1=Cluster
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 common display_info, labelcontrast, hue_scale, Max_Prob_2DPALM, def_w
@@ -7945,97 +8203,3 @@ end
 pro OnExtractPeaksML, Event
 	ExtractMultiLabelWid, GROUP_LEADER=Event.top
 end
-
-;-----------------------------------------------------------------
-pro OnStatic3DViewer, Event
-;-----------------------------------------------------------------
-  compile_opt idl2
-  on_error, 2
-
-common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-
-  ;  Get the current window number so we can restore it on exit
-  cwin = !d.window
-
-  ;  Show the hourglass
-  widget_control, /HOURGLASS
-
-  ;  Need a file
-  if (n_elements(CGroupParams) le 1) then begin
-    void = dialog_message(TITLE='Error', DIALOG_PARENT=event.top,  $
-                  'Please load a data file')
-    return
-  endif
-
-  ;  Launch the viewer if one is not already running
-  if (xregistered('PALM_Static3DViewer', /NOSHOW) ne 0) then begin
-    void = dialog_message(DIALOG_PARENT=event.top,  $
-              'Another instance of the 3D viewer is currently running.')
-    return
-  endif
-
-  ;  Initialization window
-  xy = get_screen_size()
-  width = 300
-  height= 50
-  xoff = (xy[0]-width)/2
-  yoff = (xy[1]-height)/2
-
-;  base = widget_base(TITLE='Initializing...', GROUP_LEADER=event.top, /COLUMN,  $
-;              XOFFSET=xoff, YOFFSET=yoff, XSIZE=width, YSIZE=height,            $
-;              /BASE_ALIGN_CENTER)
-;  void = widget_label(base, VALUE=' ', YSIZE=15)
-;  label = widget_label(base, VALUE='** Please wait while initializing the viewer  **',  $
-;              /ALIGN_CENTER)
-;  widget_control, base, /REALIZE
-;  xmanager, 'init', base, /NO_BLOCK
-
-  ;  Get the GUI settings
-  id = widget_info(event.top, FIND_BY_UNAME='WID_DROPLIST_Function')
-  func_item = widget_info(id, /DROPLIST_SELECT)
-  id = widget_info(event.top, FIND_BY_UNAME='WID_DROPLIST_Filter')
-  filt_item = widget_info(id, /DROPLIST_SELECT)
-  id = widget_info(event.top, FIND_BY_UNAME='WID_DROPLIST_Accumulate')
-  widget_control, id, GET_VALUE=dlValues
-  acc_item = widget_info(id, /DROPLIST_SELECT)
-  Accumulation = dlValues[acc_item]
-  wxsz=1024 & wysz=1024
-  mgw = GetScaleFactor(ParamLimits, wxsz, wysz)
-
-  ;  Filter to decide which peaks to work with
-;  widget_control, label, SET_VALUE='** Filtering **'
-  if (func_item eq 0) and (filt_item eq 0) then begin
-    FilterIt
-    OnPeakCentersButton, event
-;    widget_control, base, /DESTROY
-    return
-  endif
-  if (func_item eq 0) and (filt_item eq 1) then begin
-    GroupFilterIt
-    OnGroupCentersButton, event
-;    widget_control, base, /DESTROY
-    return
-  endif
-
-  filterlist = where(filter eq 1, cnt)
-
-  env = (acc_item eq 1) ? 0 : 1
-
-;  widget_control, base, /DESTROY
-  PALM_3DViewer, filt_item, func_item, $
-    ACCUMULATION=Accumulation, $
-    GROUP_LEADER=event.top, $
-    LABEL=label, $
-    NANOS_PER_CCD_PIXEL=16000./2/60., $
-    PARAMETER_LIMITS=ParamLimits
-
-;  ;  Pass to the static viewer
-;  PALM_Static3DViewer, tempfilterlist, filt_item, func_item, GROUP_LEADER=event.top,  $
-;                       NANOS_PER_CCD_PIXEL=16000./2/60., LABEL=label, ENVELOPE=env
-
-  ;  Restore the main application's window
-  wset, cwin
-end
-;
-;-----------------------------------------------------------------
-;

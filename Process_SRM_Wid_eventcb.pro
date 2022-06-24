@@ -7,7 +7,7 @@ end
 ;-----------------------------------------------------------------
 ;
 function parse_SRM_file, SRM_filename, camera		;
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 
 ;SRM_data = {			$
 ;		f_info:'',				$
@@ -160,7 +160,7 @@ end
 ;
 pro OnPick_SRM_File, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 	sep = !VERSION.OS_family eq 'unix' ? '/' : '\'
 	filter_to_read = ['*.srm','*.SRM']
 	SRM_filename = Dialog_Pickfile(/read,filter=filter_to_read,title='Pick *.SRM File *.srm, or *.SRM')
@@ -174,7 +174,7 @@ end
 ;
 pro Start_SRM_Processing, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 
 	SRM_File_ID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_SRM_Filename')
 	widget_control,SRM_File_ID,GET_VALUE = SRM_filename

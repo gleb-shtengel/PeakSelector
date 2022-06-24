@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	12/21/2017 11:41.11
+; Generated on:	11/10/2021 16:30.17
 VERSION 1
 END
 
@@ -198,5 +198,16 @@ BEGIN
   VALUE "Plot Z vs Frame w offset"
   ALIGNCENTER
   ONACTIVATE "Plot_ZvsFrame_with_offest"
+  END
+  WID_BASE_SaveCalSet_ASCII BASE 35 264 0 0
+  COLUMNS = 1
+  NONEXCLUSIVE
+  CAPTION "IDL"
+  BEGIN
+    WID_BUTTON_SaveCalSet_ASCII_0 PUSHBUTTON -1 -1 0 0
+    VALUE "Save Cal Set ASCII"
+    ALIGNLEFT
+    ONACTIVATE "OnButton_Press_SaveCalSet_ASCII"
+    END
   END
 END

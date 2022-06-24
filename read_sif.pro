@@ -11,7 +11,7 @@
 Function ReadTillNewLine
 c=0b
 cc=32b
-while c ne 10b do begin
+while (c ne 10b) do begin
 	readu,1,c
 	cc=[[cc],c]
 endwhile
@@ -21,7 +21,7 @@ end
 Function ReadTillNewSpace
 c=0b
 cc=32b
-while c ne 32b do begin
+while (c ne 32b) do begin
 	readu,1,c
 	cc=[[cc],c]
 endwhile
@@ -31,7 +31,7 @@ end
 Function ReadTillNewSpaceSpace
 c=0b
 cc=32b
-while c ne 32b do begin
+while (c ne 32b) do begin
 	readu,1,c
 	cc=[[cc],c]
 endwhile
@@ -462,7 +462,15 @@ for i=0L,(long(TImageParams.no_images)-1L) do time_stamp[i] =	ReadTillNewLine()
 		;calculate the data start position
 		sif_info=file_info(pth+filen+'.sif')
 		frame_size=4UL*xpix*ypix
-		start_position=sif_info.size-282-frame_size*ulong(TImageParams.no_images)
+
+		; this was here before 04.02.2019 - GS (probably for NIH/FEI ?)
+		; start_position=sif_info.size-282-frame_size*ulong(TImageParams.no_images)
+
+		; this was added instead on 04.02.2019 - GS
+		start_position=sif_info.size-1116-frame_size*ulong(TImageParams.no_images)
+
+		print,TImageParams.no_images, xpix, ypix, start_position
+
 		print,'Timage version: ',TImage_version, '       Calculated start position: ',start_position
 		point_lun,1,start_position
 	endif else print,'Timage version: ',TImage_version
@@ -532,7 +540,7 @@ filen=strmid(reffilename,0,strlen(reffilename)-4)
 	number_of_chunks = 25L
 
 	TImage, this_chunk, number_of_chunks, TImageParams, InstaParams, Data, pth, filen
-;print,"TImage Conversion Complete"
+   ;print,"TImage Conversion Complete"
 	; ****************** create .txt file ******************************
 		npix=size(Data)
 		xpix=npix[1]
@@ -655,24 +663,24 @@ filen=strmid(reffilename,0,strlen(reffilename)-4)
 		printf,	2, thisfitcond.SpMaxIter
 		close,2
 		close,2
-;print,"Image Conversion Complete"
+print,"Image Conversion Complete"
 endif
 ReferencePresent=ReadTillNewLine()
-;print,"Reference Present=",ReferencePresent
+print,"Reference Present=",ReferencePresent
 If Fix(ReferencePresent) eq 1 then begin
 	InstaParams=TInstaImage()
 	TCalibImageParams=TCalibImage()
 	TImage, this_chunk, number_of_chunks, TImageParams, Data
 endif
 BackgroundPresent=ReadTillNewLine()
-;print,"Background Present=",BackgroundPresent
+print,"Background Present=",BackgroundPresent
 If Fix(BackgroundPresent) eq 1 then begin
 	InstaParams=TInstaImage()
 	TCalibImageParams=TCalibImage()
 	TImage, this_chunk, number_of_chunks, TImageParams, Data
 endif
 LivePresent=ReadTillNewLine()
-;print,"Live Present=",LivePresent
+print,"Live Present=",LivePresent
 If Fix(LivePresent) eq 1 then begin
 	InstaParams=TInstaImage()
 	TCalibImageParams=TCalibImage()

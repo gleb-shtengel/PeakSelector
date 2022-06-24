@@ -136,7 +136,7 @@ pro Plot_ZvsFrame_with_offest, Event
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
@@ -291,7 +291,7 @@ Pro ExtractEllipticityCalib_Astig, Event		; perform z-calibration on filtered da
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
 common materials, lambda_vac, nd_water, nd_oil, nm_per_pixel,  z_media_multiplier
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
 
@@ -315,6 +315,11 @@ z_cal_max = float(z_cal_max_txt[0])
 WID_TEXT_ZCal_Astig_num_iter_ID = Widget_Info(Event.top, find_by_uname='WID_TEXT_ZCal_Astig_num_iter')
 widget_control,WID_TEXT_ZCal_Astig_num_iter_ID,GET_VALUE = num_iter_txt
 num_iter = float(num_iter_txt[0])
+
+SaveCalSet_ASCII_id = widget_info(event.top,FIND_BY_UNAME='WID_BUTTON_SaveCalSet_ASCII_0')
+SaveCalSet_ASCII = widget_info(SaveCalSet_ASCII_id,/button_set)
+WFileWidID = Widget_Info(Event.Top, find_by_uname='WID_TEXT_WindFilename_Astig')
+widget_control,WFileWidID,GET_VALUE = wfilename
 
 Off_ind = min(where(RowNames eq 'Offset'))                                ; CGroupParametersGP[0,*] - Peak Base Level (Offset)
 Amp_ind = min(where(RowNames eq 'Amplitude'))                            ; CGroupParametersGP[1,*] - Peak Amplitude
@@ -439,11 +444,23 @@ for jp=0,(ip_cnt-1) do begin
 		!p.multi=[0,1,2,0,0]
 		plot, zz, ellipticity, xtitle='Z position (nm)', ytitle='Ellipticity', yrange = [-0.5,0.5], ystyle=1, xrange = xrng, $
 			xstyle=1, psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
+			xx = zz[0]-(xrng[1]-xrng[0])/20.0
+			yy = ellipticity[0]
+			xyouts,xx,yy,'0'
 		!p.multi=[1,1,2,0,0]
 		plot, zz, Xwid, xtitle='Z position (nm)', ytitle='Gaussian Width', yrange = yrng, ystyle=1, xrange = xrng, $
 			xstyle=1,  psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
 		oplot, zz, Ywid, psym=5
 		oplot, zz, (Xwid+Ywid), psym=4
+		if (num_iter eq 1) and SaveCalSet_ASCII then begin
+			fnm = AddExtension(wfilename, '_CalSet_'+strtrim(jp,2)+'.txt')
+			close,8
+			openw,8,fnm,width=1024
+			header = 'Z'+string(9B)+'Xwidth'+string(9B)+'Ywidth'
+			printf,8,header
+			printf,8, [transpose(zz), transpose(Xwid), transpose(Ywid)],FORMAT='(2(E12.4,"'+string(9B)+'"),E12.4)'
+			close,8
+		endif
 		!P.NOERASE=1
 	endif else begin
 		;col=(250-jp*50)>50
@@ -459,12 +476,31 @@ for jp=0,(ip_cnt-1) do begin
 		zz= [zz, zz_add]
 		!p.multi=[0,1,2,0,0]
 		plot, zz_add, ellipticity_add, yrange = [-0.5,0.5], ystyle=1, xrange = xrng, xstyle=1, psym=6, col=col
+			xx = zz_add[0]-(xrng[1]-xrng[0])/20.0
+			yy = ellipticity_add[0]
+			xyouts,xx,yy,strtrim(jp,2), col=col
+			xx = zz_add[n_elements(zz_add)-1]+(xrng[1]-xrng[0])/20.0
+			yy = ellipticity_add[n_elements(zz_add)-1]
+			xyouts,xx,yy,strtrim(jp,2), col=col
 		!p.multi=[1,1,2,0,0]
 		plot, zz_add, Xwid_add, yrange = yrng, ystyle=1, xrange = xrng, xstyle=1, psym=6, col=col
 		oplot, zz_add, Ywid_add, psym=5, col=col
 		oplot, zz_add, (Xwid_add+Ywid_add), psym=4, col=col
+		if (num_iter eq 1) and SaveCalSet_ASCII then begin
+			fnm = AddExtension(wfilename, '_CalSet_'+strtrim(jp,2)+'.txt')
+			close,8
+			openw,8,fnm,width=1024
+			header = 'Z'+string(9B)+'Xwidth'+string(9B)+'Ywidth'
+			printf,8,header
+			printf,8, [transpose(zz_add), transpose(Xwid_add), transpose(Ywid_add)],FORMAT='(2(E12.4,"'+string(9B)+'"),E12.4)'
+			close,8
+		endif
 	endelse
 
+; to enable checking if the extraction was accurate after all iterations
+;Zext = CGroupParams[Z_ind,superset_indices]
+
+if num_iter eq 0 then wait,1.0
 endfor
 
 zlim_min = z_cal_min;
@@ -493,6 +529,7 @@ b_coeff = poly_fit(zz[zz_fit_ind], Xwid[zz_fit_ind], fitorder, /double)
 c_coeff = poly_fit(zz[zz_fit_ind], Ywid[zz_fit_ind], fitorder, /double)
 sum_coeff = poly_fit(zz[zz_fit_ind],(Xwid[zz_fit_ind]+Ywid[zz_fit_ind]), fitorder, /double)
 aa = [b_coeff, c_coeff, ellipt_coeff, sum_coeff]
+aa0 = aa			; store the aa value from initial iteration
 print,'aa:'
 print,transpose(aa)
 cal_lookup_data = poly(cal_lookup_zz,ellipt_coeff)
@@ -520,6 +557,7 @@ deriv_lookup_data = poly(cal_lookup_zz_lim,deriv_coeff)
 	oplot, cal_lookup_zz, sum_fit, col=150, THICK=3
 	for i =0,(n_elements(ellipt_coeff)-1) do xyouts,0.8,0.90-0.02*i,ellipt_coeff[i],/normal
 
+
 thisfitcond0=thisfitcond
 thisfitcond.SigmaSym = 2
 
@@ -540,7 +578,8 @@ if num_iter gt 1 then begin
 			peakparams = {twinkle_z, frameindex:0l, peakindex:0l, fitOK:1, peakx:0.0, peaky:0.0, peak_widx:0.0, peak_widy:0.0, A:fltarr(6), sigma:fltarr(6), chisq:0.0, Nphot:0l}
 			peakparams.frameindex = superset[FrNum_ind,ip]
 			peakparams.peakindex = superset[PkInd_ind,ip]
-			peakparams.A=[0.0,1.0,d,d,0.0,1.0]
+			peakparams.A = [superset[0,ip], superset[1,ip],d,d,0.,1.0]
+			;peakparams.A=[0.0,1.0,d,d,0.0,1.0]
 			fita = [1,1,1,1,1,1]
 			peakx = superset[X_ind,ip]
 			peaky = superset[Y_ind,ip]
@@ -589,6 +628,8 @@ if num_iter gt 1 then begin
 				Ywid = transpose(superset[Ywid_ind,subsetindex])
 				center_fr = find_center_frame(superset[*,subsetindex], fitorder, 20)
 				zz=transpose(superset[FrNum_ind,subsetindex] - center_fr) * nmperframe_in_medium
+				; to enable checking if the extraction was accurate after all iterations
+				;Zext = transpose(superset[Z_ind,subsetindex])
 				!P.NOERASE=0
 				!p.multi=[0,1,2,0,0]
 				plot, zz, ellipticity, xtitle='Z position (nm)', ytitle='Ellipticity', yrange = [-0.5,0.5], ystyle=1, xrange = xrng, xstyle=1, psym=6, xticklen=1, xgridstyle=1, yticklen=1, ygridstyle=1
@@ -597,6 +638,15 @@ if num_iter gt 1 then begin
 				oplot, zz, Ywid, psym=5
 				oplot, zz, (Xwid+Ywid), psym=4
 				!P.NOERASE=1
+				if (num_iter gt 1) and SaveCalSet_ASCII then begin
+					fnm = AddExtension(wfilename, '_CalSet_'+strtrim(jp,2)+'.txt')
+					close,8
+					openw,8,fnm,width=1024
+					header = 'Z'+string(9B)+'Xwidth'+string(9B)+'Ywidth'
+					printf,8,header
+					printf,8, [transpose(zz), transpose(Xwid), transpose(Ywid)],FORMAT='(2(E12.4,"'+string(9B)+'"),E12.4)'
+					close,8
+				endif
 			endif else begin
 				if cnt gt 0 then begin
 					;col=(250-jp*50)>50
@@ -610,14 +660,29 @@ if num_iter gt 1 then begin
 					center_fr = find_center_frame(superset[*,subsetindex], fitorder, 20)
 					zz_add = transpose(superset[FrNum_ind,subsetindex] - center_fr) * nmperframe_in_medium
 					zz= [zz, zz_add]
+
+					; to enable checking if the extraction was accurate after all iterations
+					;Zext = [Zext, transpose(superset[Z_ind,subsetindex])]
+
 					!p.multi=[0,1,2,0,0]
 					plot, zz_add, ellipticity_add, yrange = [-0.5,0.5], ystyle=1, xrange = xrng, xstyle=1, psym=6, col=col
 					!p.multi=[1,1,2,0,0]
 					plot, zz_add, Xwid_add, yrange = yrng, ystyle=1, xrange = xrng, xstyle=1, psym=6, col=col
 					oplot, zz_add, Ywid_add, psym=5, col=col
 					oplot, zz_add, (Xwid_add+Ywid_add), psym=4, col=col
+
+					if (num_iter gt 1) and SaveCalSet_ASCII then begin
+						fnm = AddExtension(wfilename, '_CalSet_'+strtrim(jp,2)+'.txt')
+						close,8
+						openw,8,fnm,width=1024
+						header = 'Z'+string(9B)+'Xwidth'+string(9B)+'Ywidth'
+						printf,8,header
+						printf,8, [transpose(zz_add), transpose(Xwid_add), transpose(Ywid_add)],FORMAT='(2(E12.4,"'+string(9B)+'"),E12.4)'
+						close,8
+					endif
 				endif
 			endelse
+
 		endfor
 
 		zzmin=round(min(zz)) > zlim_min
@@ -648,6 +713,9 @@ if num_iter gt 1 then begin
 		Ywid_fit = poly(cal_lookup_zz,c_coeff)
 		sum_fit = poly(cal_lookup_zz,sum_coeff)
 
+		Xwid_fit0 = poly(cal_lookup_zz,aa0[0,*])  ; recalculate Xwid_fit from initial iteration
+		Ywid_fit0 = poly(cal_lookup_zz,aa0[1,*])  ; recalculate Ywid_fit from initial iteration
+
 		cal_min = min(cal_lookup_data, ind0)
 		cal_max = max(cal_lookup_data, ind1)
 		indmin = min([ind0,ind1])+1
@@ -664,15 +732,32 @@ if num_iter gt 1 then begin
 		!p.multi=[1,1,2,0,0]
 		plot, cal_lookup_zz, Xwid_fit, yrange = yrng, ystyle=1, xrange = xrng, xstyle=1, col=250, THICK=3
 		oplot, cal_lookup_zz, Ywid_fit, col=200, THICK=3
+		oplot, cal_lookup_zz, Xwid_fit0, col=250, linestyle = 1, THICK=3  ; plot Xwid_fit from initial iteration
+		oplot, cal_lookup_zz, Ywid_fit0, col=200, linestyle = 1, THICK=3  ; plot Ywid_fit from initial iteration
 		oplot, cal_lookup_zz, sum_fit, col=150, THICK=3
 		for i =0,(n_elements(ellipt_coeff)-1) do xyouts,0.8,0.90-0.02*i,ellipt_coeff[i],/normal
 	endfor
 endif
+
+if SaveCalSet_ASCII then begin
+	fnm = AddExtension(wfilename, '_Cal_Fit.txt')
+	close,8
+	openw,8,fnm,width=1024
+	header = 'Z'+string(9B)+'Xwidth_fit'+string(9B)+'Ywidth_fit'
+	printf,8,header
+	printf,8, [transpose(cal_lookup_zz), transpose(Xwid_fit), transpose(Ywid_fit)],FORMAT='(2(E12.4,"'+string(9B)+'"),E12.4)'
+	close,8
+endif
+
 thisfitcond=thisfitcond0
 
 !P.NOERASE=0
 !p.multi=[0,0,0,0,0]
 !p.background=0
+; checking if the extraction was accurate after all iterations
+; plot, zz, Zext, xrange = [-1000, 1000], yrange = [-1000, 1000], psym = 5, xgridstyle=1, xticklen=1, ygridstyle=1, yticklen=1
+;stop
+
 return
 end
 ;
@@ -821,9 +906,9 @@ end
 ;
 ;-----------------------------------------------------------------
 ;
-pro ExtractSubsetZ_Astig, Event, zdrift, use_multiple_GS	;Pulls out subset of data from param limits and fits z vs frames
+pro ExtractSubsetZ_Astig, Event, zdrift, use_multiple_GS	;Pulls out subset of data from param limits and fits z vs frames (drift estimation)
 common  SharedParams, CGrpSize, CGroupParams, ParamLimits, filter, Image, b_set, xydsz, TotalRawData, DIC, RawFilenames, SavFilenames,  MLRawFilenames, GuideStarDrift, FiducialCoeff, FlipRotate
-common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir; TransformEngine : 0=Local, 1=Cluster
+common InfoFit, pth, filen, ini_filename, thisfitcond, saved_pks_filename, TransformEngine, grouping_gap, grouping_radius100, idl_pwd, temp_dir, n_cluster_nodes_max; TransformEngine : 0=Local, 1=Cluster
 common calib, aa, wind_range, nmperframe, z_cal_min, z_cal_max, z_unwrap_coeff, ellipticity_slopes, d, wfilename, cal_lookup_data, cal_lookup_zz, GS_anc_fname, GS_radius
 common  AnchorParams,  AnchorPnts,  AnchorFile, ZPnts, Fid_Outl_Sz, AutoDisp_Sel_Fids, Disp_Fid_IDs, AnchPnts_MaxNum, AutoDet_Params, AutoMatch_Params, Adj_Scl, transf_scl, Transf_Meth, PW_deg, XYlimits, Use_XYlimits, LeaveOrigTotalRaw
 common hist, xcoord, histhist, xtitle, mult_colors_hist, histhist_multilable, hist_log_x, hist_log_y, hist_nbins, RowNames
@@ -1282,4 +1367,9 @@ if BASE_GuideStar_num ge 0 then begin
 endif
 GS_radius = float(GS_radius_txt[0])
 end
+;
+;-----------------------------------------------------------------
+;
+pro OnButton_Press_SaveCalSet_ASCII, Event
 
+end

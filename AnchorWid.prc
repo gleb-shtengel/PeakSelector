@@ -1,6 +1,6 @@
 HEADER
 ; IDL Visual Widget Builder Resource file. Version 1
-; Generated on:	08/29/2017 12:50.34
+; Generated on:	03/18/2022 16:43.13
 VERSION 1
 END
 
@@ -434,6 +434,17 @@ BEGIN
     VALUE "Align Z (shift only)"
     ALIGNLEFT
     ONACTIVATE "OnPushButton_AlignZ_Shift"
+    END
+  END
+  WID_BASE_UseUnwZ BASE 586 187 0 0
+  COLUMNS = 1
+  NONEXCLUSIVE
+  CAPTION "IDL"
+  BEGIN
+    WID_BUTTON_UseUnwZ PUSHBUTTON -1 -1 0 0
+    VALUE "Use Unw Z"
+    ALIGNLEFT
+    ONACTIVATE "Set_LimitXY"
     END
   END
 END
