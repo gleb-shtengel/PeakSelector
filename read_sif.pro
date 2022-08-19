@@ -464,10 +464,15 @@ for i=0L,(long(TImageParams.no_images)-1L) do time_stamp[i] =	ReadTillNewLine()
 		frame_size=4UL*xpix*ypix
 
 		; this was here before 04.02.2019 - GS (probably for NIH/FEI ?)
-		; start_position=sif_info.size-282-frame_size*ulong(TImageParams.no_images)
-
+		;start_position=sif_info.size-282-frame_size*ulong(TImageParams.no_images)
 		; this was added instead on 04.02.2019 - GS
-		start_position=sif_info.size-1116-frame_size*ulong(TImageParams.no_images)
+		;start_position=sif_info.size-1116-frame_size*ulong(TImageParams.no_images)
+
+		; Now combine the two of the above with selector on head_model - GS 08.2022
+		start_shift= 1116  ;  works for old cameras, head_model='DU897_EXF'
+		if instaparams.head_model eq 'DU897_EXF' then start_shift = 282
+		print, 'Head Model :',instaparams.head_model, '  start_shift=', start_shift
+		start_position=sif_info.size - start_shift - frame_size*ulong(TImageParams.no_images)
 
 		print,TImageParams.no_images, xpix, ypix, start_position
 
